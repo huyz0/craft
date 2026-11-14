@@ -42,6 +42,10 @@ Through the production host with the CraftTest service profile, in the onboardin
 | `confluence.attachment.trash` | a wrong file ID was refused `VERSION_CONFLICT`; the matching revision confirmed and the attachment left the current list |
 | `confluence.page.trash` | confirmed after re-reading the revision; a revision taken before a badge change was refused, because setting a badge publishes a new page version |
 
+| `confluence.space.create` (`CRAFTTEST…` key, default roles) | confirmed through the v2 route, so the test site has role-based access control; repeating the same key was refused `VERSION_CONFLICT` by the exact-key lookup before any send. Cleanup deleted the space (native long task, HTTP 202) |
+
+Space create is also covered by `space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name` (provider) and `space_create_needs_site_authority_an_absent_key_and_explicit_visibility` (host: default roles, private, taken key, missing site policy, lost response). `confluence_admin_policy` covers the site policy and the schema 12 to 13 migration; every existing migration test now also drops the new table.
+
 These ran with CraftTest credential `craft-granular-4` (the earlier ten scopes plus `delete:page`, `read/write/delete:attachment`, `write/delete:comment`, `write:content` and `write:space`, all `:confluence`). `tests/live_cleanup.rs` now also purges `craft-test` pages that the CLI already moved to the trash. After cleanup, no `craft-test` pages remain current or trashed.
 
-Editor-draft interaction with another person's open draft is not live-tested. Space create and attachment upload are not implemented.
+Editor-draft interaction with another person's open draft is not live-tested. Attachment upload, replace, upsert and download are not implemented.

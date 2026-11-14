@@ -78,6 +78,8 @@ def policies(state_root, site, cloud, actor, project, space):
           "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
           "confluence.content-state.set", "confluence.content-state.clear",
           "confluence.attachment.trash"], None),
+        ("cf-test", "confluence-admin", ref("confluence", cloud, "site", cloud),
+         ["confluence.space.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
@@ -466,9 +468,28 @@ def page_lifecycle(state_root, space):
     return report
 
 
+def space_create(state_root):
+    """Creates one CRAFTTEST space through the full host; tests/live_cleanup.rs deletes it."""
+    import time
+    stamp = int(time.time()) % 100000000
+    key = f"CRAFTTEST{stamp}"
+    out = run(state_root, "cf-test", "confluence.space.create", {
+        "operation_id": f"craft-test-{stamp}-space", "apply": True, "key": key,
+        "name": f"craft-test space {stamp}", "visibility": "default_roles"})
+    error = out.get("error") or {}
+    data = out.get("data") or {}
+    report = [f"confluence.space.create {key} => {'PASS' if out.get('ok') else 'FAIL'}"
+              + ("" if out.get("ok") else f" {error.get('code')}: {error.get('message')} http={data.get('http_status')}")]
+    again = run(state_root, "cf-test", "confluence.space.create", {
+        "operation_id": f"craft-test-{stamp}-space-again", "apply": True, "key": key,
+        "name": f"craft-test space {stamp}", "visibility": "default_roles"})
+    report.append(f"confluence.space.create existing key => {(again.get('error') or {}).get('code')}")
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page"])
+    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page", "space"])
     parser.add_argument("--issue-type", help="numeric non-subtask issue type id for writes")
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
@@ -494,6 +515,8 @@ def main():
             report += attachments(args.state_root, args.project, args.issue_type)
         elif args.command == "attachments":
             report = attachments(args.state_root, args.project, args.issue_type)
+        elif args.command == "space":
+            report = space_create(args.state_root)
         else:
             report = page_lifecycle(args.state_root, args.space)
         text = "\n".join(report)

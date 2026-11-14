@@ -69,5 +69,19 @@ fn live_cleanup_craft_test_items() -> Result<(), Box<dyn std::error::Error>> {
         )?;
         eprintln!("trashed page {id} -> {}", purge.status);
     }
+    // Spaces created by `tools/live_host.py space`; deletion runs as a native long task.
+    let spaces = live.get("/wiki/api/v2/spaces?limit=250")?;
+    for space in spaces.body["results"].as_array().into_iter().flatten() {
+        let key = space["key"].as_str().unwrap_or_default();
+        if !key.starts_with("CRAFTTEST") || !key.bytes().all(|b| b.is_ascii_alphanumeric()) {
+            continue;
+        }
+        let out = live.raw(
+            HttpMethod::Delete,
+            &format!("/wiki/rest/api/space/{key}"),
+            Body::None,
+        )?;
+        eprintln!("space {key} -> {}", out.status);
+    }
     Ok(())
 }
