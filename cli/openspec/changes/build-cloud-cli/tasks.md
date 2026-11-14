@@ -534,7 +534,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### operation-preview
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Validate and describe mutations before apply without accidental writes.
 
@@ -548,7 +548,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Preview is clearly not a lock/approval and applying a different payload cannot reuse its bound manifest silently.
 
-**Evidence:** none
+**Evidence:** docs/evidence/foundation-closure.md
 
 ## Lists, projection and pagination
 
@@ -684,7 +684,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-issue-writes
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Create, edit, assign and delete authorized issues with recoverable effects.
 
@@ -738,7 +738,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-transitions
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Use actual workflow transitions instead of arbitrary status edits.
 
@@ -756,7 +756,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-comments
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Manage comments without losing visibility or edit/delete authority.
 
@@ -774,7 +774,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-links
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Represent issue dependencies with explicit direction and remote identities.
 
@@ -792,7 +792,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-attachments
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Upload, inspect, download and remove files using Jira's real API.
 

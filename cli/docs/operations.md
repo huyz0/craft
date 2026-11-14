@@ -47,3 +47,14 @@ craft operation list --limit 20 --after-operation-id bravo
 ```
 
 Each item is the record `operation get` returns. `has_more` and `next_after_operation_id` continue the walk; pass the latter back as `--after-operation-id`. Paging is by primary key, so records that already exist are never skipped or repeated; a record created during the walk appears only if its identity sorts after the current position. `--unresolved-only` keeps records with a started or unknown submission or an unknown job, and `scanned` reports how many records the page examined, including excluded ones. The list rejects `--profile`, reads only the selected state root and, like `get`, carries `live_verified: false` and `replay_authorized: false`. An empty page is not evidence that no remote write happened. Use `operation reconcile` on an unresolved record to investigate it.
+
+## Previewing a write
+
+`craft operation preview` checks a mutating command's input and describes what apply would do, without doing it.
+
+```text
+craft operation preview --command jira.issue.delete --file delete.json
+craft --profile jira-test operation preview --command jira.issue.delete --file delete.json --check-remote
+```
+
+The result has the input and descriptor digests, the effect and whether it is destructive, retry and reconciliation classes, the operation ID and the `expected*` preconditions you supplied. Without `--check-remote` it opens no state and makes no request. With `--check-remote` it also runs the read that shows the current target (for example `jira.issue.get` for an issue delete) under the selected profile and that read's policy, and returns the read's envelope as `remote`. Creates have no existing target and refuse `--check-remote`. `write_sent`, `lock_held` and `approval_granted` are always false: someone else can change the target after the preview, and apply compares your preconditions against a fresh read again.

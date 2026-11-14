@@ -132,6 +132,9 @@ pub fn command_id(action: &Action) -> &'static str {
             action: crate::args::OperationAction::List(_),
         } => "operation.list",
         Action::Operation {
+            action: crate::args::OperationAction::Preview(_),
+        } => "operation.preview",
+        Action::Operation {
             action: crate::args::OperationAction::Reconcile(_),
         } => "operation.reconcile",
         Action::Plan { action } => match action {
@@ -218,7 +221,7 @@ pub(crate) fn read_source(file: &str, control: &InvocationControl) -> Result<Vec
     Ok(bytes)
 }
 
-fn read_input(file: &str, control: &InvocationControl) -> Result<Value, CraftError> {
+pub(crate) fn read_input(file: &str, control: &InvocationControl) -> Result<Value, CraftError> {
     parse_object(&read_source(file, control)?)
 }
 
@@ -512,6 +515,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::args::OperationAction::List(_) => {
                     crate::args::OperationAction::List(decode(input)?)
                 }
+                crate::args::OperationAction::Preview(_) => {
+                    crate::args::OperationAction::Preview(decode(input)?)
+                }
                 crate::args::OperationAction::Reconcile(_) => {
                     crate::args::OperationAction::Reconcile(Box::new(decode(input)?))
                 }
@@ -707,6 +713,9 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         } => value(arguments),
         Action::Operation {
             action: crate::args::OperationAction::List(arguments),
+        } => value(arguments),
+        Action::Operation {
+            action: crate::args::OperationAction::Preview(arguments),
         } => value(arguments),
         Action::Operation {
             action: crate::args::OperationAction::Reconcile(arguments),
@@ -1593,6 +1602,23 @@ fn execute_with_candidates(
         } => {
             registry.validate(command, &value(&arguments)?)?;
             crate::provision::execute(arguments, fields, stdin_consumed, options, control)
+        }
+        Action::Operation {
+            action: crate::args::OperationAction::Preview(arguments),
+        } => {
+            registry.validate(command, &value(&arguments)?)?;
+            let result = if fields.is_empty() {
+                crate::operation_preview::execute(registry, arguments, control, options)
+            } else {
+                Err(CraftError::field(
+                    "/fields",
+                    "preview_returns_complete_data",
+                ))
+            };
+            match result {
+                Ok(data) => Envelope::success(command, options.request_id.into(), data),
+                Err(error) => Envelope::failure(command, options.request_id.into(), error),
+            }
         }
         action => match execute_data(registry, action, fields, control, options) {
             Ok(output) => {

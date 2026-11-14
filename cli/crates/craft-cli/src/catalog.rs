@@ -362,6 +362,13 @@ pub fn local_registry() -> Result<Registry, CraftError> {
         json!({"operation_id":"publish-summary"}),
         json!({"operation_id":"publish-summary","found":false,"binding":null,"revision":null,"steps":[],"reconciliation_required":null,"evidence_scope":"local_installation","live_verified":false,"replay_authorized":false}),
     )?;
+    register::<crate::args::OperationPreviewArgs, crate::operation_preview::PreviewData>(
+        &mut registry,
+        "operation.preview",
+        "Validate a mutating command's input and describe its effect, digests and stated preconditions; --check-remote also runs the read that observes its existing target. Sends no write, holds no lock and grants no approval.",
+        json!({"command":"jira.issue.delete","file":"delete.json"}),
+        json!({"command":"jira.issue.delete","valid":true,"input_digest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","descriptor_digest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","effect":"permanent","destructive":true,"retry_class":"reconcile_before_replay","reconciliation":"known_resource","operation_id":"delete-ed-1","preconditions":{},"apply_required":true,"remote":null,"write_sent":false,"lock_held":false,"approval_granted":false}),
+    )?;
     register::<crate::args::OperationListArgs, crate::operations::OperationListData>(
         &mut registry,
         "operation.list",

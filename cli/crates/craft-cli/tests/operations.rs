@@ -610,3 +610,126 @@ fn operation_list_pages_by_identity_and_filters_unresolved_records_without_repla
     assert_eq!(refused["ok"], false);
     Ok(())
 }
+
+const DELETE_INPUT: &[u8] = br#"{"apply":true,"expected":{"id":"10000","issue_type_id":"101","key":"EX-1","project_id":"100","status_id":"102","updated":"2026-11-10T01:00:00.000+0000"},"issue":"10000","operation_id":"issue-change","subtasks":{"mode":"refuse"}}"#;
+
+#[test]
+fn local_preview_describes_effect_and_preconditions_without_state_or_write()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = Fixture::new()?;
+    let preview = success(&fixture.invoke(
+        &[
+            "operation",
+            "preview",
+            "--command",
+            "jira.issue.delete",
+            "--file",
+            "-",
+        ],
+        Some(DELETE_INPUT),
+    )?)?;
+    let data = &preview["data"];
+    assert_eq!(data["command"], "jira.issue.delete");
+    assert_eq!(data["valid"], true);
+    assert_eq!(data["effect"], "permanent");
+    assert_eq!(data["destructive"], true);
+    assert_eq!(data["apply_required"], true);
+    assert_eq!(data["operation_id"], "issue-change");
+    assert_eq!(data["preconditions"]["expected"]["key"], "EX-1");
+    assert!(data["remote"].is_null());
+    for flag in ["write_sent", "lock_held", "approval_granted"] {
+        assert_eq!(data[flag], false, "{flag}");
+    }
+    let schema = success(&fixture.invoke(
+        &[
+            "schema",
+            "--command",
+            "operation.preview",
+            "--response",
+            "--view",
+            "full",
+            "--max-bytes",
+            "65536",
+        ],
+        None,
+    )?)?;
+    assert!(jsonschema::validator_for(&schema["data"]["schema"])?.is_valid(&preview));
+    // Local preview never creates or opens private state.
+    assert!(!fixture.root.exists());
+    // A different payload is a different request digest; the same payload is stable.
+    let changed = String::from_utf8(DELETE_INPUT.to_vec())?.replace("EX-1", "EX-2");
+    let other = success(&fixture.invoke(
+        &[
+            "operation",
+            "preview",
+            "--command",
+            "jira.issue.delete",
+            "--file",
+            "-",
+        ],
+        Some(changed.as_bytes()),
+    )?)?;
+    assert_ne!(other["data"]["input_digest"], data["input_digest"]);
+    let again = success(&fixture.invoke(
+        &[
+            "operation",
+            "preview",
+            "--command",
+            "jira.issue.delete",
+            "--file",
+            "-",
+        ],
+        Some(DELETE_INPUT),
+    )?)?;
+    assert_eq!(again["data"]["input_digest"], data["input_digest"]);
+    Ok(())
+}
+
+#[test]
+fn preview_refuses_reads_bad_input_unobservable_targets_and_implicit_profiles()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = Fixture::new()?;
+    let cases: [(&[&str], &[u8], &str); 4] = [
+        (&["operation", "preview", "--command", "jira.issue.get", "--file", "-"], br#"{"issue":"1"}"#, "UNSUPPORTED_CAPABILITY"),
+        (&["operation", "preview", "--command", "jira.issue.delete", "--file", "-"], br#"{"issue":"1","unknown":true}"#, "INPUT_INVALID"),
+        (&["operation", "preview", "--command", "jira.comment.create", "--check-remote", "--file", "-"], br#"{"apply":true,"body":{"content":[{"content":[{"text":"Review complete.","type":"text"}],"type":"paragraph"}],"type":"doc","version":1},"issue_id":"10000","operation_id":"review-comment","project_id":"10000","visibility":{"mode":"project"}}"#, "UNSUPPORTED_CAPABILITY"),
+        (&["--profile", "team", "operation", "preview", "--command", "jira.issue.delete", "--file", "-"], DELETE_INPUT, "INPUT_INVALID"),
+    ];
+    for (arguments, input, code) in cases {
+        let output = envelope(&fixture.invoke(arguments, Some(input))?)?;
+        assert_eq!(output["ok"], false, "{arguments:?}");
+        assert_eq!(output["error"]["code"], code, "{arguments:?} {output}");
+    }
+    assert!(!fixture.root.exists());
+    Ok(())
+}
+
+#[test]
+fn remote_preview_runs_only_the_mapped_read_and_records_no_operation()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = Fixture::new()?;
+    fixture.seed(1, SubmissionState::Confirmed, None)?;
+    let preview = success(&fixture.invoke(
+        &[
+            "--profile",
+            "team",
+            "operation",
+            "preview",
+            "--command",
+            "jira.issue.delete",
+            "--check-remote",
+            "--file",
+            "-",
+        ],
+        Some(DELETE_INPUT),
+    )?)?;
+    let remote = &preview["data"]["remote"];
+    assert_eq!(remote["command"], "jira.issue.get");
+    // No read policy or credential exists here, so the read itself is refused; the preview
+    // still reports that refusal as data and sends nothing.
+    assert_eq!(remote["ok"], false);
+    assert!(remote["result"]["code"].is_string());
+    assert_eq!(preview["data"]["write_sent"], false);
+    assert!(fixture.journal()?.get("issue-change")?.is_none());
+    Ok(())
+}

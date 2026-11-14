@@ -54632,6 +54632,500 @@
       ],
       "selectable_fields": {}
     },
+    "operation.preview": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Validate a mutating command's input and describe its effect, digests and stated preconditions; --check-remote also runs the read that observes its existing target. Sends no write, holds no lock and grants no approval.",
+        "effect": "read",
+        "example": {
+          "command": "jira.issue.delete",
+          "file": "delete.json"
+        },
+        "id": "operation.preview",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "check_remote": {
+              "default": false,
+              "type": "boolean"
+            },
+            "command": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "command",
+            "file"
+          ],
+          "title": "OperationPreviewArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "operation.preview",
+          "data": {
+            "apply_required": true,
+            "approval_granted": false,
+            "command": "jira.issue.delete",
+            "descriptor_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "destructive": true,
+            "effect": "permanent",
+            "input_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "lock_held": false,
+            "operation_id": "delete-ed-1",
+            "preconditions": {},
+            "reconciliation": "known_resource",
+            "remote": null,
+            "retry_class": "reconcile_before_replay",
+            "valid": true,
+            "write_sent": false
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "EffectClass": {
+              "enum": [
+                "read",
+                "write",
+                "trash",
+                "permanent",
+                "access_change"
+              ],
+              "type": "string"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "ReconciliationClass": {
+              "enum": [
+                "not_applicable",
+                "known_resource",
+                "correlation"
+              ],
+              "type": "string"
+            },
+            "RemoteObservation": {
+              "additionalProperties": false,
+              "properties": {
+                "command": {
+                  "description": "The read command run instead of the write; never a mutating command.",
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "result": {
+                  "description": "The read's own data or error, unchanged. Comparing it with the preconditions is the\ncaller's decision; apply compares them again against a fresh read."
+                }
+              },
+              "required": [
+                "command",
+                "ok",
+                "result"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "RetryClass": {
+              "enum": [
+                "local_read",
+                "safe_read",
+                "never",
+                "reconcile_before_replay"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "apply_required": {
+                  "description": "Apply needs `apply: true` (or `--apply`) on the original command.",
+                  "type": "boolean"
+                },
+                "approval_granted": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "destructive": {
+                  "description": "True for trash and permanent deletion.",
+                  "type": "boolean"
+                },
+                "effect": {
+                  "$ref": "#/$defs/EffectClass"
+                },
+                "input_digest": {
+                  "description": "Canonical digest of the complete input, including `apply`, so a changed payload is\nvisibly a different request.",
+                  "type": "string"
+                },
+                "lock_held": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "operation_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "preconditions": {
+                  "additionalProperties": true,
+                  "description": "The supplied precondition fields, by name; empty when the command takes none.",
+                  "type": "object"
+                },
+                "reconciliation": {
+                  "$ref": "#/$defs/ReconciliationClass"
+                },
+                "remote": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteObservation"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retry_class": {
+                  "$ref": "#/$defs/RetryClass"
+                },
+                "valid": {
+                  "type": "boolean"
+                },
+                "write_sent": {
+                  "const": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "command",
+                "valid",
+                "input_digest",
+                "descriptor_digest",
+                "effect",
+                "destructive",
+                "retry_class",
+                "reconciliation",
+                "preconditions",
+                "apply_required",
+                "write_sent",
+                "lock_held",
+                "approval_granted"
+              ],
+              "title": "PreviewData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "check_remote": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "check-remote",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "command": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "command",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "operation",
+        "preview"
+      ],
+      "selectable_fields": {}
+    },
     "operation.reconcile": {
       "controls": {
         "fields": "supported",

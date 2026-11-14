@@ -24,6 +24,11 @@ The CLI SHALL reject duplicate/unknown JSON keys, wrong types, conflicting flag/
 - **WHEN** a command's argument object came from stdin and also selects stdin for secret credentials
 - **THEN** the invocation retains that input-source fact and refuses a second read before credential access or acquisition.
 
+#### Scenario: Previewing a mutation
+- **WHEN** an agent runs `operation preview` for a mutating command and its exact input
+- **THEN** the input is validated with the command's own rules, and the result reports the canonical input digest, descriptor digest, effect, destructiveness, retry and reconciliation classes, operation identity and the supplied precondition fields, with no private state opened, no journal record and no network request.
+- **AND** with `--check-remote` and an explicit profile, only the declared read that observes the write's existing target runs, under that read's own policy; creates and local-only writes refuse remote preview, and every result states that no write was sent, no lock is held and no approval was granted. Apply rechecks its preconditions against a fresh read and never consumes a preview.
+
 ### Requirement: Discoverable contracts
 A single operation model SHALL describe request/response schemas, selectable fields, effects, permissions and availability. Compact views SHALL identify omitted detail and full views SHALL be complete.
 

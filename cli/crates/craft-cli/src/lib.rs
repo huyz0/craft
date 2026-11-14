@@ -19,6 +19,7 @@ pub mod issue_links;
 pub mod issue_mutation;
 pub mod issue_reads;
 pub mod issue_recovery;
+pub mod operation_preview;
 pub mod operations;
 pub mod output;
 pub mod permission_reads;

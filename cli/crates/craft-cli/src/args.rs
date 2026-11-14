@@ -43,6 +43,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "auth.provision"
                 | "operation.get"
                 | "operation.list"
+                | "operation.preview"
                 | "operation.reconcile"
                 | "jira.issue.create"
                 | "jira.link.create"
@@ -181,6 +182,7 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "jira.issue.delete"
             | "jira.transition.apply"
             | "operation.reconcile"
+            | "operation.preview"
     )
 }
 
@@ -636,6 +638,7 @@ pub enum AuthAction {
 pub enum OperationAction {
     Get(OperationGetArgs),
     List(OperationListArgs),
+    Preview(OperationPreviewArgs),
     Reconcile(Box<crate::issue_recovery::command::OperationReconcileArgs>),
 }
 
@@ -649,6 +652,31 @@ pub struct OperationGetArgs {
     )]
     #[schemars(length(min = 1, max = 512))]
     pub operation_id: String,
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OperationPreviewArgs {
+    #[arg(
+        long,
+        default_value = "",
+        help = "Mutating command to describe; required in flags or --input"
+    )]
+    #[schemars(length(min = 1, max = 128))]
+    pub command: String,
+    #[arg(
+        long,
+        default_value = "",
+        help = "That command's input JSON file, or - for stdin; required in flags or --input"
+    )]
+    #[schemars(length(min = 1, max = 2048))]
+    pub file: String,
+    #[arg(
+        long,
+        help = "Also run the read that observes the existing target, under the selected profile"
+    )]
+    #[serde(default)]
+    pub check_remote: bool,
 }
 
 fn default_operation_limit() -> u8 {
