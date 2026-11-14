@@ -93,12 +93,22 @@ pub struct PageRevision {
     pub representation: PageRepresentation,
 }
 
+/// Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the
+/// published content into any open editor draft and may overwrite divergent unpublished edits.
+/// It is bound into the operation digest but never sent as a native field, and grants no permission.
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EditorDraftPolicy {
+    NativeReconciliationMayOverwrite,
+}
+
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PageUpdateInput {
     pub id: String,
     pub space_id: String,
     pub expected: PageRevision,
+    pub editor_draft_policy: EditorDraftPolicy,
     #[serde(default, skip_serializing_if = "InputField::is_omitted")]
     pub title: InputField<String>,
     #[serde(default, skip_serializing_if = "InputField::is_omitted")]
@@ -137,6 +147,32 @@ impl PageUpdateInput {
     }
 }
 
+/// Moves one current page to the space trash after the published revision is rechecked. Trash is
+/// recoverable by space administrators; this operation never purges and never touches drafts.
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PageTrashInput {
+    pub id: String,
+    pub space_id: String,
+    pub expected: PageRevision,
+}
+impl PageTrashInput {
+    pub(super) fn validate(&self) -> Result<(), CraftError> {
+        if !numeric(&self.id) || !numeric(&self.space_id) {
+            return Err(invalid(
+                "/input",
+                "expected_canonical_numeric_page_and_space",
+            ));
+        }
+        if !(1..=i32::MAX as u32).contains(&self.expected.version)
+            || !valid_digest(&self.expected.digest)
+        {
+            return Err(invalid("/expected", "expected_int32_version_and_digest"));
+        }
+        Ok(())
+    }
+}
+
 pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftError> {
     crate::registration::validate_target(&request.target)?;
     if request.preconditions.is_some()
@@ -152,6 +188,13 @@ pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftEr
     match request.command.as_str() {
         PAGE_CREATE => parse::<PageCreateInput>(&request.input)?.validate(),
         PAGE_UPDATE => parse::<PageUpdateInput>(&request.input)?.validate(),
+        PAGE_TRASH => parse::<PageTrashInput>(&request.input)?.validate(),
+        COMMENT_CREATE => parse::<CommentCreateInput>(&request.input)?.validate(),
+        COMMENT_UPDATE => parse::<CommentUpdateInput>(&request.input)?.validate(),
+        COMMENT_DELETE => parse::<CommentDeleteInput>(&request.input)?.validate(),
+        CONTENT_STATE_SET => parse::<ContentStateSetInput>(&request.input)?.validate(),
+        CONTENT_STATE_CLEAR => parse::<ContentStateClearInput>(&request.input)?.validate(),
+        ATTACHMENT_TRASH => parse::<AttachmentTrashInput>(&request.input)?.validate(),
         _ => Err(invalid("/command", "unknown_confluence_page_write")),
     }
 }

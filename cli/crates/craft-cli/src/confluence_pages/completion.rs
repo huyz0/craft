@@ -32,6 +32,10 @@ pub struct PublicationData {
     pub reconciliation_required: bool,
     #[schemars(extend("const" = false))]
     pub replay_authorized: bool,
+    /// Present for updates: the native publish may overwrite divergent unpublished editor drafts.
+    pub editor_draft_policy: Option<pages::EditorDraftPolicy>,
+    #[schemars(extend("const" = false))]
+    pub editor_draft_preservation_verified: bool,
     pub credential_cache_update: Option<CredentialCacheUpdate>,
 }
 pub fn schema() -> Result<Value, CraftError> {
@@ -43,6 +47,7 @@ pub(super) struct Completion {
     route: String,
     space_id: String,
     request_id: String,
+    draft_policy: Option<pages::EditorDraftPolicy>,
     cache: Option<CredentialCacheUpdate>,
 }
 fn request_state(state: SubmissionState) -> RequestState {
@@ -74,12 +79,12 @@ impl Completion {
             ));
         }
         let command = operation.request().command.clone();
-        let route = if command == PAGE_CREATE {
-            pages::CREATE_ROUTE
-        } else {
-            pages::UPDATE_ROUTE
-        }
-        .to_string();
+        let route = pages::PageWriteKind::from_command(&command)
+            .ok_or_else(denied)?
+            .route()
+            .to_string();
+        let draft_policy = (command == PAGE_UPDATE)
+            .then_some(pages::EditorDraftPolicy::NativeReconciliationMayOverwrite);
         let resource = ResourceRef {
             resource_type: "page".into(),
             id: i64::MAX.to_string(),
@@ -115,6 +120,8 @@ impl Completion {
             retry_after: Some(RetryAfter::AtUnixMillis(u64::MAX)),
             reconciliation_required: true,
             replay_authorized: false,
+            editor_draft_policy: draft_policy,
+            editor_draft_preservation_verified: false,
             credential_cache_update: Some(CredentialCacheUpdate {
                 grant: GrantRef {
                     id: "g".repeat(512),
@@ -149,6 +156,7 @@ impl Completion {
             route,
             space_id: space_id.into(),
             request_id: request_id.into(),
+            draft_policy,
             cache: None,
         })
     }
@@ -196,6 +204,8 @@ impl Completion {
             retry_after: None,
             reconciliation_required: state == RequestState::SentUnknown,
             replay_authorized: false,
+            editor_draft_policy: self.draft_policy,
+            editor_draft_preservation_verified: false,
             credential_cache_update: self.cache.clone(),
         }
     }

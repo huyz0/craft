@@ -56,7 +56,14 @@ impl Clock for PolicyClock {
                         },
                         expected_actor: "actor-one".into(),
                         enabled: self.keep_enabled,
-                        operations: vec![Op::Create, Op::Update],
+                        operations: vec![
+                            Op::Create,
+                            Op::Update,
+                            Op::Trash,
+                            Op::CommentCreate,
+                            Op::CommentUpdate,
+                            Op::CommentDelete,
+                        ],
                         expected_revision: Some(1),
                     },
                     true,
@@ -377,7 +384,9 @@ fn current_page() -> Value {
 }
 fn update_input() -> Result<Value, CraftError> {
     let observed = pages::observe_page(&native(current_page()), PageRepresentation::Storage)?;
-    Ok(json!({"id":"101","space_id":"100","expected":observed.revision()?,"title":"Plan draft"}))
+    Ok(
+        json!({"id":"101","space_id":"100","expected":observed.revision()?,"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Plan draft"}),
+    )
 }
 fn native(body: Value) -> craft_core::execution::NativeResponse {
     craft_core::execution::NativeResponse {
@@ -410,8 +419,7 @@ fn prepared_write(
             grant: grant.clone(),
             expected_actor: "actor-one".into(),
             enabled: true,
-            allow_create: true,
-            allow_update: true,
+            allowed: pages::PageWriteKind::ALL.to_vec(),
         },
     )
 }
@@ -748,7 +756,17 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
             expected_actor: "actor-one".into(),
             enabled,
             expected_revision: revision,
-            operations: vec![Op::Create, Op::Update],
+            operations: vec![
+                Op::Create,
+                Op::Update,
+                Op::Trash,
+                Op::CommentCreate,
+                Op::CommentUpdate,
+                Op::CommentDelete,
+                Op::ContentStateSet,
+                Op::ContentStateClear,
+                Op::AttachmentTrash,
+            ],
         },
         true,
         &control()?,
@@ -785,4 +803,427 @@ fn candidate(
         &setup.store,
         &control()?,
     )
+}
+
+#[test]
+fn page_trash_rechecks_revision_sends_one_delete_and_refuses_stale_or_unscoped() -> TestResult {
+    for mode in ["trash", "stale", "unscoped", "lost"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(
+            if mode == "unscoped" {
+                WRITE_SCOPES.to_string()
+            } else {
+                format!("{WRITE_SCOPES} delete:page:confluence")
+            }
+            .as_str(),
+        )?;
+        let observed = pages::observe_page(&native(current_page()), PageRepresentation::Storage)?;
+        let input = json!({"id":"101","space_id":"100","expected":observed.revision()?});
+        let mut current = current_page();
+        if mode == "stale" {
+            current["version"]["number"] = json!(4);
+        }
+        let mut replies = vec![identity(), identity()];
+        if mode != "unscoped" {
+            replies.push(reply(current)?);
+        }
+        match mode {
+            "trash" => replies.push(Reply::json(204, b"", &[])),
+            "lost" => replies.push(Reply::Disconnect),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, pages::PAGE_TRASH, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        assert_eq!(data["replay_authorized"], false, "{mode}");
+        assert!(data["editor_draft_policy"].is_null(), "{mode}");
+        match mode {
+            "trash" => {
+                assert!(result.envelope.ok, "{:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "101");
+                assert_eq!(
+                    data["receipt"]["confirmed_resources"][0]["resource_type"],
+                    "page"
+                );
+            }
+            "stale" => {
+                assert_eq!(
+                    result.envelope.error.ok_or("err")?.code,
+                    ErrorCode::VersionConflict
+                );
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+            }
+            "unscoped" => {
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+                assert!(!result.envelope.ok);
+            }
+            _ => {
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(data["reconciliation_required"], true);
+            }
+        }
+        let requests = product.finish()?;
+        let deletes: Vec<_> = requests.iter().filter(|r| r.method == "DELETE").collect();
+        assert_eq!(
+            deletes.len(),
+            usize::from(matches!(mode, "trash" | "lost")),
+            "{mode}"
+        );
+        if let Some(sent) = deletes.first() {
+            assert!(
+                sent.target.ends_with("/wiki/api/v2/pages/101"),
+                "{}",
+                sent.target
+            );
+            assert!(!sent.target.contains("purge"));
+            assert!(sent.body.is_empty());
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+fn native_comment(version: u64) -> Value {
+    json!({"id":"201","pageId":"101","status":"current","version":{"number":version,"authorId":"reviewer-one","createdAt":"2026-11-10T00:00:00.000Z"},"body":{"storage":{"representation":"storage","value":"<p>Looks good</p>"}}})
+}
+
+#[test]
+fn footer_comment_writes_read_page_and_comment_evidence_then_send_once() -> TestResult {
+    let body = json!({"representation":"storage","value":"<p>Agreed</p>"});
+    let revision = json!(craft_provider_confluence::comments::observe_revision(
+        &native_comment(2),
+        "201",
+        "101",
+        "storage"
+    )?);
+    for mode in ["create", "reply", "update", "delete", "stale", "unscoped"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let scopes = if mode == "unscoped" {
+            format!("{WRITE_SCOPES} read:comment:confluence")
+        } else {
+            format!(
+                "{WRITE_SCOPES} read:comment:confluence write:comment:confluence delete:comment:confluence"
+            )
+        };
+        let issuer = issuer(&scopes)?;
+        let (command, input) = match mode {
+            "create" | "unscoped" => (
+                pages::COMMENT_CREATE,
+                json!({"space_id":"100","page_id":"101","body":body}),
+            ),
+            "reply" => (
+                pages::COMMENT_CREATE,
+                json!({"space_id":"100","page_id":"101","parent_comment_id":"201","body":body}),
+            ),
+            "update" | "stale" => (
+                pages::COMMENT_UPDATE,
+                json!({"space_id":"100","page_id":"101","id":"201","expected":revision,"body":body}),
+            ),
+            _ => (
+                pages::COMMENT_DELETE,
+                json!({"space_id":"100","page_id":"101","id":"201","expected":revision}),
+            ),
+        };
+        let mut replies = vec![identity(), identity()];
+        if mode != "unscoped" {
+            replies.push(reply(current_page())?);
+        }
+        match mode {
+            "create" => replies.push(Reply::json(
+                201,
+                &serde_json::to_vec(
+                    &json!({"id":"301","pageId":"101","status":"current","version":{"number":1}}),
+                )?,
+                &[],
+            )),
+            "reply" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(Reply::json(
+                    201,
+                    &serde_json::to_vec(&json!({"id":"302","pageId":"101","parentCommentId":"201","status":"current","version":{"number":1}}))?,
+                    &[],
+                ));
+            }
+            "update" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(reply(
+                    json!({"id":"201","pageId":"101","status":"current","version":{"number":3}}),
+                )?);
+            }
+            "delete" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(Reply::json(204, b"", &[]));
+            }
+            "stale" => replies.push(reply(native_comment(3))?),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, command, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        assert!(
+            jsonschema::validator_for(&craft_cli::confluence_pages::schema()?)?
+                .is_valid(&serde_json::to_value(&result.envelope)?),
+            "{mode}"
+        );
+        let requests = product.finish()?;
+        let writes: Vec<_> = requests.iter().filter(|r| r.method != "GET").collect();
+        match mode {
+            "stale" | "unscoped" => {
+                assert!(!result.envelope.ok, "{mode}");
+                assert_eq!(data["receipt"]["request_state"], "not_sent", "{mode}");
+                assert!(writes.is_empty(), "{mode}");
+                if mode == "stale" {
+                    assert_eq!(
+                        result.envelope.error.ok_or("err")?.code,
+                        ErrorCode::VersionConflict
+                    );
+                }
+            }
+            _ => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                let resource = &data["receipt"]["confirmed_resources"][0];
+                assert_eq!(resource["resource_type"], "comment");
+                assert_eq!(writes.len(), 1, "{mode}");
+                let sent = writes[0];
+                let body_sent: Value = if sent.body.is_empty() {
+                    Value::Null
+                } else {
+                    serde_json::from_slice(&sent.body)?
+                };
+                match mode {
+                    "create" => {
+                        assert_eq!(sent.method, "POST");
+                        assert_eq!(body_sent["pageId"], "101");
+                        assert!(body_sent.get("parentCommentId").is_none());
+                        assert_eq!(resource["id"], "301");
+                    }
+                    "reply" => {
+                        assert_eq!(body_sent["parentCommentId"], "201");
+                        assert!(body_sent.get("pageId").is_none());
+                    }
+                    "update" => {
+                        assert_eq!(sent.method, "PUT");
+                        assert!(sent.target.ends_with("/footer-comments/201"));
+                        assert_eq!(body_sent["version"]["number"], 3);
+                        assert_eq!(data["version"], 3);
+                    }
+                    _ => {
+                        assert_eq!(sent.method, "DELETE");
+                        assert!(sent.target.ends_with("/footer-comments/201"));
+                    }
+                }
+            }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn content_state_writes_require_an_offered_state_and_pin_current_status() -> TestResult {
+    let badge = json!({"id":1,"name":"In progress","color":"#2684ff"});
+    let mine = json!({"id":77,"name":"Mine","color":"#ff7452"});
+    let available = json!({"spaceContentStates":[badge],"customContentStates":[mine]});
+    for mode in ["set", "custom", "not_offered", "clear", "set_mismatch"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(&format!(
+            "{WRITE_SCOPES} write:content:confluence read:content-details:confluence"
+        ))?;
+        let state_id = match mode {
+            "custom" => 77,
+            "not_offered" => 2,
+            _ => 1,
+        };
+        let (command, input) = if mode == "clear" {
+            (
+                pages::CONTENT_STATE_CLEAR,
+                json!({"space_id":"100","page_id":"101"}),
+            )
+        } else {
+            (
+                pages::CONTENT_STATE_SET,
+                json!({"space_id":"100","page_id":"101","state_id":state_id}),
+            )
+        };
+        let mut replies = vec![identity(), identity(), reply(current_page())?];
+        if mode != "clear" {
+            replies.push(reply(available.clone())?);
+        }
+        match mode {
+            "set" => replies.push(reply(json!({"contentState":badge}))?),
+            "custom" => replies.push(reply(json!({"contentState":mine}))?),
+            "set_mismatch" => replies.push(reply(
+                json!({"contentState":{"id":0,"name":"Rough draft","color":"#ffc400"}}),
+            )?),
+            "clear" => replies.push(reply(json!({"contentState":null}))?),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, command, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let writes: Vec<_> = requests.iter().filter(|r| r.method != "GET").collect();
+        match mode {
+            "not_offered" => {
+                assert!(!result.envelope.ok);
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+                assert!(writes.is_empty());
+            }
+            "set_mismatch" => {
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(data["reconciliation_required"], true);
+            }
+            _ => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "101");
+                let sent = writes[0];
+                assert!(sent.target.contains("/wiki/rest/api/content/101/state"));
+                assert!(sent.target.contains("status=current"));
+                if mode == "clear" {
+                    assert_eq!(sent.method, "DELETE");
+                } else {
+                    assert_eq!(sent.method, "PUT");
+                    let body: Value = serde_json::from_slice(&sent.body)?;
+                    assert_eq!(body, json!({"id": state_id}));
+                }
+            }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+fn native_attachment_for_trash(version: u64, file: &str) -> Value {
+    json!({"id":"att301","pageId":"101","status":"current","title":"design.png","mediaType":"image/png","fileSize":2048,"fileId":file,"version":{"number":version}})
+}
+
+#[test]
+fn attachment_trash_rechecks_version_and_file_then_deletes_without_purge() -> TestResult {
+    for mode in ["trash", "replaced", "newer"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(&format!(
+            "{WRITE_SCOPES} read:attachment:confluence delete:attachment:confluence"
+        ))?;
+        let observed = match mode {
+            "replaced" => native_attachment_for_trash(2, "file-2"),
+            "newer" => native_attachment_for_trash(3, "file-1"),
+            _ => native_attachment_for_trash(2, "file-1"),
+        };
+        let mut replies = vec![
+            identity(),
+            identity(),
+            reply(current_page())?,
+            reply(observed)?,
+        ];
+        if mode == "trash" {
+            replies.push(Reply::json(204, b"", &[]));
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(
+            &setup,
+            pages::ATTACHMENT_TRASH,
+            json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":2,"file_id":"file-1"}}),
+        )?
+        .execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let deletes: Vec<_> = requests.iter().filter(|r| r.method == "DELETE").collect();
+        if mode == "trash" {
+            assert!(result.envelope.ok, "{:?}", result.envelope.error);
+            assert_eq!(
+                data["receipt"]["confirmed_resources"][0]["resource_type"],
+                "attachment"
+            );
+            assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "att301");
+            assert_eq!(deletes.len(), 1);
+            assert!(
+                deletes[0]
+                    .target
+                    .ends_with("/wiki/api/v2/attachments/att301")
+            );
+        } else {
+            assert_eq!(
+                result.envelope.error.ok_or("err")?.code,
+                ErrorCode::VersionConflict
+            );
+            assert!(deletes.is_empty());
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
 }

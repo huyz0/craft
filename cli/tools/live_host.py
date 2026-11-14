@@ -73,11 +73,17 @@ def policies(state_root, site, cloud, actor, project, space):
             "jira.issue.delete", "jira.link.create", "jira.link.delete", "jira.comment.create",
             "jira.comment.update-own", "jira.comment.delete-own", "jira.attachment.upload",
             "jira.attachment.delete-own"], None),
-        ("cf-test", "confluence-write", ref("confluence", cloud, "space", space), ["confluence.page.create"], None),
+        ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
+         ["confluence.page.create", "confluence.page.update", "confluence.page.trash",
+          "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
+          "confluence.content-state.set", "confluence.content-state.clear",
+          "confluence.attachment.trash"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
-            "confluence.comment.replies"], None),
+            "confluence.comment.replies", "confluence.content-state.get",
+            "confluence.content-state.available", "confluence.attachment.get",
+            "confluence.attachment.list"], None),
     ]
     results = []
     for profile, kind, target, operations, continuation in plans:
@@ -359,17 +365,103 @@ def lifecycle(state_root, project, issue_type, actor):
     return report
 
 
-def page_create(state_root, space):
-    """Creates one craft-test Confluence page through the full host; tests/live_cleanup.rs removes it."""
+def page_lifecycle(state_root, space):
+    """Creates one craft-test page through the full host, updates it with the explicit editor-draft
+    policy, and checks a stale revision is refused. tests/live_cleanup.rs removes the page."""
     import time
     stamp = int(time.time() * 1000)
-    out = run(state_root, "cf-test", "confluence.page.create", {
+    report = []
+
+    def step(name, out, expect_ok=True, expect_code=None):
+        error = out.get("error") or {}
+        passed = out.get("ok") if expect_ok else (not out.get("ok") and error.get("code") == expect_code)
+        detail = "" if passed else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}"
+        report.append(f"{name} => {'PASS' if passed else 'FAIL'}{detail}")
+        return out
+
+    created = step("confluence.page.create", run(state_root, "cf-test", "confluence.page.create", {
         "operation_id": f"craft-test-{stamp}-page", "apply": True, "space_id": space,
         "title": f"craft-test host page {stamp}", "placement": {"kind": "root"},
-        "body": {"representation": "storage", "value": "<p>craft-test page created through the CLI host.</p>"}})
-    error = out.get("error") or {}
-    return [f"confluence.page.create => {'PASS' if out.get('ok') else 'FAIL'}"
-            + ("" if out.get("ok") else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}")]
+        "body": {"representation": "storage", "value": "<p>craft-test page created through the CLI host.</p>"}}))
+    resources = ((created.get("data") or {}).get("receipt") or {}).get("confirmed_resources") or []
+    page = next((r.get("id") for r in resources if r.get("resource_type") == "page"), None)
+    if not page:
+        return report
+
+    def revision():
+        out = step("confluence.page.get", craft(state_root, [
+            "--profile", "cf-test", "confluence", "page", "get", "--fields", "id,version,revision"], {"id": page}))
+        return ((out.get("data") or {}).get("item") or {}).get("revision")
+
+    first = revision()
+    policy = "native_reconciliation_may_overwrite"
+    updated = step("confluence.page.update", run(state_root, "cf-test", "confluence.page.update", {
+        "operation_id": f"craft-test-{stamp}-update", "apply": True, "space_id": space, "id": page,
+        "expected": first, "editor_draft_policy": policy,
+        "changes": {"title": f"craft-test host page {stamp} edited",
+                    "body": {"representation": "storage", "value": "<p>craft-test page updated.</p>"}}}))
+    data = updated.get("data") or {}
+    report.append(f"update receipt version={data.get('version')} policy={data.get('editor_draft_policy')} "
+                  f"preservation_verified={data.get('editor_draft_preservation_verified')}")
+    second = revision()
+    report.append(f"revision {first and first.get('version')} -> {second and second.get('version')}")
+    step("confluence.page.update stale revision", run(state_root, "cf-test", "confluence.page.update", {
+        "operation_id": f"craft-test-{stamp}-stale", "apply": True, "space_id": space, "id": page,
+        "expected": first, "editor_draft_policy": policy,
+        "changes": {"title": f"craft-test host page {stamp} stale"}}), expect_ok=False, expect_code="VERSION_CONFLICT")
+    if "--comments" in sys.argv:
+        body = {"representation": "storage", "value": "<p>craft-test comment</p>"}
+        made = step("confluence.comment.create", run(state_root, "cf-test", "confluence.comment.create", {
+            "operation_id": f"craft-test-{stamp}-comment", "apply": True, "space_id": space, "page_id": page,
+            "body": body}))
+        found = ((made.get("data") or {}).get("receipt") or {}).get("confirmed_resources") or []
+        comment = next((r.get("id") for r in found if r.get("resource_type") == "comment"), None)
+        if comment:
+            step("confluence.comment.create reply", run(state_root, "cf-test", "confluence.comment.create", {
+                "operation_id": f"craft-test-{stamp}-reply", "apply": True, "space_id": space, "page_id": page,
+                "parent_comment_id": comment, "body": body}))
+
+            def comment_revision():
+                out = step("confluence.comment.get", craft(state_root, [
+                    "--profile", "cf-test", "confluence", "comment", "get", "--fields", "id,version,revision"],
+                    {"id": comment, "page_id": page}))
+                return ((out.get("data") or {}).get("item") or {}).get("revision")
+
+            original = comment_revision()
+            step("confluence.comment.update", run(state_root, "cf-test", "confluence.comment.update", {
+                "operation_id": f"craft-test-{stamp}-comment-edit", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": original,
+                "body": {"representation": "storage", "value": "<p>craft-test comment edited</p>"}}))
+            step("confluence.comment.delete stale revision", run(state_root, "cf-test", "confluence.comment.delete", {
+                "operation_id": f"craft-test-{stamp}-comment-stale", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": original}), expect_ok=False, expect_code="VERSION_CONFLICT")
+            step("confluence.comment.delete", run(state_root, "cf-test", "confluence.comment.delete", {
+                "operation_id": f"craft-test-{stamp}-comment-delete", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": comment_revision()}))
+    step("confluence.content-state.get", run(state_root, "cf-test", "confluence.content-state.get", {"page_id": page}))
+    if "--badges" in sys.argv:
+        offered = step("confluence.content-state.available", run(
+            state_root, "cf-test", "confluence.content-state.available", {"page_id": page}))
+        states = ((offered.get("data") or {}).get("item") or {}).get("space_states") or []
+        if states:
+            step("confluence.content-state.set", run(state_root, "cf-test", "confluence.content-state.set", {
+                "operation_id": f"craft-test-{stamp}-badge", "apply": True, "space_id": space,
+                "page_id": page, "state_id": states[0]["id"]}))
+            step("confluence.content-state.get after set", run(
+                state_root, "cf-test", "confluence.content-state.get", {"page_id": page}))
+            step("confluence.content-state.clear", run(state_root, "cf-test", "confluence.content-state.clear", {
+                "operation_id": f"craft-test-{stamp}-badge-clear", "apply": True, "space_id": space,
+                "page_id": page}))
+        else:
+            report.append("confluence.content-state.set => SKIP space offers no states")
+    if "--attachments" in sys.argv:
+        step("confluence.attachment.list", run(state_root, "cf-test", "confluence.attachment.list",
+                                               {"page_id": page, "page_size": 25}))
+    if "--trash" in sys.argv:
+        step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
+            "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
+            "expected": second}))
+    return report
 
 
 def main():
@@ -379,6 +471,10 @@ def main():
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
     parser.add_argument("--space", help="numeric Confluence space id")
+    parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
+    parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
+    parser.add_argument("--badges", action="store_true", help="also set and clear a content-state badge")
+    parser.add_argument("--attachments", action="store_true", help="also list the page's attachments")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:
@@ -397,7 +493,7 @@ def main():
         elif args.command == "attachments":
             report = attachments(args.state_root, args.project, args.issue_type)
         else:
-            report = page_create(args.state_root, args.space)
+            report = page_lifecycle(args.state_root, args.space)
         text = "\n".join(report)
         print(text)
         CAPTURES.mkdir(parents=True, exist_ok=True)

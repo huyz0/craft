@@ -29,8 +29,7 @@ fn policy() -> PageWritePolicy {
         },
         expected_actor: "service-actor".into(),
         enabled: true,
-        allow_create: true,
-        allow_update: false,
+        allowed: vec![PageWriteKind::Create],
     }
 }
 fn prepared() -> Result<PreparedPagePublication, CraftError> {
@@ -56,7 +55,7 @@ fn page_publication_validates_apply_target_intent_and_receipt_capacity_without_i
             "target" => p.target.id = "11111111-1111-2222-3333-444444444444".into(),
             "actor" => p.expected_actor = "anonymous".into(),
             "disabled" => p.enabled = false,
-            "operation" => p.allow_create = false,
+            "operation" => p.allowed.clear(),
             "budget" => r.selection.max_bytes = 512,
             "malformed" => r.input["status"] = json!("draft"),
             _ => {}

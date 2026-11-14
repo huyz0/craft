@@ -75,6 +75,17 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "design.page-get"
                 | "confluence.page.create"
                 | "confluence.page.update"
+                | "confluence.page.trash"
+                | "confluence.comment.create"
+                | "confluence.comment.update"
+                | "confluence.comment.delete"
+                | "confluence.content-state.get"
+                | "confluence.content-state.available"
+                | "confluence.content-state.set"
+                | "confluence.content-state.clear"
+                | "confluence.attachment.get"
+                | "confluence.attachment.list"
+                | "confluence.attachment.trash"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -142,6 +153,17 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.page.search"
             | "confluence.page.create"
             | "confluence.page.update"
+            | "confluence.page.trash"
+            | "confluence.comment.create"
+            | "confluence.comment.update"
+            | "confluence.comment.delete"
+            | "confluence.content-state.get"
+            | "confluence.content-state.available"
+            | "confluence.content-state.set"
+            | "confluence.content-state.clear"
+            | "confluence.attachment.get"
+            | "confluence.attachment.list"
+            | "confluence.attachment.trash"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -365,12 +387,24 @@ pub enum ConfluenceAction {
         #[command(subcommand)]
         action: ConfluencePageAction,
     },
+    #[command(name = "content-state")]
+    ContentState {
+        #[command(subcommand)]
+        action: ConfluenceContentStateAction,
+    },
+    Attachment {
+        #[command(subcommand)]
+        action: ConfluenceAttachmentAction,
+    },
 }
 #[derive(Subcommand)]
 pub enum ConfluenceCommentAction {
     List(Box<crate::confluence_reads::command::ConfluenceCommentListArgs>),
     Replies(Box<crate::confluence_reads::command::ConfluenceCommentRepliesArgs>),
     Get(Box<crate::confluence_reads::command::ConfluenceCommentGetArgs>),
+    Create(Box<crate::confluence_pages::command::CommentCreateArgs>),
+    Update(Box<crate::confluence_pages::command::CommentUpdateArgs>),
+    Delete(Box<crate::confluence_pages::command::CommentDeleteArgs>),
 }
 
 #[derive(Subcommand)]
@@ -379,10 +413,23 @@ pub enum ConfluenceSpaceAction {
     List(Box<crate::confluence_reads::command::ConfluenceSpaceListArgs>),
 }
 #[derive(Subcommand)]
+pub enum ConfluenceAttachmentAction {
+    Get(Box<crate::confluence_reads::command::ConfluenceAttachmentGetArgs>),
+    List(Box<crate::confluence_reads::command::ConfluenceAttachmentListArgs>),
+    Trash(Box<crate::confluence_pages::command::AttachmentTrashArgs>),
+}
+#[derive(Subcommand)]
+pub enum ConfluenceContentStateAction {
+    Get(Box<crate::confluence_reads::command::ConfluenceContentStateArgs>),
+    Available(Box<crate::confluence_reads::command::ConfluenceContentStateArgs>),
+    Set(Box<crate::confluence_pages::command::ContentStateSetArgs>),
+    Clear(Box<crate::confluence_pages::command::ContentStateClearArgs>),
+}
+#[derive(Subcommand)]
 pub enum ConfluencePageAction {
     Create(Box<crate::confluence_pages::command::PageCreateArgs>),
-    #[command(skip)]
     Update(Box<crate::confluence_pages::command::PageUpdateArgs>),
+    Trash(Box<crate::confluence_pages::command::PageTrashArgs>),
     Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
     List(Box<crate::confluence_reads::command::ConfluencePageListArgs>),
     Search(Box<crate::confluence_reads::command::ConfluenceSearchArgs>),

@@ -1,15 +1,33 @@
 //! Pure page publication preparation. The caller must supply verified fresh evidence and a journaled host.
+mod attachment_writes;
+mod comment_writes;
+mod content_state_writes;
 mod input;
 mod registration;
 mod result;
 use crate::models::{numeric, text};
+pub use attachment_writes::{
+    ATTACHMENT_TRASH, ATTACHMENT_TRASH_ROUTE, AttachmentRevision, AttachmentTrashInput,
+    prepare_attachment_trash,
+};
+pub use comment_writes::{
+    COMMENT_CREATE, COMMENT_CREATE_ROUTE, COMMENT_DELETE, COMMENT_DELETE_ROUTE, COMMENT_UPDATE,
+    COMMENT_UPDATE_ROUTE, CommentCreateInput, CommentDeleteInput, CommentUpdateInput,
+    prepare_comment_create, prepare_comment_delete, prepare_comment_update,
+};
+pub use content_state_writes::{
+    CONTENT_STATE_CLEAR, CONTENT_STATE_CLEAR_ROUTE, CONTENT_STATE_SET, CONTENT_STATE_SET_ROUTE,
+    ContentStateClearInput, ContentStateSetInput, prepare_content_state_clear,
+    prepare_content_state_set,
+};
 use craft_core::contracts::{CanonicalRequest, EffectClass, ResourceRef};
 use craft_core::error::{CraftError, ErrorCode};
 use craft_core::execution::{NativeCall, NativeResponse, PreparedOperation};
 use craft_core::input::canonical_digest;
 use craft_core::presence::InputField;
 pub use input::{
-    PageBody, PageCreateInput, PagePlacement, PageRepresentation, PageRevision, PageUpdateInput,
+    EditorDraftPolicy, PageBody, PageCreateInput, PagePlacement, PageRepresentation, PageRevision,
+    PageTrashInput, PageUpdateInput,
 };
 pub use registration::ConfluencePages;
 pub use result::PageWriteObservation;
@@ -18,8 +36,81 @@ use std::collections::BTreeMap;
 
 pub const PAGE_CREATE: &str = "confluence.page.create";
 pub const PAGE_UPDATE: &str = "confluence.page.update";
+pub const PAGE_TRASH: &str = "confluence.page.trash";
 pub const CREATE_ROUTE: &str = "confluence-page-create";
 pub const UPDATE_ROUTE: &str = "confluence-page-update";
+pub const TRASH_ROUTE: &str = "confluence-page-trash";
+
+/// The compiled native effect on a page or one of its footer comments; interpretation depends on
+/// it rather than on optional identity.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PageWriteKind {
+    Create,
+    Update,
+    Trash,
+    CommentCreate,
+    CommentUpdate,
+    CommentDelete,
+    ContentStateSet,
+    ContentStateClear,
+    AttachmentTrash,
+}
+impl PageWriteKind {
+    pub fn command(self) -> &'static str {
+        match self {
+            Self::Create => PAGE_CREATE,
+            Self::Update => PAGE_UPDATE,
+            Self::Trash => PAGE_TRASH,
+            Self::CommentCreate => COMMENT_CREATE,
+            Self::CommentUpdate => COMMENT_UPDATE,
+            Self::CommentDelete => COMMENT_DELETE,
+            Self::ContentStateSet => CONTENT_STATE_SET,
+            Self::ContentStateClear => CONTENT_STATE_CLEAR,
+            Self::AttachmentTrash => ATTACHMENT_TRASH,
+        }
+    }
+    pub fn route(self) -> &'static str {
+        match self {
+            Self::Create => CREATE_ROUTE,
+            Self::Update => UPDATE_ROUTE,
+            Self::Trash => TRASH_ROUTE,
+            Self::CommentCreate => COMMENT_CREATE_ROUTE,
+            Self::CommentUpdate => COMMENT_UPDATE_ROUTE,
+            Self::CommentDelete => COMMENT_DELETE_ROUTE,
+            Self::ContentStateSet => CONTENT_STATE_SET_ROUTE,
+            Self::ContentStateClear => CONTENT_STATE_CLEAR_ROUTE,
+            Self::AttachmentTrash => ATTACHMENT_TRASH_ROUTE,
+        }
+    }
+    pub const ALL: [Self; 9] = [
+        Self::Create,
+        Self::Update,
+        Self::Trash,
+        Self::CommentCreate,
+        Self::CommentUpdate,
+        Self::CommentDelete,
+        Self::ContentStateSet,
+        Self::ContentStateClear,
+        Self::AttachmentTrash,
+    ];
+    pub fn effect(self) -> EffectClass {
+        match self {
+            Self::Trash | Self::AttachmentTrash => EffectClass::Trash,
+            Self::CommentDelete => EffectClass::Permanent,
+            _ => EffectClass::Write,
+        }
+    }
+    pub fn resource_type(self) -> &'static str {
+        match self {
+            Self::CommentCreate | Self::CommentUpdate | Self::CommentDelete => "comment",
+            Self::AttachmentTrash => "attachment",
+            _ => "page",
+        }
+    }
+    pub fn from_command(command: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| kind.command() == command)
+    }
+}
 
 fn invalid(path: &str, rule: &str) -> CraftError {
     CraftError::field(path, rule)
@@ -111,9 +202,12 @@ pub fn observe_page(
 /// A bound native payload, with no transport/replay authority. Keep the service grant lock and
 /// original evidence freshness checks through the host's final claimed-send callback.
 pub struct PreparedPageWrite {
+    kind: PageWriteKind,
     operation_digest: String,
     site: ResourceRef,
     space_id: String,
+    page_id: Option<String>,
+    parent_id: Option<String>,
     id: Option<String>,
     title: String,
     version: u32,
@@ -129,10 +223,16 @@ impl PreparedPageWrite {
     pub fn space_id(&self) -> &str {
         &self.space_id
     }
+    pub fn kind(&self) -> PageWriteKind {
+        self.kind
+    }
 }
 fn validate_operation(operation: &PreparedOperation, command: &str) -> Result<(), CraftError> {
     input::validate_request(operation.request())?;
-    if operation.request().command != command || !matches!(operation.effect(), EffectClass::Write) {
+    let effect = PageWriteKind::from_command(command)
+        .map(PageWriteKind::effect)
+        .ok_or_else(|| CraftError::field("/command", "unknown_confluence_page_write"))?;
+    if operation.request().command != command || operation.effect() != effect {
         return Err(CraftError::new(
             ErrorCode::PolicyDenied,
             "The prepared operation is not the requested page write.",
@@ -182,11 +282,14 @@ pub fn prepare_create(
         repeated_query: BTreeMap::new(),
         body: Some(body),
     };
-    registration::route(false).validate_call(&call)?;
+    registration::route(PageWriteKind::Create).validate_call(&call)?;
     Ok(PreparedPageWrite {
+        kind: PageWriteKind::Create,
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
         id: None,
         title: input.title,
         version: 1,
@@ -232,14 +335,55 @@ pub fn prepare_update(
             json!({"id":input.id,"status":"current","title":title,"body":body,"version":{"number":version}}),
         ),
     };
-    registration::route(true).validate_call(&call)?;
+    registration::route(PageWriteKind::Update).validate_call(&call)?;
     Ok(PreparedPageWrite {
+        kind: PageWriteKind::Update,
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
         id: Some(input.id),
         title,
         version,
+        call,
+    })
+}
+
+/// Rechecks the reviewed published revision, then compiles one DELETE without `purge` or draft
+/// selectors, which moves the current page to the space trash.
+pub fn prepare_trash(
+    operation: &PreparedOperation,
+    page: &NativeResponse,
+) -> Result<PreparedPageWrite, CraftError> {
+    validate_operation(operation, PAGE_TRASH)?;
+    let input: PageTrashInput = input::parse(&operation.request().input)?;
+    let observed = observe_page(page, input.expected.representation)?;
+    if observed.id != input.id
+        || observed.space_id != input.space_id
+        || observed.version != input.expected.version
+        || observed.revision()?.digest != input.expected.digest
+    {
+        return Err(conflict());
+    }
+    let call = NativeCall {
+        route: TRASH_ROUTE.into(),
+        path_parameters: BTreeMap::from([("id".into(), input.id.clone())]),
+        query: BTreeMap::new(),
+        repeated_query: BTreeMap::new(),
+        body: None,
+    };
+    registration::route(PageWriteKind::Trash).validate_call(&call)?;
+    Ok(PreparedPageWrite {
+        kind: PageWriteKind::Trash,
+        operation_digest: operation.digest().into(),
+        site: operation.request().target.clone(),
+        space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
+        id: Some(input.id),
+        title: observed.title,
+        version: observed.version,
         call,
     })
 }

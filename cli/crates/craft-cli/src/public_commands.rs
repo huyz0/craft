@@ -82,6 +82,39 @@ impl ProviderModule for CloudCommands {
                 "confluence.page.create" => {
                     register!(crate::confluence_pages::command::PageCreateArgs)
                 }
+                "confluence.page.update" => {
+                    register!(crate::confluence_pages::command::PageUpdateArgs)
+                }
+                "confluence.page.trash" => {
+                    register!(crate::confluence_pages::command::PageTrashArgs)
+                }
+                "confluence.comment.create" => {
+                    register!(crate::confluence_pages::command::CommentCreateArgs)
+                }
+                "confluence.comment.update" => {
+                    register!(crate::confluence_pages::command::CommentUpdateArgs)
+                }
+                "confluence.comment.delete" => {
+                    register!(crate::confluence_pages::command::CommentDeleteArgs)
+                }
+                "confluence.content-state.get" | "confluence.content-state.available" => {
+                    register!(crate::confluence_reads::command::ConfluenceContentStateArgs)
+                }
+                "confluence.content-state.set" => {
+                    register!(crate::confluence_pages::command::ContentStateSetArgs)
+                }
+                "confluence.content-state.clear" => {
+                    register!(crate::confluence_pages::command::ContentStateClearArgs)
+                }
+                "confluence.attachment.get" => {
+                    register!(crate::confluence_reads::command::ConfluenceAttachmentGetArgs)
+                }
+                "confluence.attachment.list" => {
+                    register!(crate::confluence_reads::command::ConfluenceAttachmentListArgs)
+                }
+                "confluence.attachment.trash" => {
+                    register!(crate::confluence_pages::command::AttachmentTrashArgs)
+                }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {

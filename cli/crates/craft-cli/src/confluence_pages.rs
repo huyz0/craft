@@ -16,9 +16,15 @@ use craft_core::registry::{ProviderModule, Registry};
 use craft_core::storage::{
     Clock, JournalRecord, OperationBinding, OperationJournal, SubmissionState,
 };
+use craft_provider_confluence::attachments::ATTACHMENT_GET;
+use craft_provider_confluence::comments::COMMENT_GET;
+use craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE;
 use craft_provider_confluence::pages::{
-    self, ConfluencePages, PAGE_CREATE, PAGE_UPDATE, PageCreateInput, PagePlacement,
-    PageUpdateInput, PreparedPageWrite,
+    self, ATTACHMENT_TRASH, AttachmentTrashInput, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE,
+    CONTENT_STATE_CLEAR, CONTENT_STATE_SET, CommentCreateInput, CommentDeleteInput,
+    CommentUpdateInput, ConfluencePages, ContentStateClearInput, ContentStateSetInput, PAGE_CREATE,
+    PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput,
+    PageWriteKind, PreparedPageWrite,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -29,23 +35,78 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// Trusted caller authority. Read permissions do not grant either write operation.
+/// Trusted caller authority. Read permissions grant no write operation; each write is listed.
 pub struct PageWritePolicy {
     pub target: ResourceRef,
     pub space_id: String,
     pub grant: GrantRef,
     pub expected_actor: String,
     pub enabled: bool,
-    pub allow_create: bool,
-    pub allow_update: bool,
+    pub allowed: Vec<PageWriteKind>,
 }
 enum Intent {
     Create(PageCreateInput),
     Update(PageUpdateInput),
+    Trash(PageTrashInput),
+    CommentCreate(CommentCreateInput),
+    CommentUpdate(CommentUpdateInput),
+    CommentDelete(CommentDeleteInput),
+    ContentStateSet(ContentStateSetInput),
+    ContentStateClear(ContentStateClearInput),
+    AttachmentTrash(AttachmentTrashInput),
+}
+impl Intent {
+    fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
+        Ok(match kind {
+            PageWriteKind::Create => Self::Create(decode(input)?),
+            PageWriteKind::Update => Self::Update(decode(input)?),
+            PageWriteKind::Trash => Self::Trash(decode(input)?),
+            PageWriteKind::CommentCreate => Self::CommentCreate(decode(input)?),
+            PageWriteKind::CommentUpdate => Self::CommentUpdate(decode(input)?),
+            PageWriteKind::CommentDelete => Self::CommentDelete(decode(input)?),
+            PageWriteKind::ContentStateSet => Self::ContentStateSet(decode(input)?),
+            PageWriteKind::ContentStateClear => Self::ContentStateClear(decode(input)?),
+            PageWriteKind::AttachmentTrash => Self::AttachmentTrash(decode(input)?),
+        })
+    }
+    fn kind(&self) -> PageWriteKind {
+        match self {
+            Self::Create(_) => PageWriteKind::Create,
+            Self::Update(_) => PageWriteKind::Update,
+            Self::Trash(_) => PageWriteKind::Trash,
+            Self::CommentCreate(_) => PageWriteKind::CommentCreate,
+            Self::CommentUpdate(_) => PageWriteKind::CommentUpdate,
+            Self::CommentDelete(_) => PageWriteKind::CommentDelete,
+            Self::ContentStateSet(_) => PageWriteKind::ContentStateSet,
+            Self::ContentStateClear(_) => PageWriteKind::ContentStateClear,
+            Self::AttachmentTrash(_) => PageWriteKind::AttachmentTrash,
+        }
+    }
+    fn space_id(&self) -> &str {
+        match self {
+            Self::Create(i) => &i.space_id,
+            Self::Update(i) => &i.space_id,
+            Self::Trash(i) => &i.space_id,
+            Self::CommentCreate(i) => &i.space_id,
+            Self::CommentUpdate(i) => &i.space_id,
+            Self::CommentDelete(i) => &i.space_id,
+            Self::ContentStateSet(i) => &i.space_id,
+            Self::ContentStateClear(i) => &i.space_id,
+            Self::AttachmentTrash(i) => &i.space_id,
+        }
+    }
+}
+fn native_representation(value: pages::PageRepresentation) -> &'static str {
+    match value {
+        pages::PageRepresentation::Storage => "storage",
+        pages::PageRepresentation::AtlasDocFormat => "atlas_doc_format",
+    }
 }
 struct ReadSpec<'a> {
     command: &'a str,
     id: &'a str,
+    /// The hosting page, required for footer-comment reads.
+    page_id: Option<&'a str>,
     representation: Option<&'a str>,
 }
 pub struct PreparedPagePublication {
@@ -121,31 +182,22 @@ impl PreparedPagePublication {
         craft_core::input::parse_object(&encoded)?;
         let registry = registry()?;
         let operation = registry.prepare(request)?;
-        let intent = match operation.request().command.as_str() {
-            PAGE_CREATE => Intent::Create(decode(&operation.request().input)?),
-            PAGE_UPDATE => Intent::Update(decode(&operation.request().input)?),
-            _ => {
-                return Err(CraftError::field(
-                    "/command",
-                    "expected_page_create_or_update",
-                ));
-            }
-        };
+        let kind = PageWriteKind::from_command(&operation.request().command)
+            .ok_or_else(|| CraftError::field("/command", "expected_page_or_comment_write"))?;
+        let intent = Intent::decode(kind, &operation.request().input)?;
         if !apply {
             return Err(CraftError::new(
                 ErrorCode::ApplyRequired,
                 "Page publication requires explicit apply.",
             ));
         }
-        let (space_id, allowed) = match &intent {
-            Intent::Create(i) => (&i.space_id, policy.allow_create),
-            Intent::Update(i) => (&i.space_id, policy.allow_update),
-        };
+        let space_id = intent.space_id();
+        let allowed = policy.allowed.contains(&kind);
         validate_identity("/expected_actor", &policy.expected_actor)?;
         if !policy.enabled
             || !allowed
             || policy.target != operation.request().target
-            || &policy.space_id != space_id
+            || policy.space_id != space_id
             || matches!(policy.expected_actor.as_str(), "unknown" | "anonymous")
         {
             return Err(denied());
@@ -165,12 +217,17 @@ impl PreparedPagePublication {
         &self,
         command: &str,
         id: &str,
+        page_id: Option<&str>,
         representation: Option<&str>,
     ) -> Result<PreparedOperation, CraftError> {
         self.registry.prepare(CanonicalRequest {
             command: command.into(),
             target: self.binding.target.clone(),
-            input: json!({"id":id}),
+            input: match page_id {
+                Some(page_id) => json!({"id":id,"page_id":page_id}),
+                None if command == CONTENT_STATE_AVAILABLE => json!({"page_id":id}),
+                None => json!({"id":id}),
+            },
             selection: Selection {
                 fields: representation
                     .map(|r| vec![format!("body_{r}")])
@@ -193,19 +250,73 @@ impl PreparedPagePublication {
             Intent::Create(input) => {
                 access.check_operation(
                     &self.registry,
-                    &self.read_operation(SPACE_GET, &input.space_id, None)?,
+                    &self.read_operation(SPACE_GET, &input.space_id, None, None)?,
                 )?;
                 if !matches!(input.placement, PagePlacement::Root) {
                     access.check_operation(
                         &self.registry,
-                        &self.read_operation(PAGE_GET, "1", None)?,
+                        &self.read_operation(PAGE_GET, "1", None, None)?,
                     )?;
                 }
             }
-            Intent::Update(input) => access.check_operation(
+            Intent::Update(PageUpdateInput { id, .. })
+            | Intent::Trash(PageTrashInput { id, .. }) => access.check_operation(
                 &self.registry,
-                &self.read_operation(PAGE_GET, &input.id, None)?,
+                &self.read_operation(PAGE_GET, id, None, None)?,
             )?,
+            Intent::CommentCreate(CommentCreateInput {
+                page_id,
+                parent_comment_id,
+                ..
+            }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                if let Some(parent) = parent_comment_id {
+                    access.check_operation(
+                        &self.registry,
+                        &self.read_operation(COMMENT_GET, parent, Some(page_id), None)?,
+                    )?;
+                }
+            }
+            Intent::ContentStateSet(ContentStateSetInput { page_id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(CONTENT_STATE_AVAILABLE, page_id, None, None)?,
+                )?;
+            }
+            Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+            }
+            Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(ATTACHMENT_GET, id, Some(page_id), None)?,
+                )?;
+            }
+            Intent::CommentUpdate(CommentUpdateInput { page_id, id, .. })
+            | Intent::CommentDelete(CommentDeleteInput { page_id, id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(COMMENT_GET, id, Some(page_id), None)?,
+                )?;
+            }
         }
         Ok(())
     }
@@ -218,11 +329,7 @@ impl PreparedPagePublication {
         })
     }
     fn check_prior(&self, prior: Option<&JournalRecord>) -> Result<(), CraftError> {
-        let route = if matches!(self.intent, Intent::Create(_)) {
-            pages::CREATE_ROUTE
-        } else {
-            pages::UPDATE_ROUTE
-        };
+        let route = self.intent.kind().route();
         if prior.is_some_and(|p| {
             p.binding != self.binding
                 || p.steps
@@ -247,11 +354,12 @@ impl PreparedPagePublication {
         let ReadSpec {
             command,
             id,
+            page_id,
             representation,
         } = spec;
         check_policy()?;
         self.check_access(access)?;
-        let operation = self.read_operation(command, id, representation)?;
+        let operation = self.read_operation(command, id, page_id, representation)?;
         let mut context =
             access.read_context(&self.registry, &operation, tls.clone(), control.clone())?;
         let mut query = BTreeMap::new();
@@ -261,18 +369,26 @@ impl PreparedPagePublication {
                 ("get-draft".into(), "false".into()),
                 ("include-version".into(), "true".into()),
             ]);
-            if let Some(r) = representation {
-                query.insert("body-format".into(), r.into());
-            }
         }
+        if command == COMMENT_GET || command == ATTACHMENT_GET {
+            query.insert("include-version".into(), "true".into());
+        }
+        if let Some(r) = representation {
+            query.insert("body-format".into(), r.into());
+        }
+        let (route, parameter) = match command {
+            PAGE_GET => ("confluence-page-get", "id"),
+            COMMENT_GET => ("confluence-footer-comment-get", "comment-id"),
+            ATTACHMENT_GET => (craft_provider_confluence::attachments::GET_ROUTE, "id"),
+            CONTENT_STATE_AVAILABLE => (
+                craft_provider_confluence::content_state::AVAILABLE_ROUTE,
+                "id",
+            ),
+            _ => ("confluence-space-get", "id"),
+        };
         let response = context.invoke(&NativeCall {
-            route: if command == PAGE_GET {
-                "confluence-page-get"
-            } else {
-                "confluence-space-get"
-            }
-            .into(),
-            path_parameters: BTreeMap::from([("id".into(), id.into())]),
+            route: route.into(),
+            path_parameters: BTreeMap::from([(parameter.into(), id.into())]),
             query,
             repeated_query: BTreeMap::new(),
             body: None,
@@ -309,6 +425,7 @@ impl PreparedPagePublication {
                     ReadSpec {
                         command: SPACE_GET,
                         id: &input.space_id,
+                        page_id: None,
                         representation: None,
                     },
                     check_policy,
@@ -338,6 +455,7 @@ impl PreparedPagePublication {
                             ReadSpec {
                                 command: PAGE_GET,
                                 id,
+                                page_id: None,
                                 representation: None,
                             },
                             check_policy,
@@ -346,25 +464,141 @@ impl PreparedPagePublication {
                     .transpose()?;
                 pages::prepare_create(&self.operation, &space, parent.as_ref())
             }
-            Intent::Update(input) => {
-                let r = match input.expected.representation {
-                    pages::PageRepresentation::Storage => "storage",
-                    pages::PageRepresentation::AtlasDocFormat => "atlas_doc_format",
-                };
+            Intent::Update(PageUpdateInput { id, expected, .. })
+            | Intent::Trash(PageTrashInput { id, expected, .. }) => {
+                let r = native_representation(expected.representation);
                 let page = self.read(
                     access,
                     tls,
                     control,
                     ReadSpec {
                         command: PAGE_GET,
-                        id: &input.id,
+                        id,
+                        page_id: None,
                         representation: Some(r),
                     },
                     check_policy,
                 )?;
-                pages::prepare_update(&self.operation, &page)
+                if matches!(self.intent, Intent::Trash(_)) {
+                    pages::prepare_trash(&self.operation, &page)
+                } else {
+                    pages::prepare_update(&self.operation, &page)
+                }
+            }
+            Intent::CommentCreate(CommentCreateInput {
+                page_id,
+                parent_comment_id,
+                ..
+            }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let parent = parent_comment_id
+                    .as_deref()
+                    .map(|id| {
+                        self.read(
+                            access,
+                            tls,
+                            control,
+                            ReadSpec {
+                                command: COMMENT_GET,
+                                id,
+                                page_id: Some(page_id),
+                                representation: Some("storage"),
+                            },
+                            check_policy,
+                        )
+                    })
+                    .transpose()?;
+                pages::prepare_comment_create(&self.operation, &page, parent.as_ref())
+            }
+            Intent::CommentUpdate(CommentUpdateInput {
+                page_id,
+                id,
+                expected,
+                ..
+            })
+            | Intent::CommentDelete(CommentDeleteInput {
+                page_id,
+                id,
+                expected,
+                ..
+            }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let comment = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: COMMENT_GET,
+                        id,
+                        page_id: Some(page_id),
+                        representation: Some(&expected.representation),
+                    },
+                    check_policy,
+                )?;
+                if matches!(self.intent, Intent::CommentDelete(_)) {
+                    pages::prepare_comment_delete(&self.operation, &page, &comment)
+                } else {
+                    pages::prepare_comment_update(&self.operation, &page, &comment)
+                }
+            }
+            Intent::ContentStateSet(ContentStateSetInput { page_id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let available = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: CONTENT_STATE_AVAILABLE,
+                        id: page_id,
+                        page_id: None,
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_content_state_set(&self.operation, &page, &available)
+            }
+            Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                pages::prepare_content_state_clear(&self.operation, &page)
+            }
+            Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let attachment = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: ATTACHMENT_GET,
+                        id,
+                        page_id: Some(page_id),
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_attachment_trash(&self.operation, &page, &attachment)
             }
         }
+    }
+    fn page_evidence(
+        &self,
+        access: &VerifiedServiceAccess,
+        tls: &TlsPolicy,
+        control: &InvocationControl,
+        page_id: &str,
+        check_policy: &impl Fn() -> Result<(), CraftError>,
+    ) -> Result<NativeResponse, CraftError> {
+        self.read(
+            access,
+            tls,
+            control,
+            ReadSpec {
+                command: PAGE_GET,
+                id: page_id,
+                page_id: None,
+                representation: None,
+            },
+            check_policy,
+        )
     }
     /// Borrowing the locked grant keeps credentials serialized through auth, evidence and send.
     pub fn execute_cached_with_policy_check(

@@ -15,12 +15,33 @@ pub enum ConfluenceWriteOperation {
     Create,
     #[serde(rename = "confluence.page.update")]
     Update,
+    #[serde(rename = "confluence.page.trash")]
+    Trash,
+    #[serde(rename = "confluence.comment.create")]
+    CommentCreate,
+    #[serde(rename = "confluence.comment.update")]
+    CommentUpdate,
+    #[serde(rename = "confluence.comment.delete")]
+    CommentDelete,
+    #[serde(rename = "confluence.content-state.set")]
+    ContentStateSet,
+    #[serde(rename = "confluence.content-state.clear")]
+    ContentStateClear,
+    #[serde(rename = "confluence.attachment.trash")]
+    AttachmentTrash,
 }
 impl ConfluenceWriteOperation {
     pub fn command(self) -> &'static str {
         match self {
             Self::Create => "confluence.page.create",
             Self::Update => "confluence.page.update",
+            Self::Trash => "confluence.page.trash",
+            Self::CommentCreate => "confluence.comment.create",
+            Self::CommentUpdate => "confluence.comment.update",
+            Self::CommentDelete => "confluence.comment.delete",
+            Self::ContentStateSet => "confluence.content-state.set",
+            Self::ContentStateClear => "confluence.content-state.clear",
+            Self::AttachmentTrash => "confluence.attachment.trash",
         }
     }
 }
@@ -70,7 +91,7 @@ fn validate(
         ));
     }
     if operations.is_empty()
-        || operations.len() > 2
+        || operations.len() > 16
         || operations.windows(2).any(|pair| pair[0] >= pair[1])
     {
         return Err(CraftError::field(

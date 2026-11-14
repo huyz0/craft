@@ -31,6 +31,10 @@ fn placement(text: &str) -> Result<PagePlacement, String> {
 fn revision(text: &str) -> Result<pages::PageRevision, String> {
     parse(text)
 }
+fn draft_policy(text: &str) -> Result<pages::EditorDraftPolicy, String> {
+    serde_json::from_value(Value::String(text.into()))
+        .map_err(|_| "expected_native_reconciliation_may_overwrite".into())
+}
 fn changes(text: &str) -> Result<PageChanges, String> {
     parse(text)
 }
@@ -81,10 +85,178 @@ pub struct PageUpdateArgs {
     #[arg(long, value_parser = changes, default_value = "{}")]
     #[serde(default)]
     pub changes: PageChanges,
+    /// Required acknowledgment that publication may overwrite divergent unpublished editor drafts.
+    #[arg(long, value_parser = draft_policy)]
+    #[schemars(required)]
+    pub editor_draft_policy: Option<pages::EditorDraftPolicy>,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PageTrashArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    #[arg(long, value_parser = revision, default_value = "{\"version\":0,\"digest\":\"\",\"representation\":\"storage\"}")]
+    pub expected: pages::PageRevision,
+}
+fn comment_revision(
+    text: &str,
+) -> Result<craft_provider_confluence::comments::CommentRevision, String> {
+    parse(text)
+}
+const NO_COMMENT_REVISION: &str = "{\"version\":0,\"digest\":\"\",\"representation\":\"storage\"}";
+const EMPTY_BODY: &str = "{\"representation\":\"storage\",\"value\":\"\"}";
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommentCreateArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    /// Reply to this current footer comment on the same page.
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_comment_id: Option<String>,
+    #[arg(long, value_parser = body, default_value = EMPTY_BODY)]
+    pub body: pages::PageBody,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommentUpdateArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    #[arg(long, value_parser = comment_revision, default_value = NO_COMMENT_REVISION)]
+    pub expected: craft_provider_confluence::comments::CommentRevision,
+    #[arg(long, value_parser = body, default_value = EMPTY_BODY)]
+    pub body: pages::PageBody,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommentDeleteArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    #[arg(long, value_parser = comment_revision, default_value = NO_COMMENT_REVISION)]
+    pub expected: craft_provider_confluence::comments::CommentRevision,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentStateSetArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    /// An ID from `confluence content-state available`; IDs 0 to 2 are space defaults, so there
+    /// is no default value.
+    #[arg(long)]
+    #[schemars(required)]
+    pub state_id: Option<u64>,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentStateClearArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+}
+fn attachment_revision(text: &str) -> Result<pages::AttachmentRevision, String> {
+    parse(text)
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttachmentTrashArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    /// The reviewed version and file ID from `confluence attachment get`.
+    #[arg(long, value_parser = attachment_revision, default_value = "{\"version\":0,\"file_id\":\"\"}")]
+    pub expected: pages::AttachmentRevision,
 }
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
+    Trash(PageTrashArgs),
+    CommentCreate(CommentCreateArgs),
+    CommentUpdate(CommentUpdateArgs),
+    CommentDelete(CommentDeleteArgs),
+    ContentStateSet(ContentStateSetArgs),
+    ContentStateClear(ContentStateClearArgs),
+    AttachmentTrash(AttachmentTrashArgs),
+}
+/// Maps a saved space allowance to the host write it permits.
+fn kind_of(operation: Operation) -> PageWriteKind {
+    match operation {
+        Operation::Create => PageWriteKind::Create,
+        Operation::Update => PageWriteKind::Update,
+        Operation::Trash => PageWriteKind::Trash,
+        Operation::CommentCreate => PageWriteKind::CommentCreate,
+        Operation::CommentUpdate => PageWriteKind::CommentUpdate,
+        Operation::CommentDelete => PageWriteKind::CommentDelete,
+        Operation::ContentStateSet => PageWriteKind::ContentStateSet,
+        Operation::ContentStateClear => PageWriteKind::ContentStateClear,
+        Operation::AttachmentTrash => PageWriteKind::AttachmentTrash,
+    }
 }
 fn site(cloud: &str) -> ResourceRef {
     ResourceRef {
@@ -104,12 +276,26 @@ impl PageWriteArgs {
         match self {
             Self::Create(_) => Operation::Create,
             Self::Update(_) => Operation::Update,
+            Self::Trash(_) => Operation::Trash,
+            Self::CommentCreate(_) => Operation::CommentCreate,
+            Self::CommentUpdate(_) => Operation::CommentUpdate,
+            Self::CommentDelete(_) => Operation::CommentDelete,
+            Self::ContentStateSet(_) => Operation::ContentStateSet,
+            Self::ContentStateClear(_) => Operation::ContentStateClear,
+            Self::AttachmentTrash(_) => Operation::AttachmentTrash,
         }
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
         match command {
             PAGE_CREATE => Ok(Self::Create(decode(&value)?)),
             PAGE_UPDATE => Ok(Self::Update(decode(&value)?)),
+            PAGE_TRASH => Ok(Self::Trash(decode(&value)?)),
+            COMMENT_CREATE => Ok(Self::CommentCreate(decode(&value)?)),
+            COMMENT_UPDATE => Ok(Self::CommentUpdate(decode(&value)?)),
+            COMMENT_DELETE => Ok(Self::CommentDelete(decode(&value)?)),
+            CONTENT_STATE_SET => Ok(Self::ContentStateSet(decode(&value)?)),
+            CONTENT_STATE_CLEAR => Ok(Self::ContentStateClear(decode(&value)?)),
+            ATTACHMENT_TRASH => Ok(Self::AttachmentTrash(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -117,30 +303,65 @@ impl PageWriteArgs {
         match self {
             Self::Create(v) => encoded(v),
             Self::Update(v) => encoded(v),
+            Self::Trash(v) => encoded(v),
+            Self::CommentCreate(v) => encoded(v),
+            Self::CommentUpdate(v) => encoded(v),
+            Self::CommentDelete(v) => encoded(v),
+            Self::ContentStateSet(v) => encoded(v),
+            Self::ContentStateClear(v) => encoded(v),
+            Self::AttachmentTrash(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
         match self {
             Self::Create(v) => v.cloud_id.as_deref(),
             Self::Update(v) => v.cloud_id.as_deref(),
+            Self::Trash(v) => v.cloud_id.as_deref(),
+            Self::CommentCreate(v) => v.cloud_id.as_deref(),
+            Self::CommentUpdate(v) => v.cloud_id.as_deref(),
+            Self::CommentDelete(v) => v.cloud_id.as_deref(),
+            Self::ContentStateSet(v) => v.cloud_id.as_deref(),
+            Self::ContentStateClear(v) => v.cloud_id.as_deref(),
+            Self::AttachmentTrash(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
         match self {
             Self::Create(v) => v.space_id.as_deref(),
             Self::Update(v) => v.space_id.as_deref(),
+            Self::Trash(v) => v.space_id.as_deref(),
+            Self::CommentCreate(v) => v.space_id.as_deref(),
+            Self::CommentUpdate(v) => v.space_id.as_deref(),
+            Self::CommentDelete(v) => v.space_id.as_deref(),
+            Self::ContentStateSet(v) => v.space_id.as_deref(),
+            Self::ContentStateClear(v) => v.space_id.as_deref(),
+            Self::AttachmentTrash(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
         match self {
             Self::Create(v) => &v.operation_id,
             Self::Update(v) => &v.operation_id,
+            Self::Trash(v) => &v.operation_id,
+            Self::CommentCreate(v) => &v.operation_id,
+            Self::CommentUpdate(v) => &v.operation_id,
+            Self::CommentDelete(v) => &v.operation_id,
+            Self::ContentStateSet(v) => &v.operation_id,
+            Self::ContentStateClear(v) => &v.operation_id,
+            Self::AttachmentTrash(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
         match self {
             Self::Create(v) => v.apply,
             Self::Update(v) => v.apply,
+            Self::Trash(v) => v.apply,
+            Self::CommentCreate(v) => v.apply,
+            Self::CommentUpdate(v) => v.apply,
+            Self::CommentDelete(v) => v.apply,
+            Self::ContentStateSet(v) => v.apply,
+            Self::ContentStateClear(v) => v.apply,
+            Self::AttachmentTrash(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -155,8 +376,55 @@ impl PageWriteArgs {
                 id: v.id.clone(),
                 space_id: space.into(),
                 expected: v.expected.clone(),
+                editor_draft_policy: v.editor_draft_policy.ok_or_else(|| {
+                    CraftError::field(
+                        "/editor_draft_policy",
+                        "expected_native_reconciliation_may_overwrite",
+                    )
+                })?,
                 title: v.changes.title.clone(),
                 body: v.changes.body.clone(),
+            }),
+            Self::Trash(v) => encoded(&PageTrashInput {
+                id: v.id.clone(),
+                space_id: space.into(),
+                expected: v.expected.clone(),
+            }),
+            Self::CommentCreate(v) => encoded(&pages::CommentCreateInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                parent_comment_id: v.parent_comment_id.clone(),
+                body: v.body.clone(),
+            }),
+            Self::CommentUpdate(v) => encoded(&pages::CommentUpdateInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                id: v.id.clone(),
+                expected: v.expected.clone(),
+                body: v.body.clone(),
+            }),
+            Self::CommentDelete(v) => encoded(&pages::CommentDeleteInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                id: v.id.clone(),
+                expected: v.expected.clone(),
+            }),
+            Self::ContentStateSet(v) => encoded(&pages::ContentStateSetInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                state_id: v
+                    .state_id
+                    .ok_or_else(|| CraftError::field("/state_id", "expected_available_state_id"))?,
+            }),
+            Self::ContentStateClear(v) => encoded(&pages::ContentStateClearInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+            }),
+            Self::AttachmentTrash(v) => encoded(&pages::AttachmentTrashInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                id: v.id.clone(),
+                expected: v.expected.clone(),
             }),
         }
     }
@@ -210,8 +478,7 @@ impl PageWriteArgs {
                 },
                 expected_actor: "a".repeat(512),
                 enabled: true,
-                allow_create: true,
-                allow_update: true,
+                allowed: PageWriteKind::ALL.to_vec(),
             },
         )?;
         Ok(())
@@ -219,11 +486,24 @@ impl PageWriteArgs {
 }
 impl From<PageWriteArgs> for crate::args::ConfluenceAction {
     fn from(value: PageWriteArgs) -> Self {
-        use crate::args::ConfluencePageAction as P;
-        Self::Page {
-            action: match value {
-                PageWriteArgs::Create(v) => P::Create(Box::new(v)),
-                PageWriteArgs::Update(v) => P::Update(Box::new(v)),
+        use crate::args::{ConfluenceCommentAction as C, ConfluencePageAction as P};
+        let page = |action| Self::Page { action };
+        let comment = |action| Self::Comment { action };
+        match value {
+            PageWriteArgs::Create(v) => page(P::Create(Box::new(v))),
+            PageWriteArgs::Update(v) => page(P::Update(Box::new(v))),
+            PageWriteArgs::Trash(v) => page(P::Trash(Box::new(v))),
+            PageWriteArgs::CommentCreate(v) => comment(C::Create(Box::new(v))),
+            PageWriteArgs::CommentUpdate(v) => comment(C::Update(Box::new(v))),
+            PageWriteArgs::CommentDelete(v) => comment(C::Delete(Box::new(v))),
+            PageWriteArgs::ContentStateSet(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Set(Box::new(v)),
+            },
+            PageWriteArgs::ContentStateClear(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Clear(Box::new(v)),
+            },
+            PageWriteArgs::AttachmentTrash(v) => Self::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Trash(Box::new(v)),
             },
         }
     }
@@ -231,7 +511,9 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
 impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
     type Error = CraftError;
     fn try_from(value: crate::args::ConfluenceAction) -> Result<Self, Self::Error> {
-        use crate::args::{ConfluenceAction as A, ConfluencePageAction as P};
+        use crate::args::{
+            ConfluenceAction as A, ConfluenceCommentAction as C, ConfluencePageAction as P,
+        };
         match value {
             A::Page {
                 action: P::Create(v),
@@ -239,17 +521,64 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Page {
                 action: P::Update(v),
             } => Ok(Self::Update(*v)),
+            A::Page {
+                action: P::Trash(v),
+            } => Ok(Self::Trash(*v)),
+            A::Comment {
+                action: C::Create(v),
+            } => Ok(Self::CommentCreate(*v)),
+            A::Comment {
+                action: C::Update(v),
+            } => Ok(Self::CommentUpdate(*v)),
+            A::Comment {
+                action: C::Delete(v),
+            } => Ok(Self::CommentDelete(*v)),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Set(v),
+            } => Ok(Self::ContentStateSet(*v)),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Clear(v),
+            } => Ok(Self::ContentStateClear(*v)),
+            A::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Trash(v),
+            } => Ok(Self::AttachmentTrash(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
 }
 /// Candidate discovery must expose the complete host receipt rather than provider metadata alone.
 pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
-    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE])
+    register_commands(
+        registry,
+        &[
+            PAGE_CREATE,
+            PAGE_UPDATE,
+            PAGE_TRASH,
+            COMMENT_CREATE,
+            COMMENT_UPDATE,
+            COMMENT_DELETE,
+            CONTENT_STATE_SET,
+            CONTENT_STATE_CLEAR,
+            ATTACHMENT_TRASH,
+        ],
+    )
 }
-/// Published-page updates remain unavailable until editor-draft behavior is qualified.
+/// Updates are public only with the explicit native editor-draft reconciliation policy.
 pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
-    register_commands(registry, &[PAGE_CREATE])
+    register_commands(
+        registry,
+        &[
+            PAGE_CREATE,
+            PAGE_UPDATE,
+            PAGE_TRASH,
+            COMMENT_CREATE,
+            COMMENT_UPDATE,
+            COMMENT_DELETE,
+            CONTENT_STATE_SET,
+            CONTENT_STATE_CLEAR,
+            ATTACHMENT_TRASH,
+        ],
+    )
 }
 fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), CraftError> {
     let mut native = Registry::default();
@@ -264,25 +593,75 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
                 .remove("title")
                 .ok_or_else(denied)?;
             example["changes"] = json!({"title":title});
+            example["editor_draft_policy"] = example
+                .as_object_mut()
+                .ok_or_else(denied)?
+                .remove("editor_draft_policy")
+                .ok_or_else(denied)?;
         }
         example["operation_id"] = json!("publish-plan");
         example["apply"] = json!(true);
         d.example = example;
         d.response_schema = super::schema()?;
+        let kind = PageWriteKind::from_command(command).ok_or_else(denied)?;
+        let resource = kind.resource_type();
+        let version = match kind {
+            PageWriteKind::Update | PageWriteKind::CommentUpdate => Value::from(2),
+            PageWriteKind::Create | PageWriteKind::CommentCreate => Value::from(1),
+            _ => Value::Null,
+        };
+        let status = match kind {
+            PageWriteKind::Trash
+            | PageWriteKind::CommentDelete
+            | PageWriteKind::AttachmentTrash => 204,
+            PageWriteKind::CommentCreate => 201,
+            _ => 200,
+        };
         d.response_example = json!(Envelope::success(
             command,
             "example".into(),
             json!({
-                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":"page","id":"101"}],"job":null},
-                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":if command==PAGE_CREATE {1}else{2},"persistence":"recorded","journal":null,"http_status":200,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"credential_cache_update":null
+                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", _ => "201"}}],"job":null},
+                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
-        if command == PAGE_CREATE {
-            d.input_schema = schema_for::<PageCreateArgs>()?;
-            registry.register_typed::<PageCreateArgs>(d)?;
-        } else {
-            d.input_schema = schema_for::<PageUpdateArgs>()?;
-            registry.register_typed::<PageUpdateArgs>(d)?;
+        match command {
+            PAGE_CREATE => {
+                d.input_schema = schema_for::<PageCreateArgs>()?;
+                registry.register_typed::<PageCreateArgs>(d)?;
+            }
+            PAGE_UPDATE => {
+                d.input_schema = schema_for::<PageUpdateArgs>()?;
+                registry.register_typed::<PageUpdateArgs>(d)?;
+            }
+            PAGE_TRASH => {
+                d.input_schema = schema_for::<PageTrashArgs>()?;
+                registry.register_typed::<PageTrashArgs>(d)?;
+            }
+            COMMENT_CREATE => {
+                d.input_schema = schema_for::<CommentCreateArgs>()?;
+                registry.register_typed::<CommentCreateArgs>(d)?;
+            }
+            COMMENT_UPDATE => {
+                d.input_schema = schema_for::<CommentUpdateArgs>()?;
+                registry.register_typed::<CommentUpdateArgs>(d)?;
+            }
+            COMMENT_DELETE => {
+                d.input_schema = schema_for::<CommentDeleteArgs>()?;
+                registry.register_typed::<CommentDeleteArgs>(d)?;
+            }
+            CONTENT_STATE_SET => {
+                d.input_schema = schema_for::<ContentStateSetArgs>()?;
+                registry.register_typed::<ContentStateSetArgs>(d)?;
+            }
+            CONTENT_STATE_CLEAR => {
+                d.input_schema = schema_for::<ContentStateClearArgs>()?;
+                registry.register_typed::<ContentStateClearArgs>(d)?;
+            }
+            _ => {
+                d.input_schema = schema_for::<AttachmentTrashArgs>()?;
+                registry.register_typed::<AttachmentTrashArgs>(d)?;
+            }
         }
     }
     Ok(())
@@ -349,8 +728,7 @@ impl PreparedInvocation {
                 grant: policy.grant.clone(),
                 expected_actor: policy.expected_actor.clone(),
                 enabled: policy.enabled,
-                allow_create: policy.operations.contains(&Operation::Create),
-                allow_update: policy.operations.contains(&Operation::Update),
+                allowed: policy.operations.iter().copied().map(kind_of).collect(),
             },
         )?;
         Ok(Self {

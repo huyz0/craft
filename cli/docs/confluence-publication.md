@@ -1,6 +1,6 @@
 # Internal Confluence page publication
 
-Craft now has native page-create and page-update preparation plus a journaled service host. These are internal APIs, not publicly registered commands. No live tenant has been changed.
+Craft now has native page-create and page-update preparation plus a journaled service host. Both are publicly registered commands; update requires the explicit editor-draft policy described below.
 
 `craft-provider-confluence::pages::ConfluencePages` defines `confluence.page.create` and `confluence.page.update`. `craft-cli::confluence_pages::PreparedPagePublication` composes them with sealed service access, an explicitly trusted site/space/grant/actor policy, credential locking, fresh native evidence and the existing durable send journal. Separate create/update allowances are required; read policies grant neither. Typed internal commands now use persisted per-space write records; public administration and activation remain unfinished. See [page commands](confluence-page-commands.md).
 
@@ -25,7 +25,7 @@ Bodies explicitly select `storage` or `atlas_doc_format`. ADF is a JSON document
 
 A current page read supplies the exact selected body representation. `observe_page(...).revision()` fingerprints page ID, space ID, title, version and representation/value. Update input supplies `id`, `space_id`, this `expected` revision, and at least one of `title` or `body`. Both the published version and digest must match fresh evidence. Omitted fields preserve the observed values; null does not mean omission. A PUT sends current version plus one and never supplies space/parent/owner changes.
 
-This prevents stale published-content overwrite. It does not establish safety around another user's unpublished editor draft. That behavior requires a real sandbox qualification before public updates. Neither a digest nor successful publication proves human approval.
+This prevents stale published-content overwrite. It does not establish safety around another user's unpublished editor draft: Confluence documents that publication reconciles into the draft and can overwrite divergent content. Updates therefore require the explicit `native_reconciliation_may_overwrite` editor-draft policy, which the site owner authorized on 14 November 2026, and every receipt reports `editor_draft_preservation_verified: false`. Neither a digest nor successful publication proves human approval.
 
 ## Outcomes and recovery
 

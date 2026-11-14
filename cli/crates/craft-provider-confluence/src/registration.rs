@@ -21,7 +21,15 @@ pub(crate) fn is_space(command: &str) -> bool {
     matches!(command, SPACE_GET | SPACE_LIST)
 }
 pub(crate) fn is_get(command: &str) -> bool {
-    matches!(command, SPACE_GET | PAGE_GET | crate::comments::COMMENT_GET)
+    matches!(
+        command,
+        SPACE_GET
+            | PAGE_GET
+            | crate::comments::COMMENT_GET
+            | crate::content_state::CONTENT_STATE_GET
+            | crate::content_state::CONTENT_STATE_AVAILABLE
+            | crate::attachments::ATTACHMENT_GET
+    )
 }
 pub fn projection(command: &str) -> ProjectionContract {
     if matches!(
@@ -32,6 +40,18 @@ pub fn projection(command: &str) -> ProjectionContract {
     }
     if command == crate::comments::COMMENT_GET {
         return crate::comments::projection();
+    }
+    if matches!(
+        command,
+        crate::content_state::CONTENT_STATE_GET | crate::content_state::CONTENT_STATE_AVAILABLE
+    ) {
+        return crate::content_state::projection(command);
+    }
+    if matches!(
+        command,
+        crate::attachments::ATTACHMENT_GET | crate::attachments::ATTACHMENT_LIST
+    ) {
+        return crate::attachments::projection(command);
     }
     let (required, defaults) = if is_space(command) {
         (
@@ -64,6 +84,12 @@ pub fn response_schema_for(command: &str) -> Result<Value, CraftError> {
         }
         crate::comments::COMMENT_GET => {
             response_schema::<GetData<crate::comments::CommentSummary>>()
+        }
+        crate::content_state::CONTENT_STATE_GET | crate::content_state::CONTENT_STATE_AVAILABLE => {
+            crate::content_state::response_schema_for(command)
+        }
+        crate::attachments::ATTACHMENT_GET | crate::attachments::ATTACHMENT_LIST => {
+            crate::attachments::response_schema_for(command)
         }
         SPACE_GET => response_schema::<GetData<SpaceSummary>>(),
         SPACE_LIST => response_schema::<ListData<SpaceSummary>>(),
@@ -221,7 +247,9 @@ impl ProviderModule for ConfluenceContext {
                 }
             }
         }
-        crate::comments::register(registry)
+        crate::comments::register(registry)?;
+        crate::content_state::register(registry)?;
+        crate::attachments::register(registry)
     }
 }
 struct Handler;

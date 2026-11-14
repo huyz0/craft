@@ -30,6 +30,14 @@ pub enum ConfluenceReadOperation {
     CommentList,
     #[serde(rename = "confluence.comment.replies")]
     CommentReplies,
+    #[serde(rename = "confluence.content-state.get")]
+    ContentStateGet,
+    #[serde(rename = "confluence.content-state.available")]
+    ContentStateAvailable,
+    #[serde(rename = "confluence.attachment.get")]
+    AttachmentGet,
+    #[serde(rename = "confluence.attachment.list")]
+    AttachmentList,
 }
 impl ConfluenceReadOperation {
     pub fn command(self) -> &'static str {
@@ -42,6 +50,10 @@ impl ConfluenceReadOperation {
             Self::PageSearch => "confluence.page.search",
             Self::CommentList => "confluence.comment.list",
             Self::CommentReplies => "confluence.comment.replies",
+            Self::ContentStateGet => "confluence.content-state.get",
+            Self::ContentStateAvailable => "confluence.content-state.available",
+            Self::AttachmentGet => "confluence.attachment.get",
+            Self::AttachmentList => "confluence.attachment.list",
         }
     }
 }
@@ -86,7 +98,7 @@ fn validate(
         ));
     }
     if operations.is_empty()
-        || operations.len() > 8
+        || operations.len() > 16
         || operations.windows(2).any(|pair| pair[0] >= pair[1])
     {
         return Err(CraftError::field(

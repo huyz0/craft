@@ -1,5 +1,7 @@
 //! Native Confluence context contracts. Content and links cannot supply credentials or routing.
+pub mod attachments;
 pub mod comments;
+pub mod content_state;
 mod models;
 pub mod pages;
 mod reads;

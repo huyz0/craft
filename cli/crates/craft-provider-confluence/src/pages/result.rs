@@ -27,11 +27,35 @@ impl PreparedPageWrite {
             version: None,
             error: None,
         };
-        if response.status != 200 {
-            let refusal = if self.id.is_some() {
-                matches!(response.status, 400 | 401 | 404 | 409)
-            } else {
-                matches!(response.status, 400 | 401 | 404 | 413)
+        use PageWriteKind as K;
+        let deletion = matches!(self.kind, K::Trash | K::CommentDelete | K::AttachmentTrash);
+        let success = match self.kind {
+            K::Trash | K::CommentDelete | K::AttachmentTrash => 204,
+            K::CommentCreate => 201,
+            _ => 200,
+        };
+        if deletion && response.status == 204 {
+            // The documented deletion success carries no body; the compiled identity is the effect.
+            if let Some(id) = &self.id {
+                result.resources.push(ResourceRef {
+                    resource_type: self.kind.resource_type().into(),
+                    id: id.clone(),
+                    ..self.site.clone()
+                });
+                result.state = SubmissionState::Confirmed;
+            }
+            return result;
+        }
+        if response.status != success || deletion {
+            let refusal = match self.kind {
+                K::Create => matches!(response.status, 400 | 401 | 404 | 413),
+                K::Update | K::CommentUpdate => matches!(response.status, 400 | 401 | 404 | 409),
+                K::Trash | K::CommentCreate | K::CommentDelete | K::AttachmentTrash => {
+                    matches!(response.status, 400 | 401 | 404)
+                }
+                K::ContentStateSet | K::ContentStateClear => {
+                    matches!(response.status, 400 | 401 | 403 | 404)
+                }
             };
             result.state = if refusal {
                 SubmissionState::Failed
@@ -41,7 +65,7 @@ impl PreparedPageWrite {
             let code = match response.status {
                 400 | 413 if refusal => ErrorCode::InputInvalid,
                 401 if refusal => ErrorCode::AuthRequired,
-                404 if refusal => ErrorCode::PermissionDenied,
+                403 | 404 if refusal => ErrorCode::PermissionDenied,
                 409 if refusal => ErrorCode::VersionConflict,
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::WriteOutcomeUnknown,
@@ -57,6 +81,28 @@ impl PreparedPageWrite {
             return result;
         }
         let raw = &response.body;
+        if matches!(self.kind, K::CommentCreate | K::CommentUpdate) {
+            return self.interpret_comment(raw, result);
+        }
+        if matches!(self.kind, K::ContentStateSet | K::ContentStateClear) {
+            // The page identity is the compiled target; only the badge outcome needs evidence.
+            if let Some(id) = &self.id {
+                result.resources.push(ResourceRef {
+                    resource_type: "page".into(),
+                    id: id.clone(),
+                    ..self.site.clone()
+                });
+            }
+            if self.content_state_confirmed(raw) {
+                result.state = SubmissionState::Confirmed;
+            } else {
+                result.error = Some(failure(
+                    ErrorCode::WriteOutcomeUnknown,
+                    RequestState::SentUnknown,
+                ));
+            }
+            return result;
+        }
         let id = raw
             .get("id")
             .and_then(Value::as_str)
@@ -77,6 +123,48 @@ impl PreparedPageWrite {
             && raw.get("title").and_then(Value::as_str) == Some(&self.title)
             && version == Some(u64::from(self.version))
             && raw.get("subtype").is_none_or(Value::is_null)
+        {
+            result.state = SubmissionState::Confirmed;
+            result.version = Some(self.version);
+        } else {
+            result.error = Some(failure(
+                ErrorCode::WriteOutcomeUnknown,
+                RequestState::SentUnknown,
+            ));
+        }
+        result
+    }
+    /// A comment write is confirmed only by a current comment with the compiled identity, page or
+    /// parent association and next version. A known new identity survives incomplete evidence.
+    fn interpret_comment(
+        &self,
+        raw: &Value,
+        mut result: PageWriteObservation,
+    ) -> PageWriteObservation {
+        let id = raw
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| numeric(id));
+        let page = raw.get("pageId").and_then(Value::as_str);
+        let parent = raw.get("parentCommentId").and_then(Value::as_str);
+        let associated = page == self.page_id.as_deref()
+            || (self.parent_id.is_some() && parent == self.parent_id.as_deref());
+        if let Some(id) = id
+            && self.id.as_ref().is_none_or(|expected| expected == id)
+            && associated
+        {
+            result.resources.push(ResourceRef {
+                resource_type: "comment".into(),
+                id: id.into(),
+                ..self.site.clone()
+            });
+        }
+        let version = raw.pointer("/version/number").and_then(Value::as_u64);
+        let parent_ok = self.parent_id.is_none() || parent == self.parent_id.as_deref();
+        if !result.resources.is_empty()
+            && raw.get("status").and_then(Value::as_str) == Some("current")
+            && version == Some(u64::from(self.version))
+            && parent_ok
         {
             result.state = SubmissionState::Confirmed;
             result.version = Some(self.version);

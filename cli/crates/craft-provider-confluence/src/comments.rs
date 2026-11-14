@@ -208,6 +208,25 @@ pub fn read_get(
     context.checkpoint()?;
     Ok(item)
 }
+/// Fingerprint of one current footer comment in the selected representation, computed exactly as
+/// `confluence.comment.get` reports `revision`.
+pub fn observe_revision(
+    raw: &Value,
+    id: &str,
+    page_id: &str,
+    representation: &str,
+) -> Result<CommentRevision, CraftError> {
+    if !matches!(representation, "storage" | "atlas_doc_format") {
+        return Err(malformed());
+    }
+    let input = CommentGetInput {
+        id: id.into(),
+        page_id: page_id.into(),
+    };
+    let fields = BTreeSet::from(["revision".to_string()]);
+    let item = normalize(raw, &input, &fields, Some(representation))?;
+    serde_json::from_value(item["revision"].clone()).map_err(|_| malformed())
+}
 fn normalize(
     raw: &Value,
     input: &CommentGetInput,

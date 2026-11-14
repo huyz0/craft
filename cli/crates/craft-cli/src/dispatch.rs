@@ -308,11 +308,10 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
             },
         },
         Action::Confluence { action }
-            if matches!(
+            if craft_provider_confluence::pages::PageWriteKind::from_command(
                 crate::confluence_reads::command::action_command(&action),
-                craft_provider_confluence::pages::PAGE_CREATE
-                    | craft_provider_confluence::pages::PAGE_UPDATE
-            ) =>
+            )
+            .is_some() =>
         {
             Action::Confluence {
                 action: crate::confluence_pages::command::PageWriteArgs::decode(
@@ -1136,11 +1135,8 @@ pub fn execute(
             },
         );
     }
-    if matches!(
-        command_id(&action),
-        craft_provider_confluence::pages::PAGE_CREATE
-            | craft_provider_confluence::pages::PAGE_UPDATE
-    ) {
+    if craft_provider_confluence::pages::PageWriteKind::from_command(command_id(&action)).is_some()
+    {
         return execute_page_write_candidate(
             registry,
             action,
