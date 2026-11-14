@@ -28,9 +28,9 @@ impl PreparedPageWrite {
             error: None,
         };
         use PageWriteKind as K;
-        let deletion = matches!(self.kind, K::Trash | K::CommentDelete);
+        let deletion = matches!(self.kind, K::Trash | K::CommentDelete | K::AttachmentTrash);
         let success = match self.kind {
-            K::Trash | K::CommentDelete => 204,
+            K::Trash | K::CommentDelete | K::AttachmentTrash => 204,
             K::CommentCreate => 201,
             _ => 200,
         };
@@ -50,7 +50,7 @@ impl PreparedPageWrite {
             let refusal = match self.kind {
                 K::Create => matches!(response.status, 400 | 401 | 404 | 413),
                 K::Update | K::CommentUpdate => matches!(response.status, 400 | 401 | 404 | 409),
-                K::Trash | K::CommentCreate | K::CommentDelete => {
+                K::Trash | K::CommentCreate | K::CommentDelete | K::AttachmentTrash => {
                     matches!(response.status, 400 | 401 | 404)
                 }
                 K::ContentStateSet | K::ContentStateClear => {

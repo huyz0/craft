@@ -104,6 +104,15 @@ impl ProviderModule for CloudCommands {
                 "confluence.content-state.clear" => {
                     register!(crate::confluence_pages::command::ContentStateClearArgs)
                 }
+                "confluence.attachment.get" => {
+                    register!(crate::confluence_reads::command::ConfluenceAttachmentGetArgs)
+                }
+                "confluence.attachment.list" => {
+                    register!(crate::confluence_reads::command::ConfluenceAttachmentListArgs)
+                }
+                "confluence.attachment.trash" => {
+                    register!(crate::confluence_pages::command::AttachmentTrashArgs)
+                }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {

@@ -450,3 +450,156 @@ fn content_state_reads_pin_current_status_and_never_grant_approval() -> TestResu
     }
     Ok(())
 }
+
+fn native_attachment(id: &str, version: u64) -> Value {
+    json!({"id":id,"pageId":"101","status":"current","title":"design.png","mediaType":"image/png","fileSize":2048,"fileId":"file-1","version":{"number":version},"downloadLink":"/download/attachments/101/design.png","comment":""})
+}
+
+#[test]
+fn attachment_reads_bind_the_page_and_follow_only_cursor_continuations() -> TestResult {
+    use craft_cli::confluence_reads::command::{
+        ConfluenceAttachmentGetArgs, ConfluenceAttachmentListArgs, ConfluenceReadArgs,
+        PreparedInvocation,
+    };
+    use craft_provider_confluence::attachments::{ATTACHMENT_GET, ATTACHMENT_LIST};
+    use craft_runtime::confluence_read_policy::ConfluenceReadOperation as Op;
+    for mode in ["get", "list", "foreign_page", "trashed"] {
+        let setup = Setup::new()?;
+        setup.store.set_confluence_read_policy(
+            "factory",
+            craft_runtime::confluence_read_policy::ConfluenceReadPolicyUpdate {
+                target: target(),
+                expected_actor: "actor-one".into(),
+                operations: vec![Op::AttachmentGet, Op::AttachmentList],
+                enabled: true,
+                expected_revision: None,
+            },
+            true,
+            &control()?,
+            |_| Ok(()),
+        )?;
+        let mut raw = native_attachment("att301", 2);
+        if mode == "foreign_page" {
+            raw["pageId"] = json!("999");
+        }
+        if mode == "trashed" {
+            raw["status"] = json!("trashed");
+        }
+        let body = if mode == "list" {
+            json!({"results":[native_attachment("att301", 2), native_attachment("att302", 1)],"_links":{"next":"/wiki/api/v2/pages/101/attachments?limit=25&status=current&sort=created-date&cursor=abc"}})
+        } else {
+            raw
+        };
+        let headers: &[(&str, &str)] = if mode == "list" {
+            &[(
+                "Link",
+                "</wiki/api/v2/pages/101/attachments?limit=25&status=current&sort=created-date&cursor=abc>; rel=\"next\"",
+            )]
+        } else {
+            &[]
+        };
+        let issuer = issuer("read:confluence-user read:attachment:confluence")?;
+        let product = TlsServer::start(Reply::Sequence(vec![
+            identity(),
+            identity(),
+            Reply::json(200, &serde_json::to_vec(&body)?, headers),
+        ]))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let (command, args) = if mode == "list" {
+            (
+                ATTACHMENT_LIST,
+                ConfluenceReadArgs::AttachmentList(ConfluenceAttachmentListArgs {
+                    cloud_id: Some(CLOUD.into()),
+                    page_id: "101".into(),
+                    page_size: 25,
+                    limit: 2,
+                    cursor: None,
+                }),
+            )
+        } else {
+            (
+                ATTACHMENT_GET,
+                ConfluenceReadArgs::AttachmentGet(ConfluenceAttachmentGetArgs {
+                    cloud_id: Some(CLOUD.into()),
+                    id: "att301".into(),
+                    page_id: "101".into(),
+                }),
+            )
+        };
+        let result = PreparedInvocation::prepare(
+            args,
+            &[],
+            &craft_cli::profiles::InvocationOptions {
+                state_root: Some(&setup.root),
+                profile: Some("factory"),
+                request_id: "attachment-request",
+                max_bytes: 16384,
+            },
+            &setup.store,
+            &control()?,
+        )?
+        .execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let success = matches!(mode, "get" | "list");
+        assert_eq!(
+            result.envelope.ok, success,
+            "{mode}: {:?}",
+            result.envelope.error
+        );
+        let registry = craft_cli::catalog::registry()?;
+        assert!(
+            jsonschema::validator_for(&registry.descriptor(command)?.response_schema)?
+                .is_valid(&serde_json::to_value(&result.envelope)?),
+            "{mode}"
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let text = data.to_string();
+        assert!(
+            !text.contains("downloadLink") && !text.contains("/download/"),
+            "{mode}"
+        );
+        match mode {
+            "get" => {
+                assert_eq!(data["item"]["file_id"], "file-1");
+                assert_eq!(data["item"]["version"], 2);
+                assert!(data["item"]["comment"].is_null());
+            }
+            "list" => {
+                assert_eq!(data["items"].as_array().ok_or("items")?.len(), 2);
+                let envelope = serde_json::to_value(&result.envelope)?;
+                assert!(envelope.to_string().contains("cur_"), "{envelope}");
+            }
+            _ => {}
+        }
+        let requests = product.finish()?;
+        if mode == "list" {
+            assert!(
+                requests[2]
+                    .target
+                    .contains("/wiki/api/v2/pages/101/attachments")
+            );
+            assert!(requests[2].target.contains("status=current"));
+        } else {
+            assert!(
+                requests[2]
+                    .target
+                    .contains("/wiki/api/v2/attachments/att301")
+            );
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}

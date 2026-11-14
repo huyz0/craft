@@ -71,12 +71,14 @@ def policies(state_root, site, cloud, actor, project, space):
         ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
          ["confluence.page.create", "confluence.page.update", "confluence.page.trash",
           "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
-          "confluence.content-state.set", "confluence.content-state.clear"], None),
+          "confluence.content-state.set", "confluence.content-state.clear",
+          "confluence.attachment.trash"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
             "confluence.comment.replies", "confluence.content-state.get",
-            "confluence.content-state.available"], None),
+            "confluence.content-state.available", "confluence.attachment.get",
+            "confluence.attachment.list"], None),
     ]
     results = []
     for profile, kind, target, operations, continuation in plans:
@@ -295,6 +297,9 @@ def page_lifecycle(state_root, space):
                 "page_id": page}))
         else:
             report.append("confluence.content-state.set => SKIP space offers no states")
+    if "--attachments" in sys.argv:
+        step("confluence.attachment.list", run(state_root, "cf-test", "confluence.attachment.list",
+                                               {"page_id": page, "page_size": 25}))
     if "--trash" in sys.argv:
         step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
             "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
@@ -312,6 +317,7 @@ def main():
     parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
     parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
     parser.add_argument("--badges", action="store_true", help="also set and clear a content-state badge")
+    parser.add_argument("--attachments", action="store_true", help="also list the page's attachments")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:

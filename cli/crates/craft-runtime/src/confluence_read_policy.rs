@@ -34,6 +34,10 @@ pub enum ConfluenceReadOperation {
     ContentStateGet,
     #[serde(rename = "confluence.content-state.available")]
     ContentStateAvailable,
+    #[serde(rename = "confluence.attachment.get")]
+    AttachmentGet,
+    #[serde(rename = "confluence.attachment.list")]
+    AttachmentList,
 }
 impl ConfluenceReadOperation {
     pub fn command(self) -> &'static str {
@@ -48,6 +52,8 @@ impl ConfluenceReadOperation {
             Self::CommentReplies => "confluence.comment.replies",
             Self::ContentStateGet => "confluence.content-state.get",
             Self::ContentStateAvailable => "confluence.content-state.available",
+            Self::AttachmentGet => "confluence.attachment.get",
+            Self::AttachmentList => "confluence.attachment.list",
         }
     }
 }

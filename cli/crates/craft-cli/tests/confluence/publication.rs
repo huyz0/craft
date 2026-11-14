@@ -765,6 +765,7 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
                 Op::CommentDelete,
                 Op::ContentStateSet,
                 Op::ContentStateClear,
+                Op::AttachmentTrash,
             ],
         },
         true,
@@ -1142,6 +1143,84 @@ fn content_state_writes_require_an_offered_state_and_pin_current_status() -> Tes
                     assert_eq!(body, json!({"id": state_id}));
                 }
             }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+fn native_attachment_for_trash(version: u64, file: &str) -> Value {
+    json!({"id":"att301","pageId":"101","status":"current","title":"design.png","mediaType":"image/png","fileSize":2048,"fileId":file,"version":{"number":version}})
+}
+
+#[test]
+fn attachment_trash_rechecks_version_and_file_then_deletes_without_purge() -> TestResult {
+    for mode in ["trash", "replaced", "newer"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(&format!(
+            "{WRITE_SCOPES} read:attachment:confluence delete:attachment:confluence"
+        ))?;
+        let observed = match mode {
+            "replaced" => native_attachment_for_trash(2, "file-2"),
+            "newer" => native_attachment_for_trash(3, "file-1"),
+            _ => native_attachment_for_trash(2, "file-1"),
+        };
+        let mut replies = vec![
+            identity(),
+            identity(),
+            reply(current_page())?,
+            reply(observed)?,
+        ];
+        if mode == "trash" {
+            replies.push(Reply::json(204, b"", &[]));
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(
+            &setup,
+            pages::ATTACHMENT_TRASH,
+            json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":2,"file_id":"file-1"}}),
+        )?
+        .execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let deletes: Vec<_> = requests.iter().filter(|r| r.method == "DELETE").collect();
+        if mode == "trash" {
+            assert!(result.envelope.ok, "{:?}", result.envelope.error);
+            assert_eq!(
+                data["receipt"]["confirmed_resources"][0]["resource_type"],
+                "attachment"
+            );
+            assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "att301");
+            assert_eq!(deletes.len(), 1);
+            assert!(
+                deletes[0]
+                    .target
+                    .ends_with("/wiki/api/v2/attachments/att301")
+            );
+        } else {
+            assert_eq!(
+                result.envelope.error.ok_or("err")?.code,
+                ErrorCode::VersionConflict
+            );
+            assert!(deletes.is_empty());
         }
         drop(locked);
         setup.no_secrets()?;

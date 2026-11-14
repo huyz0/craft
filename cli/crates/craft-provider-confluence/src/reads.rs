@@ -156,6 +156,9 @@ pub fn read_get(
     ) {
         return crate::content_state::read_get(operation, context);
     }
+    if command == crate::attachments::ATTACHMENT_GET {
+        return crate::attachments::read_get(operation, context);
+    }
     if !is_get(command) {
         return Err(CraftError::field("/command", "expected_confluence_get"));
     }
@@ -295,6 +298,9 @@ pub fn read_page(
         crate::comments::paging::COMMENT_LIST | crate::comments::paging::COMMENT_REPLIES
     ) {
         return crate::comments::paging::read_page(operation, context, position);
+    }
+    if command == crate::attachments::ATTACHMENT_LIST {
+        return crate::attachments::read_page(operation, context, position);
     }
     if is_get(command) {
         return Err(CraftError::field(

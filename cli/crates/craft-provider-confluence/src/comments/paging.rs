@@ -290,7 +290,7 @@ pub fn read_page(
         .as_array()
         .filter(|v| v.len() <= size as usize)
         .ok_or_else(malformed)?;
-    let next = continuation(context, &call, &response)?;
+    let next = continuation(context, &call, &route(parent_id.is_some()), &response)?;
     let mut ids = BTreeSet::new();
     let mut items = Vec::new();
     for value in values {
@@ -336,7 +336,7 @@ pub fn read_page(
         ),
     })
 }
-fn validate_position(position: &NativePosition) -> Result<(), CraftError> {
+pub(crate) fn validate_position(position: &NativePosition) -> Result<(), CraftError> {
     position.validate()?;
     if position.0.len() != 1 || position.0.get("cursor").is_none_or(|v| v.is_empty()) {
         return Err(CraftError::field("/cursor", "invalid_comment_position"));
@@ -346,11 +346,11 @@ fn validate_position(position: &NativePosition) -> Result<(), CraftError> {
 fn normalize_link(
     context: &dyn OperationContext,
     call: &NativeCall,
+    declared: &NativeRoute,
     link: &str,
 ) -> Result<NativePosition, CraftError> {
     let relative = if link.starts_with('/') && !link.starts_with("//") {
         let (path, query) = link.split_once('?').ok_or_else(malformed)?;
-        let declared = route(call.route == "confluence-comment-replies");
         let parts = declared
             .path
             .iter()
@@ -382,20 +382,23 @@ fn normalize_link(
     {
         return Err(CraftError::new(
             ErrorCode::PaginationStalled,
-            "Comment continuation changed filters or did not advance.",
+            "Collection continuation changed filters or did not advance.",
         ));
     }
     let position = NativePosition(BTreeMap::from([("cursor".into(), cursor)]));
     validate_position(&position)?;
     Ok(position)
 }
-fn continuation(
+/// Shared cursor continuation for v2 collections: the Link header and `_links.next` must agree,
+/// stay on the declared route and change only the opaque cursor.
+pub(crate) fn continuation(
     context: &dyn OperationContext,
     call: &NativeCall,
+    declared: &NativeRoute,
     response: &NativeResponse,
 ) -> Result<Option<NativePosition>, CraftError> {
     let header = header_next(response.link_headers.as_deref().ok_or_else(malformed)?)?
-        .map(|s| normalize_link(context, call, &s))
+        .map(|s| normalize_link(context, call, declared, &s))
         .transpose()?;
     let body = match response.body.get("_links") {
         None => None,
@@ -405,7 +408,7 @@ fn continuation(
             .transpose()?,
         _ => return Err(malformed()),
     }
-    .map(|s| normalize_link(context, call, s))
+    .map(|s| normalize_link(context, call, declared, s))
     .transpose()?;
     if header.is_some() && body.is_some() && header != body {
         return Err(malformed());

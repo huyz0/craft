@@ -103,6 +103,8 @@ impl PreparedConfluenceRead {
                         | craft_provider_confluence::comments::paging::COMMENT_REPLIES
                         | craft_provider_confluence::content_state::CONTENT_STATE_GET
                         | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
+                        | craft_provider_confluence::attachments::ATTACHMENT_GET
+                        | craft_provider_confluence::attachments::ATTACHMENT_LIST
                 )
             })
             || !policy.grant.id.strip_prefix("gr_").is_some_and(|suffix| {
@@ -126,52 +128,67 @@ impl PreparedConfluenceRead {
         let projection = registry
             .projection(command, &operation.request().selection.fields)?
             .ok_or_else(internal)?;
-        let effective_input = match command.as_str() {
-            craft_provider_confluence::comments::paging::COMMENT_LIST => serde_json::to_value(
-                serde_json::from_value::<
-                    craft_provider_confluence::comments::paging::CommentListInput,
-                >(operation.request().input.clone())
-                .map_err(|_| internal())?,
-            ),
-            craft_provider_confluence::comments::paging::COMMENT_REPLIES => serde_json::to_value(
-                serde_json::from_value::<
-                    craft_provider_confluence::comments::paging::CommentRepliesInput,
-                >(operation.request().input.clone())
-                .map_err(|_| internal())?,
-            ),
-            craft_provider_confluence::comments::COMMENT_GET => serde_json::to_value(
-                serde_json::from_value::<craft_provider_confluence::comments::CommentGetInput>(
-                    operation.request().input.clone(),
-                )
-                .map_err(|_| internal())?,
-            ),
-            craft_provider_confluence::content_state::CONTENT_STATE_GET
-            | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
-                serde_json::to_value(
+        let effective_input =
+            match command.as_str() {
+                craft_provider_confluence::comments::paging::COMMENT_LIST => serde_json::to_value(
                     serde_json::from_value::<
-                        craft_provider_confluence::content_state::ContentStateInput,
+                        craft_provider_confluence::comments::paging::CommentListInput,
                     >(operation.request().input.clone())
                     .map_err(|_| internal())?,
-                )
+                ),
+                craft_provider_confluence::comments::paging::COMMENT_REPLIES => {
+                    serde_json::to_value(
+                        serde_json::from_value::<
+                            craft_provider_confluence::comments::paging::CommentRepliesInput,
+                        >(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                    )
+                }
+                craft_provider_confluence::comments::COMMENT_GET => serde_json::to_value(
+                    serde_json::from_value::<craft_provider_confluence::comments::CommentGetInput>(
+                        operation.request().input.clone(),
+                    )
+                    .map_err(|_| internal())?,
+                ),
+                craft_provider_confluence::content_state::CONTENT_STATE_GET
+                | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
+                    serde_json::to_value(
+                        serde_json::from_value::<
+                            craft_provider_confluence::content_state::ContentStateInput,
+                        >(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                    )
+                }
+                craft_provider_confluence::attachments::ATTACHMENT_GET => serde_json::to_value(
+                    serde_json::from_value::<
+                        craft_provider_confluence::attachments::AttachmentGetInput,
+                    >(operation.request().input.clone())
+                    .map_err(|_| internal())?,
+                ),
+                craft_provider_confluence::attachments::ATTACHMENT_LIST => serde_json::to_value(
+                    serde_json::from_value::<
+                        craft_provider_confluence::attachments::AttachmentListInput,
+                    >(operation.request().input.clone())
+                    .map_err(|_| internal())?,
+                ),
+                PAGE_GET | SPACE_GET => serde_json::to_value(
+                    serde_json::from_value::<GetInput>(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                ),
+                SPACE_LIST => serde_json::to_value(
+                    serde_json::from_value::<SpaceListInput>(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                ),
+                PAGE_LIST => serde_json::to_value(
+                    serde_json::from_value::<PageListInput>(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                ),
+                _ => serde_json::to_value(
+                    serde_json::from_value::<SearchInput>(operation.request().input.clone())
+                        .map_err(|_| internal())?,
+                ),
             }
-            PAGE_GET | SPACE_GET => serde_json::to_value(
-                serde_json::from_value::<GetInput>(operation.request().input.clone())
-                    .map_err(|_| internal())?,
-            ),
-            SPACE_LIST => serde_json::to_value(
-                serde_json::from_value::<SpaceListInput>(operation.request().input.clone())
-                    .map_err(|_| internal())?,
-            ),
-            PAGE_LIST => serde_json::to_value(
-                serde_json::from_value::<PageListInput>(operation.request().input.clone())
-                    .map_err(|_| internal())?,
-            ),
-            _ => serde_json::to_value(
-                serde_json::from_value::<SearchInput>(operation.request().input.clone())
-                    .map_err(|_| internal())?,
-            ),
-        }
-        .map_err(|_| internal())?;
+            .map_err(|_| internal())?;
         let descriptor = registry.prepared_descriptor(&operation)?;
         let binding = ListBinding {
             operation: command.clone(),
@@ -524,6 +541,7 @@ fn is_get(command: &str) -> bool {
             | craft_provider_confluence::comments::COMMENT_GET
             | craft_provider_confluence::content_state::CONTENT_STATE_GET
             | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
+            | craft_provider_confluence::attachments::ATTACHMENT_GET
     )
 }
 

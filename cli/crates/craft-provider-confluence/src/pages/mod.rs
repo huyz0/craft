@@ -1,10 +1,15 @@
 //! Pure page publication preparation. The caller must supply verified fresh evidence and a journaled host.
+mod attachment_writes;
 mod comment_writes;
 mod content_state_writes;
 mod input;
 mod registration;
 mod result;
 use crate::models::{numeric, text};
+pub use attachment_writes::{
+    ATTACHMENT_TRASH, ATTACHMENT_TRASH_ROUTE, AttachmentRevision, AttachmentTrashInput,
+    prepare_attachment_trash,
+};
 pub use comment_writes::{
     COMMENT_CREATE, COMMENT_CREATE_ROUTE, COMMENT_DELETE, COMMENT_DELETE_ROUTE, COMMENT_UPDATE,
     COMMENT_UPDATE_ROUTE, CommentCreateInput, CommentDeleteInput, CommentUpdateInput,
@@ -48,6 +53,7 @@ pub enum PageWriteKind {
     CommentDelete,
     ContentStateSet,
     ContentStateClear,
+    AttachmentTrash,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -60,6 +66,7 @@ impl PageWriteKind {
             Self::CommentDelete => COMMENT_DELETE,
             Self::ContentStateSet => CONTENT_STATE_SET,
             Self::ContentStateClear => CONTENT_STATE_CLEAR,
+            Self::AttachmentTrash => ATTACHMENT_TRASH,
         }
     }
     pub fn route(self) -> &'static str {
@@ -72,9 +79,10 @@ impl PageWriteKind {
             Self::CommentDelete => COMMENT_DELETE_ROUTE,
             Self::ContentStateSet => CONTENT_STATE_SET_ROUTE,
             Self::ContentStateClear => CONTENT_STATE_CLEAR_ROUTE,
+            Self::AttachmentTrash => ATTACHMENT_TRASH_ROUTE,
         }
     }
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Create,
         Self::Update,
         Self::Trash,
@@ -83,10 +91,11 @@ impl PageWriteKind {
         Self::CommentDelete,
         Self::ContentStateSet,
         Self::ContentStateClear,
+        Self::AttachmentTrash,
     ];
     pub fn effect(self) -> EffectClass {
         match self {
-            Self::Trash => EffectClass::Trash,
+            Self::Trash | Self::AttachmentTrash => EffectClass::Trash,
             Self::CommentDelete => EffectClass::Permanent,
             _ => EffectClass::Write,
         }
@@ -94,6 +103,7 @@ impl PageWriteKind {
     pub fn resource_type(self) -> &'static str {
         match self {
             Self::CommentCreate | Self::CommentUpdate | Self::CommentDelete => "comment",
+            Self::AttachmentTrash => "attachment",
             _ => "page",
         }
     }

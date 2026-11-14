@@ -194,6 +194,7 @@ pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftEr
         COMMENT_DELETE => parse::<CommentDeleteInput>(&request.input)?.validate(),
         CONTENT_STATE_SET => parse::<ContentStateSetInput>(&request.input)?.validate(),
         CONTENT_STATE_CLEAR => parse::<ContentStateClearInput>(&request.input)?.validate(),
+        ATTACHMENT_TRASH => parse::<AttachmentTrashInput>(&request.input)?.validate(),
         _ => Err(invalid("/command", "unknown_confluence_page_write")),
     }
 }

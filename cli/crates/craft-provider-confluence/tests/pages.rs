@@ -481,3 +481,36 @@ fn comment_writes_bind_page_space_parent_and_reviewed_revision() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn attachment_trash_compiles_one_delete_bound_to_version_and_file() -> TestResult {
+    let raw = json!({"id":"att301","pageId":"101","status":"current","title":"design.png","mediaType":"image/png","fileSize":2048,"fileId":"file-1","version":{"number":2}});
+    let op = prepare(
+        ATTACHMENT_TRASH,
+        json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":2,"file_id":"file-1"}}),
+    )?;
+    assert_eq!(op.effect(), craft_core::contracts::EffectClass::Trash);
+    let write = prepare_attachment_trash(&op, &page(), &response(200, raw.clone()))?;
+    assert_eq!(write.call().route, ATTACHMENT_TRASH_ROUTE);
+    assert!(write.call().query.is_empty());
+    let done = write.interpret(&response(204, Value::Null));
+    assert_eq!(done.state, SubmissionState::Confirmed);
+    assert_eq!(done.resources[0].resource_type, "attachment");
+    let mut moved = raw.clone();
+    moved["pageId"] = json!("102");
+    assert!(prepare_attachment_trash(&op, &page(), &response(200, moved)).is_err());
+    let mut replaced = raw;
+    replaced["fileId"] = json!("file-2");
+    assert!(prepare_attachment_trash(&op, &page(), &response(200, replaced)).is_err());
+    for bad in ["301", "att0301", "attx"] {
+        assert!(
+            prepare(
+                ATTACHMENT_TRASH,
+                json!({"space_id":"100","page_id":"101","id":bad,"expected":{"version":2,"file_id":"file-1"}}),
+            )
+            .is_err(),
+            "{bad}"
+        );
+    }
+    Ok(())
+}

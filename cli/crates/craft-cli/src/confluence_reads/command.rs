@@ -186,7 +186,43 @@ pub struct ConfluenceContentStateArgs {
     #[schemars(length(min = 1, max = 19), regex(pattern = "^[1-9][0-9]*$"))]
     pub page_id: String,
 }
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConfluenceAttachmentGetArgs {
+    #[arg(long)]
+    #[schemars(length(min = 36, max = 36))]
+    pub cloud_id: Option<String>,
+    #[arg(long, default_value = "")]
+    #[schemars(length(min = 4, max = 22), regex(pattern = "^att[1-9][0-9]*$"))]
+    pub id: String,
+    #[arg(long, default_value = "")]
+    #[schemars(length(min = 1, max = 19), regex(pattern = "^[1-9][0-9]*$"))]
+    pub page_id: String,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConfluenceAttachmentListArgs {
+    #[arg(long)]
+    #[schemars(length(min = 36, max = 36))]
+    pub cloud_id: Option<String>,
+    #[arg(long, default_value = "")]
+    #[schemars(length(min = 1, max = 19), regex(pattern = "^[1-9][0-9]*$"))]
+    pub page_id: String,
+    #[arg(long,default_value_t=25,value_parser=clap::value_parser!(u16).range(1..=250))]
+    #[serde(default = "page_size")]
+    #[schemars(range(min = 1, max = 250))]
+    pub page_size: u16,
+    #[arg(long,default_value_t=20,value_parser=clap::value_parser!(u16).range(1..=100))]
+    #[serde(default = "limit")]
+    #[schemars(range(min = 1, max = 100))]
+    pub limit: u16,
+    #[arg(long)]
+    #[schemars(length(min = 36, max = 36))]
+    pub cursor: Option<String>,
+}
 pub enum ConfluenceReadArgs {
+    AttachmentGet(ConfluenceAttachmentGetArgs),
+    AttachmentList(ConfluenceAttachmentListArgs),
     ContentStateGet(ConfluenceContentStateArgs),
     ContentStateAvailable(ConfluenceContentStateArgs),
     CommentList(ConfluenceCommentListArgs),
@@ -215,6 +251,15 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Get(_),
         } => craft_provider_confluence::content_state::CONTENT_STATE_GET,
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Get(_),
+        } => craft_provider_confluence::attachments::ATTACHMENT_GET,
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::List(_),
+        } => craft_provider_confluence::attachments::ATTACHMENT_LIST,
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Trash(_),
+        } => craft_provider_confluence::pages::ATTACHMENT_TRASH,
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Available(_),
         } => craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
@@ -273,6 +318,15 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Set(v),
         } => encoded(v),
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Get(v),
+        } => encoded(v),
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::List(v),
+        } => encoded(v),
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Trash(v),
+        } => encoded(v),
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Clear(v),
         } => encoded(v),
@@ -314,6 +368,12 @@ impl From<ConfluenceReadArgs> for crate::args::ConfluenceAction {
             },
             ConfluenceReadArgs::CommentGet(v) => Self::Comment {
                 action: crate::args::ConfluenceCommentAction::Get(Box::new(v)),
+            },
+            ConfluenceReadArgs::AttachmentGet(v) => Self::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Get(Box::new(v)),
+            },
+            ConfluenceReadArgs::AttachmentList(v) => Self::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::List(Box::new(v)),
             },
             ConfluenceReadArgs::ContentStateGet(v) => Self::ContentState {
                 action: crate::args::ConfluenceContentStateAction::Get(Box::new(v)),
@@ -358,6 +418,12 @@ impl TryFrom<crate::args::ConfluenceAction> for ConfluenceReadArgs {
             A::ContentState {
                 action: crate::args::ConfluenceContentStateAction::Get(v),
             } => Self::ContentStateGet(*v),
+            A::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Get(v),
+            } => Self::AttachmentGet(*v),
+            A::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::List(v),
+            } => Self::AttachmentList(*v),
             A::ContentState {
                 action: crate::args::ConfluenceContentStateAction::Available(v),
             } => Self::ContentStateAvailable(*v),
@@ -392,6 +458,8 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, CraftError>
 impl ConfluenceReadArgs {
     pub fn operation(&self) -> Operation {
         match self {
+            Self::AttachmentGet(_) => Operation::AttachmentGet,
+            Self::AttachmentList(_) => Operation::AttachmentList,
             Self::ContentStateGet(_) => Operation::ContentStateGet,
             Self::ContentStateAvailable(_) => Operation::ContentStateAvailable,
             Self::CommentList(_) => Operation::CommentList,
@@ -413,6 +481,12 @@ impl ConfluenceReadArgs {
                 Self::CommentReplies(decode(value)?)
             }
             craft_provider_confluence::comments::COMMENT_GET => Self::CommentGet(decode(value)?),
+            craft_provider_confluence::attachments::ATTACHMENT_GET => {
+                Self::AttachmentGet(decode(value)?)
+            }
+            craft_provider_confluence::attachments::ATTACHMENT_LIST => {
+                Self::AttachmentList(decode(value)?)
+            }
             craft_provider_confluence::content_state::CONTENT_STATE_GET => {
                 Self::ContentStateGet(decode(value)?)
             }
@@ -433,6 +507,8 @@ impl ConfluenceReadArgs {
             Self::CommentReplies(v) => encoded(v),
             Self::CommentGet(v) => encoded(v),
             Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => encoded(v),
+            Self::AttachmentGet(v) => encoded(v),
+            Self::AttachmentList(v) => encoded(v),
             Self::SpaceGet(v) | Self::PageGet(v) => encoded(v),
             Self::SpaceList(v) => encoded(v),
             Self::PageList(v) => encoded(v),
@@ -445,6 +521,8 @@ impl ConfluenceReadArgs {
             Self::CommentReplies(v) => v.cloud_id.as_deref(),
             Self::CommentGet(v) => v.cloud_id.as_deref(),
             Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => v.cloud_id.as_deref(),
+            Self::AttachmentGet(v) => v.cloud_id.as_deref(),
+            Self::AttachmentList(v) => v.cloud_id.as_deref(),
             Self::SpaceGet(v) | Self::PageGet(v) => v.cloud_id.as_deref(),
             Self::SpaceList(v) => v.cloud_id.as_deref(),
             Self::PageList(v) => v.cloud_id.as_deref(),
@@ -475,6 +553,18 @@ impl ConfluenceReadArgs {
                     page_id: v.page_id.clone(),
                 },
             ),
+            Self::AttachmentGet(v) => encoded(
+                &craft_provider_confluence::attachments::AttachmentGetInput {
+                    id: v.id.clone(),
+                    page_id: v.page_id.clone(),
+                },
+            ),
+            Self::AttachmentList(v) => encoded(
+                &craft_provider_confluence::attachments::AttachmentListInput {
+                    page_id: v.page_id.clone(),
+                    page_size: v.page_size,
+                },
+            ),
             Self::SpaceGet(v) | Self::PageGet(v) => encoded(&GetInput { id: v.id.clone() }),
             Self::SpaceList(v) => encoded(&SpaceListInput {
                 key: v.key.clone(),
@@ -498,7 +588,9 @@ impl ConfluenceReadArgs {
             | Self::PageGet(_)
             | Self::CommentGet(_)
             | Self::ContentStateGet(_)
-            | Self::ContentStateAvailable(_) => (20, None),
+            | Self::ContentStateAvailable(_)
+            | Self::AttachmentGet(_) => (20, None),
+            Self::AttachmentList(v) => (v.limit, v.cursor.clone()),
             Self::CommentList(v) => (v.limit, v.cursor.clone()),
             Self::CommentReplies(v) => (v.limit, v.cursor.clone()),
             Self::SpaceList(v) => (v.limit, v.cursor.clone()),
@@ -580,9 +672,19 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
         craft_provider_confluence::comments::paging::COMMENT_REPLIES,
         craft_provider_confluence::content_state::CONTENT_STATE_GET,
         craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
+        craft_provider_confluence::attachments::ATTACHMENT_GET,
+        craft_provider_confluence::attachments::ATTACHMENT_LIST,
     ] {
         let mut descriptor = native.descriptor(command)?.clone();
         match command {
+            craft_provider_confluence::attachments::ATTACHMENT_GET => {
+                descriptor.input_schema = schema_for::<ConfluenceAttachmentGetArgs>()?;
+                registry.register_typed::<ConfluenceAttachmentGetArgs>(descriptor)?;
+            }
+            craft_provider_confluence::attachments::ATTACHMENT_LIST => {
+                descriptor.input_schema = schema_for::<ConfluenceAttachmentListArgs>()?;
+                registry.register_typed::<ConfluenceAttachmentListArgs>(descriptor)?;
+            }
             craft_provider_confluence::content_state::CONTENT_STATE_GET
             | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
                 descriptor.input_schema = schema_for::<ConfluenceContentStateArgs>()?;

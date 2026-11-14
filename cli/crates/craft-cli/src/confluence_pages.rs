@@ -16,14 +16,15 @@ use craft_core::registry::{ProviderModule, Registry};
 use craft_core::storage::{
     Clock, JournalRecord, OperationBinding, OperationJournal, SubmissionState,
 };
+use craft_provider_confluence::attachments::ATTACHMENT_GET;
 use craft_provider_confluence::comments::COMMENT_GET;
 use craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE;
 use craft_provider_confluence::pages::{
-    self, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE, CONTENT_STATE_CLEAR, CONTENT_STATE_SET,
-    CommentCreateInput, CommentDeleteInput, CommentUpdateInput, ConfluencePages,
-    ContentStateClearInput, ContentStateSetInput, PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE,
-    PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput, PageWriteKind,
-    PreparedPageWrite,
+    self, ATTACHMENT_TRASH, AttachmentTrashInput, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE,
+    CONTENT_STATE_CLEAR, CONTENT_STATE_SET, CommentCreateInput, CommentDeleteInput,
+    CommentUpdateInput, ConfluencePages, ContentStateClearInput, ContentStateSetInput, PAGE_CREATE,
+    PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput,
+    PageWriteKind, PreparedPageWrite,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -52,6 +53,7 @@ enum Intent {
     CommentDelete(CommentDeleteInput),
     ContentStateSet(ContentStateSetInput),
     ContentStateClear(ContentStateClearInput),
+    AttachmentTrash(AttachmentTrashInput),
 }
 impl Intent {
     fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
@@ -64,6 +66,7 @@ impl Intent {
             PageWriteKind::CommentDelete => Self::CommentDelete(decode(input)?),
             PageWriteKind::ContentStateSet => Self::ContentStateSet(decode(input)?),
             PageWriteKind::ContentStateClear => Self::ContentStateClear(decode(input)?),
+            PageWriteKind::AttachmentTrash => Self::AttachmentTrash(decode(input)?),
         })
     }
     fn kind(&self) -> PageWriteKind {
@@ -76,6 +79,7 @@ impl Intent {
             Self::CommentDelete(_) => PageWriteKind::CommentDelete,
             Self::ContentStateSet(_) => PageWriteKind::ContentStateSet,
             Self::ContentStateClear(_) => PageWriteKind::ContentStateClear,
+            Self::AttachmentTrash(_) => PageWriteKind::AttachmentTrash,
         }
     }
     fn space_id(&self) -> &str {
@@ -88,6 +92,7 @@ impl Intent {
             Self::CommentDelete(i) => &i.space_id,
             Self::ContentStateSet(i) => &i.space_id,
             Self::ContentStateClear(i) => &i.space_id,
+            Self::AttachmentTrash(i) => &i.space_id,
         }
     }
 }
@@ -291,6 +296,16 @@ impl PreparedPagePublication {
                     &self.read_operation(PAGE_GET, page_id, None, None)?,
                 )?;
             }
+            Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(ATTACHMENT_GET, id, Some(page_id), None)?,
+                )?;
+            }
             Intent::CommentUpdate(CommentUpdateInput { page_id, id, .. })
             | Intent::CommentDelete(CommentDeleteInput { page_id, id, .. }) => {
                 access.check_operation(
@@ -355,7 +370,7 @@ impl PreparedPagePublication {
                 ("include-version".into(), "true".into()),
             ]);
         }
-        if command == COMMENT_GET {
+        if command == COMMENT_GET || command == ATTACHMENT_GET {
             query.insert("include-version".into(), "true".into());
         }
         if let Some(r) = representation {
@@ -364,6 +379,7 @@ impl PreparedPagePublication {
         let (route, parameter) = match command {
             PAGE_GET => ("confluence-page-get", "id"),
             COMMENT_GET => ("confluence-footer-comment-get", "comment-id"),
+            ATTACHMENT_GET => (craft_provider_confluence::attachments::GET_ROUTE, "id"),
             CONTENT_STATE_AVAILABLE => (
                 craft_provider_confluence::content_state::AVAILABLE_ROUTE,
                 "id",
@@ -544,6 +560,22 @@ impl PreparedPagePublication {
             Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
                 let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
                 pages::prepare_content_state_clear(&self.operation, &page)
+            }
+            Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let attachment = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: ATTACHMENT_GET,
+                        id,
+                        page_id: Some(page_id),
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_attachment_trash(&self.operation, &page, &attachment)
             }
         }
     }

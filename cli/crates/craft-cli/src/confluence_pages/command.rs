@@ -210,6 +210,29 @@ pub struct ContentStateClearArgs {
     #[arg(long, default_value = "")]
     pub page_id: String,
 }
+fn attachment_revision(text: &str) -> Result<pages::AttachmentRevision, String> {
+    parse(text)
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttachmentTrashArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    /// The reviewed version and file ID from `confluence attachment get`.
+    #[arg(long, value_parser = attachment_revision, default_value = "{\"version\":0,\"file_id\":\"\"}")]
+    pub expected: pages::AttachmentRevision,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
@@ -219,6 +242,7 @@ pub enum PageWriteArgs {
     CommentDelete(CommentDeleteArgs),
     ContentStateSet(ContentStateSetArgs),
     ContentStateClear(ContentStateClearArgs),
+    AttachmentTrash(AttachmentTrashArgs),
 }
 /// Maps a saved space allowance to the host write it permits.
 fn kind_of(operation: Operation) -> PageWriteKind {
@@ -231,6 +255,7 @@ fn kind_of(operation: Operation) -> PageWriteKind {
         Operation::CommentDelete => PageWriteKind::CommentDelete,
         Operation::ContentStateSet => PageWriteKind::ContentStateSet,
         Operation::ContentStateClear => PageWriteKind::ContentStateClear,
+        Operation::AttachmentTrash => PageWriteKind::AttachmentTrash,
     }
 }
 fn site(cloud: &str) -> ResourceRef {
@@ -257,6 +282,7 @@ impl PageWriteArgs {
             Self::CommentDelete(_) => Operation::CommentDelete,
             Self::ContentStateSet(_) => Operation::ContentStateSet,
             Self::ContentStateClear(_) => Operation::ContentStateClear,
+            Self::AttachmentTrash(_) => Operation::AttachmentTrash,
         }
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
@@ -269,6 +295,7 @@ impl PageWriteArgs {
             COMMENT_DELETE => Ok(Self::CommentDelete(decode(&value)?)),
             CONTENT_STATE_SET => Ok(Self::ContentStateSet(decode(&value)?)),
             CONTENT_STATE_CLEAR => Ok(Self::ContentStateClear(decode(&value)?)),
+            ATTACHMENT_TRASH => Ok(Self::AttachmentTrash(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -282,6 +309,7 @@ impl PageWriteArgs {
             Self::CommentDelete(v) => encoded(v),
             Self::ContentStateSet(v) => encoded(v),
             Self::ContentStateClear(v) => encoded(v),
+            Self::AttachmentTrash(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
@@ -294,6 +322,7 @@ impl PageWriteArgs {
             Self::CommentDelete(v) => v.cloud_id.as_deref(),
             Self::ContentStateSet(v) => v.cloud_id.as_deref(),
             Self::ContentStateClear(v) => v.cloud_id.as_deref(),
+            Self::AttachmentTrash(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
@@ -306,6 +335,7 @@ impl PageWriteArgs {
             Self::CommentDelete(v) => v.space_id.as_deref(),
             Self::ContentStateSet(v) => v.space_id.as_deref(),
             Self::ContentStateClear(v) => v.space_id.as_deref(),
+            Self::AttachmentTrash(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
@@ -318,6 +348,7 @@ impl PageWriteArgs {
             Self::CommentDelete(v) => &v.operation_id,
             Self::ContentStateSet(v) => &v.operation_id,
             Self::ContentStateClear(v) => &v.operation_id,
+            Self::AttachmentTrash(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
@@ -330,6 +361,7 @@ impl PageWriteArgs {
             Self::CommentDelete(v) => v.apply,
             Self::ContentStateSet(v) => v.apply,
             Self::ContentStateClear(v) => v.apply,
+            Self::AttachmentTrash(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -387,6 +419,12 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => encoded(&pages::ContentStateClearInput {
                 space_id: space.into(),
                 page_id: v.page_id.clone(),
+            }),
+            Self::AttachmentTrash(v) => encoded(&pages::AttachmentTrashInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                id: v.id.clone(),
+                expected: v.expected.clone(),
             }),
         }
     }
@@ -464,6 +502,9 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             PageWriteArgs::ContentStateClear(v) => Self::ContentState {
                 action: crate::args::ConfluenceContentStateAction::Clear(Box::new(v)),
             },
+            PageWriteArgs::AttachmentTrash(v) => Self::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Trash(Box::new(v)),
+            },
         }
     }
 }
@@ -498,6 +539,9 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::ContentState {
                 action: crate::args::ConfluenceContentStateAction::Clear(v),
             } => Ok(Self::ContentStateClear(*v)),
+            A::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Trash(v),
+            } => Ok(Self::AttachmentTrash(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -515,6 +559,7 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             COMMENT_DELETE,
             CONTENT_STATE_SET,
             CONTENT_STATE_CLEAR,
+            ATTACHMENT_TRASH,
         ],
     )
 }
@@ -531,6 +576,7 @@ pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
             COMMENT_DELETE,
             CONTENT_STATE_SET,
             CONTENT_STATE_CLEAR,
+            ATTACHMENT_TRASH,
         ],
     )
 }
@@ -565,7 +611,9 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             _ => Value::Null,
         };
         let status = match kind {
-            PageWriteKind::Trash | PageWriteKind::CommentDelete => 204,
+            PageWriteKind::Trash
+            | PageWriteKind::CommentDelete
+            | PageWriteKind::AttachmentTrash => 204,
             PageWriteKind::CommentCreate => 201,
             _ => 200,
         };
@@ -573,7 +621,7 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             command,
             "example".into(),
             json!({
-                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":if resource == "page" {"101"} else {"201"}}],"job":null},
+                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", _ => "201"}}],"job":null},
                 "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
@@ -606,9 +654,13 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
                 d.input_schema = schema_for::<ContentStateSetArgs>()?;
                 registry.register_typed::<ContentStateSetArgs>(d)?;
             }
-            _ => {
+            CONTENT_STATE_CLEAR => {
                 d.input_schema = schema_for::<ContentStateClearArgs>()?;
                 registry.register_typed::<ContentStateClearArgs>(d)?;
+            }
+            _ => {
+                d.input_schema = schema_for::<AttachmentTrashArgs>()?;
+                registry.register_typed::<AttachmentTrashArgs>(d)?;
             }
         }
     }

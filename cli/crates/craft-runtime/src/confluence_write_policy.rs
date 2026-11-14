@@ -27,6 +27,8 @@ pub enum ConfluenceWriteOperation {
     ContentStateSet,
     #[serde(rename = "confluence.content-state.clear")]
     ContentStateClear,
+    #[serde(rename = "confluence.attachment.trash")]
+    AttachmentTrash,
 }
 impl ConfluenceWriteOperation {
     pub fn command(self) -> &'static str {
@@ -39,6 +41,7 @@ impl ConfluenceWriteOperation {
             Self::CommentDelete => "confluence.comment.delete",
             Self::ContentStateSet => "confluence.content-state.set",
             Self::ContentStateClear => "confluence.content-state.clear",
+            Self::AttachmentTrash => "confluence.attachment.trash",
         }
     }
 }
