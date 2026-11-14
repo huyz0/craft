@@ -64,11 +64,11 @@ impl ProviderModule for ConfluencePages {
                 effect:EffectClass::Write,
                 input_schema:if update { schema_for::<PageUpdateInput>()? } else { schema_for::<PageCreateInput>()? },
                 response_schema:response_schema::<PageWriteData>()?,
-                example:if update { json!({"id":"101","space_id":"100","expected":{"version":1,"digest":digest,"representation":"storage"},"title":"Reviewed plan"}) } else { json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":body}) },
+                example:if update { json!({"id":"101","space_id":"100","expected":{"version":1,"digest":digest,"representation":"storage"},"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Reviewed plan"}) } else { json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":body}) },
                 response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if update { 2 } else { 1 }}))),
                 projection:None, scope_alternatives:vec![vec!["write:page:confluence".into()]],
                 permissions:vec!["Native Confluence space/content visibility and page creation or editing permissions.".into()],
-                tenant_conditions:vec!["Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Editor-draft behavior requires live qualification before public updates.".into()],
+                tenant_conditions:vec!["Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified.".into()],
                 routes:vec![route(update)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
             if update {

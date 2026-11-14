@@ -88,6 +88,8 @@ Run on **14 November 2026** with the non-interactive production path: the site o
 | Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 15 pass |
 | Confluence reads through the host (space list/get, page list/get/search, footer-comment list) | 6 pass |
 | `confluence.page.create` (root placement in the onboarding space) | confirmed; page removed afterwards |
+| `confluence.page.update` (title and storage body, explicit editor-draft policy) | confirmed version 1 to 2; receipt reports the policy and `editor_draft_preservation_verified: false` |
+| `confluence.page.update` with the stale version-1 revision | refused `VERSION_CONFLICT` before any send; page removed afterwards |
 | `jira.issue.create` -> `jira.transition.apply` -> `jira.issue.update` -> `jira.issue.delete` on a `craft-test host` issue | all confirmed after granting the service account the project Administrator role |
 
 Findings:
@@ -100,6 +102,6 @@ Findings:
 
 ## Limits
 
-- Not exercised live: `confluence.page.update` (still withheld pending authorization), attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
+- Not exercised live: editor-draft interaction with another person's open draft, attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
 - The production host, service-account OAuth, policy, journal and `api.atlassian.com` gateway routing were not exercised. Gateway-rewritten continuation links remain unobserved. Service-account eligibility is still pending in the [tenant inventory](tenant-auth-inventory.md).
 - One small site: one Jira project, two spaces, a handful of pages. Large-page, custom-field and permission-restricted behavior is not represented.

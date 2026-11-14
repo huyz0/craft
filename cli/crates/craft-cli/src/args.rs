@@ -375,7 +375,6 @@ pub enum ConfluenceSpaceAction {
 #[derive(Subcommand)]
 pub enum ConfluencePageAction {
     Create(Box<crate::confluence_pages::command::PageCreateArgs>),
-    #[command(skip)]
     Update(Box<crate::confluence_pages::command::PageUpdateArgs>),
     Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
     List(Box<crate::confluence_reads::command::ConfluencePageListArgs>),

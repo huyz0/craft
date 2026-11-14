@@ -80,6 +80,9 @@ impl ProviderModule for CloudCommands {
                 "confluence.page.create" => {
                     register!(crate::confluence_pages::command::PageCreateArgs)
                 }
+                "confluence.page.update" => {
+                    register!(crate::confluence_pages::command::PageUpdateArgs)
+                }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {

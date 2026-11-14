@@ -93,12 +93,22 @@ pub struct PageRevision {
     pub representation: PageRepresentation,
 }
 
+/// Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the
+/// published content into any open editor draft and may overwrite divergent unpublished edits.
+/// It is bound into the operation digest but never sent as a native field, and grants no permission.
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EditorDraftPolicy {
+    NativeReconciliationMayOverwrite,
+}
+
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PageUpdateInput {
     pub id: String,
     pub space_id: String,
     pub expected: PageRevision,
+    pub editor_draft_policy: EditorDraftPolicy,
     #[serde(default, skip_serializing_if = "InputField::is_omitted")]
     pub title: InputField<String>,
     #[serde(default, skip_serializing_if = "InputField::is_omitted")]

@@ -247,3 +247,35 @@ fn normal_profile_and_space_selection_require_separate_captured_write_authority(
     );
     Ok(())
 }
+#[test]
+fn public_update_requires_explicit_draft_overwrite_policy_and_reports_it_unverified() -> TestResult
+{
+    let mut r = crate::catalog::local_registry()?;
+    register_public(&mut r)?;
+    let d = r.descriptor(PAGE_UPDATE)?.clone();
+    assert_eq!(
+        d.example["editor_draft_policy"],
+        "native_reconciliation_may_overwrite"
+    );
+    assert_eq!(
+        d.response_example["data"]["editor_draft_preservation_verified"],
+        false
+    );
+    PageWriteArgs::decode(PAGE_UPDATE, d.example.clone())?.validate(&[], &options(None))?;
+    for policy in [None, Some(json!(null)), Some(json!("preserve_drafts"))] {
+        let mut example = d.example.clone();
+        match policy {
+            None => {
+                example
+                    .as_object_mut()
+                    .ok_or("object")?
+                    .remove("editor_draft_policy");
+            }
+            Some(value) => example["editor_draft_policy"] = value,
+        }
+        let refused = PageWriteArgs::decode(PAGE_UPDATE, example)
+            .and_then(|args| args.validate(&[], &options(None)));
+        assert!(refused.is_err());
+    }
+    Ok(())
+}

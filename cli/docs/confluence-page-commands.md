@@ -1,6 +1,6 @@
-# Internal page-write commands and saved permissions
+# Page-write commands and saved permissions
 
-Typed Confluence page create/update candidates now connect strict flags or JSON input to the journaled publication host. The root Confluence command remains unavailable in the public executable. Public setup/registration, independent consequential review and live qualification are still required.
+`confluence.page.create` and `confluence.page.update` are public commands that connect strict flags or JSON input to the journaled publication host. Both have passed through the full host against the live test site (see [live evidence](evidence/live-read-conformance.md)); editor-draft interaction with another person's open draft is not live-qualified.
 
 ## Select context and provide intent
 
@@ -21,7 +21,7 @@ A create candidate accepts this structured argument object:
 
 The corresponding flags include `--operation-id`, `--apply`, `--space-id`, `--title`, `--placement` and `--body`. Complex flag values are strict JSON objects; duplicate/unknown fields fail. Root is the flag placement default. Homepage placement resolves the observed space homepage, and explicit parent placement requires an ID. Both verify the current parent belongs to the selected space. A plan draft remains an ordinary published shared page.
 
-Update arguments contain `id`, `expected` and `changes`, plus the same operation/apply/context options. Changes contain title and/or body. Omission preserves the current value; null is rejected. For example, a title change uses `"changes": {"title": "Reviewed plan"}`. The expected revision contains version, digest and representation. Both version and fingerprint must match fresh published content before a PUT is prepared. Native editor-draft safety still requires sandbox qualification before public updates.
+Update arguments contain `id`, `expected` and `changes`, plus the same operation/apply/context options. Changes contain title and/or body. Omission preserves the current value; null is rejected. For example, a title change uses `"changes": {"title": "Reviewed plan"}`. The expected revision contains version, digest and representation. Both version and fingerprint must match fresh published content before a PUT is prepared. Updates also require `"editor_draft_policy": "native_reconciliation_may_overwrite"` (flag `--editor-draft-policy`). Confluence reconciles a published update into any open editor draft and can overwrite divergent unpublished edits; there is no preservation mode. The policy is bound into the operation digest, never sent to Confluence, and grants no permission. Missing, null or other values fail before state or network access. Every update receipt repeats the policy with `editor_draft_preservation_verified: false`. Coordinate editing outside Craft if unpublished drafts must survive.
 
 ## Fetch only the expected revision
 

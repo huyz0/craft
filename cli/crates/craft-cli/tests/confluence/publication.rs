@@ -377,7 +377,9 @@ fn current_page() -> Value {
 }
 fn update_input() -> Result<Value, CraftError> {
     let observed = pages::observe_page(&native(current_page()), PageRepresentation::Storage)?;
-    Ok(json!({"id":"101","space_id":"100","expected":observed.revision()?,"title":"Plan draft"}))
+    Ok(
+        json!({"id":"101","space_id":"100","expected":observed.revision()?,"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Plan draft"}),
+    )
 }
 fn native(body: Value) -> craft_core::execution::NativeResponse {
     craft_core::execution::NativeResponse {

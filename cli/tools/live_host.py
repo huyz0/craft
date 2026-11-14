@@ -68,7 +68,8 @@ def policies(state_root, site, cloud, actor, project, space):
         ("jira-test", "jira-mutation", ref("jira", cloud, "project", project), [
             "jira.issue.update", "jira.transition.apply", "jira.issue.assign", "jira.issue.unassign",
             "jira.issue.delete"], None),
-        ("cf-test", "confluence-write", ref("confluence", cloud, "space", space), ["confluence.page.create"], None),
+        ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
+         ["confluence.page.create", "confluence.page.update"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
@@ -202,17 +203,51 @@ def writes(state_root, project, issue_type):
     return report
 
 
-def page_create(state_root, space):
-    """Creates one craft-test Confluence page through the full host; tests/live_cleanup.rs removes it."""
+def page_lifecycle(state_root, space):
+    """Creates one craft-test page through the full host, updates it with the explicit editor-draft
+    policy, and checks a stale revision is refused. tests/live_cleanup.rs removes the page."""
     import time
     stamp = int(time.time() * 1000)
-    out = run(state_root, "cf-test", "confluence.page.create", {
+    report = []
+
+    def step(name, out, expect_ok=True, expect_code=None):
+        error = out.get("error") or {}
+        passed = out.get("ok") if expect_ok else (not out.get("ok") and error.get("code") == expect_code)
+        detail = "" if passed else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}"
+        report.append(f"{name} => {'PASS' if passed else 'FAIL'}{detail}")
+        return out
+
+    created = step("confluence.page.create", run(state_root, "cf-test", "confluence.page.create", {
         "operation_id": f"craft-test-{stamp}-page", "apply": True, "space_id": space,
         "title": f"craft-test host page {stamp}", "placement": {"kind": "root"},
-        "body": {"representation": "storage", "value": "<p>craft-test page created through the CLI host.</p>"}})
-    error = out.get("error") or {}
-    return [f"confluence.page.create => {'PASS' if out.get('ok') else 'FAIL'}"
-            + ("" if out.get("ok") else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}")]
+        "body": {"representation": "storage", "value": "<p>craft-test page created through the CLI host.</p>"}}))
+    resources = ((created.get("data") or {}).get("receipt") or {}).get("confirmed_resources") or []
+    page = next((r.get("id") for r in resources if r.get("resource_type") == "page"), None)
+    if not page:
+        return report
+
+    def revision():
+        out = step("confluence.page.get", craft(state_root, [
+            "--profile", "cf-test", "confluence", "page", "get", "--fields", "id,version,revision"], {"id": page}))
+        return ((out.get("data") or {}).get("item") or {}).get("revision")
+
+    first = revision()
+    policy = "native_reconciliation_may_overwrite"
+    updated = step("confluence.page.update", run(state_root, "cf-test", "confluence.page.update", {
+        "operation_id": f"craft-test-{stamp}-update", "apply": True, "space_id": space, "id": page,
+        "expected": first, "editor_draft_policy": policy,
+        "changes": {"title": f"craft-test host page {stamp} edited",
+                    "body": {"representation": "storage", "value": "<p>craft-test page updated.</p>"}}}))
+    data = updated.get("data") or {}
+    report.append(f"update receipt version={data.get('version')} policy={data.get('editor_draft_policy')} "
+                  f"preservation_verified={data.get('editor_draft_preservation_verified')}")
+    second = revision()
+    report.append(f"revision {first and first.get('version')} -> {second and second.get('version')}")
+    step("confluence.page.update stale revision", run(state_root, "cf-test", "confluence.page.update", {
+        "operation_id": f"craft-test-{stamp}-stale", "apply": True, "space_id": space, "id": page,
+        "expected": first, "editor_draft_policy": policy,
+        "changes": {"title": f"craft-test host page {stamp} stale"}}), expect_ok=False, expect_code="VERSION_CONFLICT")
+    return report
 
 
 def main():
@@ -235,7 +270,7 @@ def main():
         elif args.command == "writes":
             report = writes(args.state_root, args.project, args.issue_type)
         else:
-            report = page_create(args.state_root, args.space)
+            report = page_lifecycle(args.state_root, args.space)
         text = "\n".join(report)
         print(text)
         CAPTURES.mkdir(parents=True, exist_ok=True)

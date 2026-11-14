@@ -9,7 +9,8 @@ use craft_core::execution::{NativeCall, NativeResponse, PreparedOperation};
 use craft_core::input::canonical_digest;
 use craft_core::presence::InputField;
 pub use input::{
-    PageBody, PageCreateInput, PagePlacement, PageRepresentation, PageRevision, PageUpdateInput,
+    EditorDraftPolicy, PageBody, PageCreateInput, PagePlacement, PageRepresentation, PageRevision,
+    PageUpdateInput,
 };
 pub use registration::ConfluencePages;
 pub use result::PageWriteObservation;

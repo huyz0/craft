@@ -37,6 +37,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "confluence.page.list",
         "confluence.page.search",
         "confluence.page.create",
+        "confluence.page.update",
         "jira.issue.get",
         "jira.issue.search",
         "jira.issue.create",
@@ -117,10 +118,29 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
     ] {
         assert_eq!(item["availability"][field], "unknown", "{field}");
     }
-    for command in ["confluence.page.update", "jira.project.delete"] {
-        let body = envelope(&invoke(&["schema", "--command", command], None)?)?;
-        assert_eq!(body["error"]["code"], "COMMAND_UNKNOWN");
-    }
+    let update = [
+        "schema",
+        "--command",
+        "confluence.page.update",
+        "--view",
+        "full",
+    ];
+    let input = envelope(&invoke(&update, None)?)?["data"]["schema"].to_string();
+    assert!(
+        input.contains("native_reconciliation_may_overwrite"),
+        "{input}"
+    );
+    let response = [&update[..], &["--response", "--max-bytes", "65536"]].concat();
+    let output = envelope(&invoke(&response, None)?)?["data"]["schema"].to_string();
+    assert!(
+        output.contains("editor_draft_preservation_verified"),
+        "{output}"
+    );
+    let body = envelope(&invoke(
+        &["schema", "--command", "jira.project.delete"],
+        None,
+    )?)?;
+    assert_eq!(body["error"]["code"], "COMMAND_UNKNOWN");
     Ok(())
 }
 

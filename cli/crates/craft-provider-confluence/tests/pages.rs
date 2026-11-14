@@ -59,7 +59,7 @@ fn prepare(
 fn update_input() -> Result<Value, craft_core::error::CraftError> {
     let observed = observe_page(&page(), PageRepresentation::Storage)?;
     Ok(
-        json!({"id":"101","space_id":"100","expected":observed.revision()?,"title":"Reviewed title"}),
+        json!({"id":"101","space_id":"100","expected":observed.revision()?,"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Reviewed title"}),
     )
 }
 
@@ -303,5 +303,37 @@ fn write_contracts_match_the_pinned_native_inventory() -> TestResult {
             serde_json::to_value(&d.scope_alternatives[0])?
         );
     }
+    Ok(())
+}
+
+#[test]
+fn update_requires_explicit_editor_draft_policy_bound_into_digest_but_never_sent() -> TestResult {
+    for policy in [
+        None,
+        Some(json!(null)),
+        Some(json!("preserve")),
+        Some(json!(true)),
+    ] {
+        let mut input = update_input()?;
+        match policy {
+            None => {
+                input
+                    .as_object_mut()
+                    .ok_or("object")?
+                    .remove("editor_draft_policy");
+            }
+            Some(value) => input["editor_draft_policy"] = value,
+        }
+        assert!(prepare(PAGE_UPDATE, input).is_err());
+    }
+    let op = prepare(PAGE_UPDATE, update_input()?)?;
+    let write = prepare_update(&op, &page())?;
+    let body = write.call().body.clone().ok_or("body")?;
+    assert!(body.get("editor_draft_policy").is_none());
+    assert!(!body.to_string().contains("native_reconciliation"));
+    let mut other = update_input()?;
+    other.as_object_mut().ok_or("object")?.remove("title");
+    other["body"] = json!({"representation":"storage","value":"<p>x</p>"});
+    assert_ne!(prepare(PAGE_UPDATE, other)?.digest(), op.digest());
     Ok(())
 }

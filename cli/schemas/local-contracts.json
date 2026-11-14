@@ -125,6 +125,7 @@
             "Collection": {
               "enum": [
                 "downloads",
+                "uploads",
                 "requests",
                 "reviews"
               ],
@@ -258,6 +259,7 @@
             "Collection": {
               "enum": [
                 "downloads",
+                "uploads",
                 "requests",
                 "reviews"
               ],
@@ -619,6 +621,7 @@
           },
           "choices": [
             "downloads",
+            "uploads",
             "requests",
             "reviews"
           ],
@@ -734,6 +737,7 @@
             "Collection": {
               "enum": [
                 "downloads",
+                "uploads",
                 "requests",
                 "reviews"
               ],
@@ -837,6 +841,7 @@
             "Collection": {
               "enum": [
                 "downloads",
+                "uploads",
                 "requests",
                 "reviews"
               ],
@@ -1198,6 +1203,7 @@
           },
           "choices": [
             "downloads",
+            "uploads",
             "requests",
             "reviews"
           ],
@@ -5971,6 +5977,8 @@
           "command": "confluence.page.create",
           "data": {
             "credential_cache_update": null,
+            "editor_draft_policy": null,
+            "editor_draft_preservation_verified": false,
             "http_status": 200,
             "journal": null,
             "persistence": "recorded",
@@ -6059,6 +6067,13 @@
                 "write_state"
               ],
               "type": "object"
+            },
+            "EditorDraftPolicy": {
+              "description": "Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the\npublished content into any open editor draft and may overwrite divergent unpublished edits.\nIt is bound into the operation digest but never sent as a native field, and grants no permission.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
             },
             "ErrorCode": {
               "enum": [
@@ -6477,6 +6492,21 @@
                     }
                   ]
                 },
+                "editor_draft_policy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EditorDraftPolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for updates: the native publish may overwrite divergent unpublished editor drafts."
+                },
+                "editor_draft_preservation_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
                 "http_status": {
                   "format": "uint16",
                   "maximum": 65535,
@@ -6546,7 +6576,8 @@
                 "space_id",
                 "persistence",
                 "reconciliation_required",
-                "replay_authorized"
+                "replay_authorized",
+                "editor_draft_preservation_verified"
               ],
               "title": "PublicationData",
               "type": "object"
@@ -6626,7 +6657,7 @@
           ]
         ],
         "tenant_conditions": [
-          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Editor-draft behavior requires live qualification before public updates."
+          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified."
         ]
       },
       "flags": {
@@ -8936,6 +8967,1003 @@
         "version": "sha256:ec099ef7cc4b0db36a7259f2d6117a53b3fc96b855f6f08de597a5b86a894312"
       }
     },
+    "confluence.page.update": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "confluence-cloud-v2",
+        "contract_version": "1.0",
+        "description": "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
+        "effect": "write",
+        "example": {
+          "apply": true,
+          "changes": {
+            "title": "Reviewed plan"
+          },
+          "editor_draft_policy": "native_reconciliation_may_overwrite",
+          "expected": {
+            "digest": "sha256:19e06b23e1fe681ea2731d1f9377c19c2b63b60b498c2f721c7f3d6b59cfa1eb",
+            "representation": "storage",
+            "version": 1
+          },
+          "id": "101",
+          "operation_id": "publish-plan",
+          "space_id": "100"
+        },
+        "id": "confluence.page.update",
+        "input_schema": {
+          "$defs": {
+            "InputField_PageBody": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PageBody"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "InputField_string": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "PageBody": {
+              "additionalProperties": false,
+              "properties": {
+                "representation": {
+                  "$ref": "#/$defs/PageRepresentation"
+                },
+                "value": {
+                  "maxLength": 1048576,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "representation",
+                "value"
+              ],
+              "type": "object"
+            },
+            "PageChanges": {
+              "additionalProperties": false,
+              "properties": {
+                "body": {
+                  "$ref": "#/$defs/InputField_PageBody"
+                },
+                "title": {
+                  "$ref": "#/$defs/InputField_string"
+                }
+              },
+              "type": "object"
+            },
+            "PageRepresentation": {
+              "enum": [
+                "storage",
+                "atlas_doc_format"
+              ],
+              "type": "string"
+            },
+            "PageRevision": {
+              "additionalProperties": false,
+              "description": "Fingerprint of the exact published representation; it carries no approval or write authority.",
+              "properties": {
+                "digest": {
+                  "type": "string"
+                },
+                "representation": {
+                  "$ref": "#/$defs/PageRepresentation"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "version",
+                "digest",
+                "representation"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "apply": {
+              "default": false,
+              "type": "boolean"
+            },
+            "changes": {
+              "$ref": "#/$defs/PageChanges",
+              "default": {}
+            },
+            "cloud_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "editor_draft_policy": {
+              "description": "Required acknowledgment that publication may overwrite divergent unpublished editor drafts.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
+            },
+            "expected": {
+              "$ref": "#/$defs/PageRevision"
+            },
+            "id": {
+              "type": "string"
+            },
+            "operation_id": {
+              "type": "string"
+            },
+            "space_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "operation_id",
+            "id",
+            "expected",
+            "editor_draft_policy"
+          ],
+          "title": "PageUpdateArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "Native Confluence space/content visibility and page creation or editing permissions."
+        ],
+        "projection": null,
+        "provider": "confluence",
+        "reconciliation": "known_resource",
+        "response_example": {
+          "command": "confluence.page.update",
+          "data": {
+            "credential_cache_update": null,
+            "editor_draft_policy": "native_reconciliation_may_overwrite",
+            "editor_draft_preservation_verified": false,
+            "http_status": 200,
+            "journal": null,
+            "persistence": "recorded",
+            "provider_request_id": null,
+            "receipt": {
+              "confirmed_resources": [
+                {
+                  "deployment": "cloud",
+                  "id": "101",
+                  "provider": "confluence",
+                  "resource_type": "page",
+                  "tenant": "00000000-1111-2222-3333-444444444444"
+                }
+              ],
+              "job": null,
+              "operation_id": "publish-plan",
+              "request_state": "confirmed"
+            },
+            "reconciliation_required": false,
+            "replay_authorized": false,
+            "retry_after": null,
+            "space_id": "100",
+            "target": {
+              "deployment": "cloud",
+              "id": "00000000-1111-2222-3333-444444444444",
+              "provider": "confluence",
+              "resource_type": "site",
+              "tenant": "00000000-1111-2222-3333-444444444444"
+            },
+            "version": 2
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "EditorDraftPolicy": {
+              "description": "Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the\npublished content into any open editor draft and may overwrite divergent unpublished edits.\nIt is bound into the operation digest but never sent as a native field, and grants no permission.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "JournalRecord": {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/OperationBinding"
+                },
+                "revision": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/JournalStep"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "binding",
+                "revision",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "JournalStep": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "request_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/SubmissionState"
+                }
+              },
+              "required": [
+                "state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "OperationBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "description": "Host-verified effective actor under the selected provider/tenant authority.",
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_digest",
+                "descriptor_digest",
+                "target",
+                "grant",
+                "actor"
+              ],
+              "type": "object"
+            },
+            "OperationReceipt": {
+              "additionalProperties": false,
+              "description": "Confirmed effects survive a later failed or uncertain request in a composite operation.",
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "Persistence": {
+              "enum": [
+                "recorded",
+                "unrecorded",
+                "uncertain"
+              ],
+              "type": "string"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "editor_draft_policy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EditorDraftPolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for updates: the native publish may overwrite divergent unpublished editor drafts."
+                },
+                "editor_draft_preservation_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "http_status": {
+                  "format": "uint16",
+                  "maximum": 65535,
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "journal": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "persistence": {
+                  "$ref": "#/$defs/Persistence"
+                },
+                "provider_request_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "receipt": {
+                  "$ref": "#/$defs/OperationReceipt"
+                },
+                "reconciliation_required": {
+                  "type": "boolean"
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "space_id": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "receipt",
+                "target",
+                "space_id",
+                "persistence",
+                "reconciliation_required",
+                "replay_authorized",
+                "editor_draft_preservation_verified"
+              ],
+              "title": "PublicationData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "reconcile_before_replay",
+        "routes": [
+          {
+            "continuation_parameters": [],
+            "id": "confluence-page-update",
+            "method": "put",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "pages"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 1048576
+          }
+        ],
+        "scope_alternatives": [
+          [
+            "write:page:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified."
+        ]
+      },
+      "flags": {
+        "apply": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "apply",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "changes": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "{}"
+          ],
+          "delimiter": null,
+          "long": "changes",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "cloud_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "cloud-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "editor_draft_policy": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "editor-draft-policy",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "{\"version\":0,\"digest\":\"\",\"representation\":\"storage\"}"
+          ],
+          "delimiter": null,
+          "long": "expected",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "space_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "confluence",
+        "page",
+        "update"
+      ],
+      "selectable_fields": {}
+    },
     "confluence.space.get": {
       "controls": {
         "fields": "supported",
@@ -10206,6 +11234,8 @@
           "command": "design.page-create",
           "data": {
             "credential_cache_update": null,
+            "editor_draft_policy": null,
+            "editor_draft_preservation_verified": false,
             "http_status": 200,
             "journal": null,
             "persistence": "recorded",
@@ -10294,6 +11324,13 @@
                 "write_state"
               ],
               "type": "object"
+            },
+            "EditorDraftPolicy": {
+              "description": "Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the\npublished content into any open editor draft and may overwrite divergent unpublished edits.\nIt is bound into the operation digest but never sent as a native field, and grants no permission.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
             },
             "ErrorCode": {
               "enum": [
@@ -10712,6 +11749,21 @@
                     }
                   ]
                 },
+                "editor_draft_policy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EditorDraftPolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for updates: the native publish may overwrite divergent unpublished editor drafts."
+                },
+                "editor_draft_preservation_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
                 "http_status": {
                   "format": "uint16",
                   "maximum": 65535,
@@ -10781,7 +11833,8 @@
                 "space_id",
                 "persistence",
                 "reconciliation_required",
-                "replay_authorized"
+                "replay_authorized",
+                "editor_draft_preservation_verified"
               ],
               "title": "PublicationData",
               "type": "object"
@@ -10861,7 +11914,7 @@
           ]
         ],
         "tenant_conditions": [
-          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Editor-draft behavior requires live qualification before public updates."
+          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified."
         ]
       },
       "flags": {
@@ -43073,6 +44126,8 @@
           "command": "plan.page-create",
           "data": {
             "credential_cache_update": null,
+            "editor_draft_policy": null,
+            "editor_draft_preservation_verified": false,
             "http_status": 200,
             "journal": null,
             "persistence": "recorded",
@@ -43161,6 +44216,13 @@
                 "write_state"
               ],
               "type": "object"
+            },
+            "EditorDraftPolicy": {
+              "description": "Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the\npublished content into any open editor draft and may overwrite divergent unpublished edits.\nIt is bound into the operation digest but never sent as a native field, and grants no permission.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
             },
             "ErrorCode": {
               "enum": [
@@ -43579,6 +44641,21 @@
                     }
                   ]
                 },
+                "editor_draft_policy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EditorDraftPolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for updates: the native publish may overwrite divergent unpublished editor drafts."
+                },
+                "editor_draft_preservation_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
                 "http_status": {
                   "format": "uint16",
                   "maximum": 65535,
@@ -43648,7 +44725,8 @@
                 "space_id",
                 "persistence",
                 "reconciliation_required",
-                "replay_authorized"
+                "replay_authorized",
+                "editor_draft_preservation_verified"
               ],
               "title": "PublicationData",
               "type": "object"
@@ -43728,7 +44806,7 @@
           ]
         ],
         "tenant_conditions": [
-          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Editor-draft behavior requires live qualification before public updates."
+          "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified."
         ]
       },
       "flags": {

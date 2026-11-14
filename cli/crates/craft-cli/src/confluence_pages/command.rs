@@ -31,6 +31,10 @@ fn placement(text: &str) -> Result<PagePlacement, String> {
 fn revision(text: &str) -> Result<pages::PageRevision, String> {
     parse(text)
 }
+fn draft_policy(text: &str) -> Result<pages::EditorDraftPolicy, String> {
+    serde_json::from_value(Value::String(text.into()))
+        .map_err(|_| "expected_native_reconciliation_may_overwrite".into())
+}
 fn changes(text: &str) -> Result<PageChanges, String> {
     parse(text)
 }
@@ -81,6 +85,10 @@ pub struct PageUpdateArgs {
     #[arg(long, value_parser = changes, default_value = "{}")]
     #[serde(default)]
     pub changes: PageChanges,
+    /// Required acknowledgment that publication may overwrite divergent unpublished editor drafts.
+    #[arg(long, value_parser = draft_policy)]
+    #[schemars(required)]
+    pub editor_draft_policy: Option<pages::EditorDraftPolicy>,
 }
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
@@ -155,6 +163,12 @@ impl PageWriteArgs {
                 id: v.id.clone(),
                 space_id: space.into(),
                 expected: v.expected.clone(),
+                editor_draft_policy: v.editor_draft_policy.ok_or_else(|| {
+                    CraftError::field(
+                        "/editor_draft_policy",
+                        "expected_native_reconciliation_may_overwrite",
+                    )
+                })?,
                 title: v.changes.title.clone(),
                 body: v.changes.body.clone(),
             }),
@@ -247,9 +261,9 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
 pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
     register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE])
 }
-/// Published-page updates remain unavailable until editor-draft behavior is qualified.
+/// Updates are public only with the explicit native editor-draft reconciliation policy.
 pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
-    register_commands(registry, &[PAGE_CREATE])
+    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE])
 }
 fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), CraftError> {
     let mut native = Registry::default();
@@ -264,6 +278,11 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
                 .remove("title")
                 .ok_or_else(denied)?;
             example["changes"] = json!({"title":title});
+            example["editor_draft_policy"] = example
+                .as_object_mut()
+                .ok_or_else(denied)?
+                .remove("editor_draft_policy")
+                .ok_or_else(denied)?;
         }
         example["operation_id"] = json!("publish-plan");
         example["apply"] = json!(true);
@@ -274,7 +293,7 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             "example".into(),
             json!({
                 "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":"page","id":"101"}],"job":null},
-                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":if command==PAGE_CREATE {1}else{2},"persistence":"recorded","journal":null,"http_status":200,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"credential_cache_update":null
+                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":if command==PAGE_CREATE {1}else{2},"persistence":"recorded","journal":null,"http_status":200,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_CREATE {Value::Null} else {json!("native_reconciliation_may_overwrite")},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
         if command == PAGE_CREATE {
