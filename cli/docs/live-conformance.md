@@ -46,6 +46,10 @@ cargo test -p craft-live-conformance --offline --test live_writes -- --ignored -
 
 It creates two Jira issues and a Confluence page titled `craft-test live <timestamp>`, runs provider comment, link, issue edit/assign/unassign/delete and page-create writes through the same prepare, send and interpret sequence the hosts use, reads back comments, links, an attachment and Confluence comment replies, and removes everything at the end even when a step fails. It never edits or deletes data it did not create. Its summary is written to `target/live-captures/writes-summary.txt`.
 
+## Production host with the service account
+
+`tools/live_host.py` runs the built `craft` executable through the full host: service-account OAuth, local policy and journal. The site owner provisions the grant once with `craft --state-root cli/target/live-state auth provision --profiles jira-test,cf-test --expected-actor <service-account-id> --interactive`. Give the OAuth credential exactly the ten scopes listed in the [evidence](evidence/live-read-conformance.md); broad selection hits Atlassian's 50-scope cap before the granular Confluence read scopes. Then `python tools/live_host.py policies --project <id> --space <id>`, `reads`, `writes --project <id> --issue-type <id>` and `page --space <id>`. Write runs create `craft-test` items; `tests/live_cleanup.rs` removes any that remain. Pass `--state-root` explicitly where the shell's AppData is virtualized.
+
 ## Replaying captures
 
 `ReplayContext` serves recorded bodies in order and `prepare_offline` prepares a request against a synthetic tenant, so a provider fix can be checked against captured live data without network access, or a rejected record can be isolated. A divergence that is fixed must also gain a deterministic fixture in the provider's own tests that mirrors the observed shape, since captures are local and untracked.

@@ -30,7 +30,9 @@ Run on **14 November 2026**, Australia/Sydney, from the Windows development host
 | `confluence.space.get` | pass | space |
 | `confluence.page.list` | pass | pages |
 | `confluence.page.get` | pass | page |
-| `confluence.page.search` | pass | CQL search |
+| Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 15 pass |
+| Confluence reads through the host (space list/get, page list/get/search, footer-comment list) | 6 pass |
+| `confluence.page.create` (root placement in the onboarding space) | confirmed; page removed afterwards |
 | `confluence.comment.list` | pass | footer comments (empty) |
 | `jira.comment.get` | skipped | no comment on the site |
 | `jira.attachment.get` | skipped | no attachment on the site |
@@ -85,9 +87,6 @@ Run on **14 November 2026** with the non-interactive production path: the site o
 | --- | --- |
 | `auth provision` (OAuth client-credentials exchange, Jira and Confluence current-user proofs, native vault) | confirmed by the site owner's run; `auth status` shows the stored grant |
 | `policy set` for jira-read, jira-project-read, jira-project-context, jira-field-read, jira-create, jira-mutation, confluence-read | all confirmed |
-| Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 17 pass |
-| `confluence.page.search` | pass |
-| `confluence.space.list`, `confluence.page.list` | refused before sending: the credential reports classic Confluence scopes only, and the v2 space/page operations require `read:space:confluence`/`read:page:confluence` |
 | `jira.issue.create` -> `jira.transition.apply` -> `jira.issue.update` -> `jira.issue.delete` on a `craft-test host` issue | all confirmed after granting the service account the project Administrator role |
 
 Findings:
@@ -95,6 +94,8 @@ Findings:
 4. **Create metadata issue type.** Live create metadata reports the system `issuetype` field with an empty `operations` list, because the type is fixed by the per-type route. The provider required a `set` operation, so every `jira.issue.create` failed validation. The issue type is now settable to its const value; fixture `live_shaped_issue_type_without_operations_still_compiles_create` mirrors the shape.
 5. **Project-context targets.** Project-context policies bind the exact target used at setup; invoking with the project key when the policy names the numeric ID is refused. This is documented behavior, recorded here because it is easy to trip over.
 6. **Delete permission.** In a team-managed project with open access, a service account without a project role can create, edit and transition but not delete. The CLI reported Jira's refusal as a confirmed failure with no retry, as designed. Leftover `craft-test` issues from refused deletes were removed with `tests/live_cleanup.rs`.
+
+7. **Service-account scope selection.** Atlassian caps a service-account OAuth credential at 50 scopes and lists them alphabetically. Selecting broadly fills the cap with `delete:` and `manage:` scopes, leaving only classic Confluence scopes, and the v2 space/page operations then fail the CLI's scope check (Atlassian's v2 reference lists only granular scopes for them). A credential with exactly these ten scopes passes every implemented command: `read:jira-work`, `write:jira-work`, `read:jira-user`, `read:confluence-user`, `read:space:confluence`, `read:page:confluence`, `write:page:confluence`, `read:comment:confluence`, `read:content-details:confluence`, `search:confluence`. The CLI's refusal happened before any request, as designed.
 
 ## Limits
 

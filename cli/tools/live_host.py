@@ -68,6 +68,7 @@ def policies(state_root, site, cloud, actor, project, space):
         ("jira-test", "jira-mutation", ref("jira", cloud, "project", project), [
             "jira.issue.update", "jira.transition.apply", "jira.issue.assign", "jira.issue.unassign",
             "jira.issue.delete"], None),
+        ("cf-test", "confluence-write", ref("confluence", cloud, "space", space), ["confluence.page.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
@@ -201,9 +202,22 @@ def writes(state_root, project, issue_type):
     return report
 
 
+def page_create(state_root, space):
+    """Creates one craft-test Confluence page through the full host; tests/live_cleanup.rs removes it."""
+    import time
+    stamp = int(time.time() * 1000)
+    out = run(state_root, "cf-test", "confluence.page.create", {
+        "operation_id": f"craft-test-{stamp}-page", "apply": True, "space_id": space,
+        "title": f"craft-test host page {stamp}", "placement": {"kind": "root"},
+        "body": {"representation": "storage", "value": "<p>craft-test page created through the CLI host.</p>"}})
+    error = out.get("error") or {}
+    return [f"confluence.page.create => {'PASS' if out.get('ok') else 'FAIL'}"
+            + ("" if out.get("ok") else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}")]
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["policies", "reads", "writes"])
+    parser.add_argument("command", choices=["policies", "reads", "writes", "page"])
     parser.add_argument("--issue-type", help="numeric non-subtask issue type id for writes")
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
@@ -216,7 +230,12 @@ def main():
         for kind, ok, error in policies(args.state_root, site, cloud, actor, args.project, args.space):
             print(kind, "ok" if ok else f"FAIL {json.dumps(error)[:600]}")
     else:
-        report = reads(args.state_root, cloud) if args.command == "reads" else writes(args.state_root, args.project, args.issue_type)
+        if args.command == "reads":
+            report = reads(args.state_root, cloud)
+        elif args.command == "writes":
+            report = writes(args.state_root, args.project, args.issue_type)
+        else:
+            report = page_create(args.state_root, args.space)
         text = "\n".join(report)
         print(text)
         CAPTURES.mkdir(parents=True, exist_ok=True)
