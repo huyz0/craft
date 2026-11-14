@@ -30,9 +30,7 @@ Run on **14 November 2026**, Australia/Sydney, from the Windows development host
 | `confluence.space.get` | pass | space |
 | `confluence.page.list` | pass | pages |
 | `confluence.page.get` | pass | page |
-| Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 15 pass |
-| Confluence reads through the host (space list/get, page list/get/search, footer-comment list) | 6 pass |
-| `confluence.page.create` (root placement in the onboarding space) | confirmed; page removed afterwards |
+| `confluence.page.search` | pass | CQL search |
 | `confluence.comment.list` | pass | footer comments (empty) |
 | `jira.comment.get` | skipped | no comment on the site |
 | `jira.attachment.get` | skipped | no attachment on the site |
@@ -86,7 +84,10 @@ Run on **14 November 2026** with the non-interactive production path: the site o
 | Area | Result |
 | --- | --- |
 | `auth provision` (OAuth client-credentials exchange, Jira and Confluence current-user proofs, native vault) | confirmed by the site owner's run; `auth status` shows the stored grant |
-| `policy set` for jira-read, jira-project-read, jira-project-context, jira-field-read, jira-create, jira-mutation, confluence-read | all confirmed |
+| `policy set` for jira-read, jira-project-read, jira-project-context, jira-field-read, jira-create, jira-mutation, confluence-read, confluence-write | all confirmed |
+| Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 15 pass |
+| Confluence reads through the host (space list/get, page list/get/search, footer-comment list) | 6 pass |
+| `confluence.page.create` (root placement in the onboarding space) | confirmed; page removed afterwards |
 | `jira.issue.create` -> `jira.transition.apply` -> `jira.issue.update` -> `jira.issue.delete` on a `craft-test host` issue | all confirmed after granting the service account the project Administrator role |
 
 Findings:
