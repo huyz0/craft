@@ -77,6 +77,8 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "jira.issue.delete",
         "jira.transition.apply",
         "operation.reconcile",
+        "operation.list",
+        "operation.preview",
         "plan.page-create",
         "design.page-create",
         "plan.page-get",
