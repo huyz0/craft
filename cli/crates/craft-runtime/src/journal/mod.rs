@@ -412,6 +412,45 @@ impl NativeJournal {
     }
 }
 
+impl NativeJournal {
+    /// Reads at most `limit` records ordered by operation identity, strictly after `after`.
+    /// Ordering is the primary key, so keyset paging cannot skip or repeat an existing record;
+    /// records created concurrently appear only if their identity sorts after the position.
+    pub fn list_after(
+        &self,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<JournalRecord>, StoreError> {
+        if limit == 0 || limit > 101 {
+            return Err(StoreError::Invalid);
+        }
+        if let Some(after) = after {
+            validate_identity("/after_operation_id", after).map_err(|_| StoreError::Invalid)?;
+        }
+        let profiles = self.lock(false)?;
+        let mut statement = profiles
+            .connection
+            .prepare(
+                "SELECT operation_id FROM operation_records                  WHERE ?1 IS NULL OR operation_id > ?1 ORDER BY operation_id LIMIT ?2",
+            )
+            .map_err(sql_error)?;
+        let identities = statement
+            .query_map(params![after, limit as i64], |row| row.get::<_, String>(0))
+            .map_err(sql_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(sql_error)?;
+        let mut records = Vec::new();
+        for id in identities {
+            // Re-read through the same strict decoder used by `get`.
+            records.push(
+                self.read(&profiles.connection, &id)?
+                    .ok_or(StoreError::Corrupt)?,
+            );
+        }
+        Ok(records)
+    }
+}
+
 impl OperationJournal for NativeJournal {
     fn get(&self, operation_id: &str) -> Result<Option<JournalRecord>, StoreError> {
         let profiles = self.lock(false)?;

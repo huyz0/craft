@@ -513,3 +513,100 @@ fn cancelled_inspection_never_initializes_local_state() -> Result<(), Box<dyn st
     assert!(!fixture.root.exists());
     Ok(())
 }
+
+#[test]
+fn operation_list_pages_by_identity_and_filters_unresolved_records_without_replay_authority()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = Fixture::new()?;
+    let seeded = fixture.seed(1, SubmissionState::Unknown, None)?;
+    let journal = fixture.journal()?;
+    for id in ["alpha", "bravo", "charlie"] {
+        let mut record = journal.begin(&OperationBinding {
+            operation_id: id.into(),
+            ..seeded.binding.clone()
+        })?;
+        record.steps.insert(
+            "create".into(),
+            JournalStep {
+                request_digest: Some(content_digest(id.as_bytes())),
+                ..Default::default()
+            },
+        );
+        record.revision += 1;
+        journal.compare_and_swap(record.revision - 1, &record)?;
+        if id == "bravo" {
+            record.steps.get_mut("create").ok_or("step")?.state = SubmissionState::SendStarted;
+            record.revision += 1;
+            journal.compare_and_swap(record.revision - 1, &record)?;
+        }
+    }
+    let first = success(&fixture.invoke(&["operation", "list", "--limit", "2"], None)?)?;
+    let ids = |page: &Value| -> Vec<String> {
+        page["data"]["items"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item["operation_id"].as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(ids(&first), ["alpha", "bravo"]);
+    assert_eq!(first["data"]["has_more"], true);
+    assert_eq!(first["data"]["next_after_operation_id"], "bravo");
+    assert_eq!(first["data"]["live_verified"], false);
+    assert_eq!(first["data"]["replay_authorized"], false);
+    let second = success(&fixture.invoke(
+        &[
+            "operation",
+            "list",
+            "--limit",
+            "2",
+            "--after-operation-id",
+            "bravo",
+        ],
+        None,
+    )?)?;
+    assert_eq!(ids(&second), ["charlie", "publish-summary"]);
+    assert_eq!(second["data"]["has_more"], false);
+    assert!(second["data"]["next_after_operation_id"].is_null());
+    // The filter keeps records whose sends are started or unknown, and still reports scanning.
+    let unresolved = success(&fixture.invoke(
+        &["operation", "list", "--input", "-"],
+        Some(br#"{"unresolved_only":true}"#),
+    )?)?;
+    assert_eq!(ids(&unresolved), ["bravo", "publish-summary"]);
+    assert_eq!(unresolved["data"]["scanned"], 4);
+    let schema = success(&fixture.invoke(
+        &[
+            "schema",
+            "--command",
+            "operation.list",
+            "--response",
+            "--view",
+            "full",
+            "--max-bytes",
+            "65536",
+        ],
+        None,
+    )?)?;
+    for page in [&first, &second, &unresolved] {
+        assert!(
+            jsonschema::validator_for(&schema["data"]["schema"])?.is_valid(page),
+            "{page}"
+        );
+    }
+    for bad in [
+        vec!["operation", "list", "--limit", "0"],
+        vec!["operation", "list", "--limit", "101"],
+    ] {
+        assert!(!fixture.invoke(&bad, None)?.status.success());
+    }
+    let refused = envelope(&fixture.invoke(
+        &["operation", "list", "--input", "-"],
+        Some(br#"{"after_operation_id":"","extra":1}"#),
+    )?)?;
+    assert_eq!(refused["ok"], false);
+    Ok(())
+}

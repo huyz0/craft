@@ -67,6 +67,11 @@ Unknown create outcomes SHALL require reconciliation; partial workflows SHALL re
 - **WHEN** `operation reconcile --saved` selects the recorded operation ID
 - **THEN** the saved original is strictly validated and passed through the same current recovery-policy and exact journal-binding checks as an explicit original, without granting write authority. Explicit original and saved selection are mutually exclusive. Old records without saved sources remain explicit gaps.
 
+#### Scenario: Finding unresolved local operations
+- **WHEN** an agent has lost the identity of an interrupted write
+- **THEN** `operation list` pages the selected state root's records in identity order with an explicit continuation position, can keep only records whose submission or job is started or unknown, and reports how many records each page examined.
+- **AND** every item is the same strict record `operation get` returns, the result carries no live verification or replay authority, and an empty page is not evidence that no remote effect occurred.
+
 ### Requirement: Bounded transport and async jobs
 HTTP and job polling SHALL obey total deadlines, cancellation, provider rate advice and operation-specific retries, with accepted/running/completed/failed/unknown states kept distinct.
 

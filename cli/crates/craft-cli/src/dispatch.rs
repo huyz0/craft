@@ -129,6 +129,9 @@ pub fn command_id(action: &Action) -> &'static str {
             action: crate::args::OperationAction::Get(_),
         } => "operation.get",
         Action::Operation {
+            action: crate::args::OperationAction::List(_),
+        } => "operation.list",
+        Action::Operation {
             action: crate::args::OperationAction::Reconcile(_),
         } => "operation.reconcile",
         Action::Plan { action } => match action {
@@ -506,6 +509,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::args::OperationAction::Get(_) => {
                     crate::args::OperationAction::Get(decode(input)?)
                 }
+                crate::args::OperationAction::List(_) => {
+                    crate::args::OperationAction::List(decode(input)?)
+                }
                 crate::args::OperationAction::Reconcile(_) => {
                     crate::args::OperationAction::Reconcile(Box::new(decode(input)?))
                 }
@@ -698,6 +704,9 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         Action::Artifact { action } => action.arguments(),
         Action::Operation {
             action: crate::args::OperationAction::Get(arguments),
+        } => value(arguments),
+        Action::Operation {
+            action: crate::args::OperationAction::List(arguments),
         } => value(arguments),
         Action::Operation {
             action: crate::args::OperationAction::Reconcile(arguments),

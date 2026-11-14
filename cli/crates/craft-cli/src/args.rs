@@ -42,6 +42,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "auth.doctor"
                 | "auth.provision"
                 | "operation.get"
+                | "operation.list"
                 | "operation.reconcile"
                 | "jira.issue.create"
                 | "jira.link.create"
@@ -634,6 +635,7 @@ pub enum AuthAction {
 #[derive(Subcommand)]
 pub enum OperationAction {
     Get(OperationGetArgs),
+    List(OperationListArgs),
     Reconcile(Box<crate::issue_recovery::command::OperationReconcileArgs>),
 }
 
@@ -647,6 +649,32 @@ pub struct OperationGetArgs {
     )]
     #[schemars(length(min = 1, max = 512))]
     pub operation_id: String,
+}
+
+fn default_operation_limit() -> u8 {
+    20
+}
+
+#[derive(Args, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OperationListArgs {
+    #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u8).range(1..=100))]
+    #[serde(default = "default_operation_limit")]
+    #[schemars(range(min = 1, max = 100))]
+    pub limit: u8,
+    #[arg(
+        long,
+        help = "Continue strictly after this operation identity, as returned in next_after_operation_id"
+    )]
+    #[serde(default)]
+    #[schemars(length(min = 1, max = 512))]
+    pub after_operation_id: Option<String>,
+    #[arg(
+        long,
+        help = "Return only records with a started, unknown or unresolved remote job state"
+    )]
+    #[serde(default)]
+    pub unresolved_only: bool,
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, JsonSchema)]

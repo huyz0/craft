@@ -498,7 +498,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### provider-reconciliation
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Define explicit unknown/partial recovery with provider-specific strategies.
 

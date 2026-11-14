@@ -54016,6 +54016,622 @@
         "steps.state": "sha256:b343d1c071a7917f128b01470e9c15eae44fe923318aa14b55addc4b0a0c2d38"
       }
     },
+    "operation.list": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "List durable local operation records in identity order, optionally only those needing reconciliation, without live verification or replay authority.",
+        "effect": "read",
+        "example": {
+          "limit": 20,
+          "unresolved_only": true
+        },
+        "id": "operation.list",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "after_operation_id": {
+              "default": null,
+              "maxLength": 512,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "limit": {
+              "default": 20,
+              "format": "uint8",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "unresolved_only": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "title": "OperationListArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "operation.list",
+          "data": {
+            "evidence_scope": "local_installation",
+            "has_more": false,
+            "items": [],
+            "live_verified": false,
+            "next_after_operation_id": null,
+            "replay_authorized": false,
+            "scanned": 0
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "OperationBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "description": "Host-verified effective actor under the selected provider/tenant authority.",
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_digest",
+                "descriptor_digest",
+                "target",
+                "grant",
+                "actor"
+              ],
+              "type": "object"
+            },
+            "OperationData": {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/OperationBinding"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "evidence_scope": {
+                  "const": "local_installation",
+                  "type": "string"
+                },
+                "found": {
+                  "type": "boolean"
+                },
+                "live_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "reconciliation_required": {
+                  "description": "Null means this installation has no record from which to infer reconciliation needs.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "revision": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "steps": {
+                  "items": {
+                    "$ref": "#/$defs/OperationStepData"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "operation_id",
+                "found",
+                "steps",
+                "evidence_scope",
+                "live_verified",
+                "replay_authorized"
+              ],
+              "type": "object"
+            },
+            "OperationStepData": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/SubmissionState"
+                }
+              },
+              "required": [
+                "name",
+                "state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "description": "One bounded page of local records. Absence from a page is not evidence that a remote\neffect did not happen, and `unresolved_only` filters this installation's records only.",
+              "properties": {
+                "evidence_scope": {
+                  "const": "local_installation",
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "items": {
+                  "items": {
+                    "$ref": "#/$defs/OperationData"
+                  },
+                  "type": "array"
+                },
+                "live_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "next_after_operation_id": {
+                  "description": "Pass back as `after_operation_id`; null when the journal has no later record.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "scanned": {
+                  "description": "Records examined for this page, including ones the filter excluded.",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "has_more",
+                "scanned",
+                "evidence_scope",
+                "live_verified",
+                "replay_authorized"
+              ],
+              "title": "OperationListData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "after_operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "after-operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "limit": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "20"
+          ],
+          "delimiter": null,
+          "long": "limit",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "unresolved_only": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "unresolved-only",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "operation",
+        "list"
+      ],
+      "selectable_fields": {}
+    },
     "operation.reconcile": {
       "controls": {
         "fields": "supported",

@@ -362,6 +362,13 @@ pub fn local_registry() -> Result<Registry, CraftError> {
         json!({"operation_id":"publish-summary"}),
         json!({"operation_id":"publish-summary","found":false,"binding":null,"revision":null,"steps":[],"reconciliation_required":null,"evidence_scope":"local_installation","live_verified":false,"replay_authorized":false}),
     )?;
+    register::<crate::args::OperationListArgs, crate::operations::OperationListData>(
+        &mut registry,
+        "operation.list",
+        "List durable local operation records in identity order, optionally only those needing reconciliation, without live verification or replay authority.",
+        json!({"limit":20,"unresolved_only":true}),
+        json!({"items":[],"has_more":false,"next_after_operation_id":null,"scanned":0,"evidence_scope":"local_installation","live_verified":false,"replay_authorized":false}),
+    )?;
     register::<ProfileNameArgs, AuthStatusData>(
         &mut registry,
         "auth.status",

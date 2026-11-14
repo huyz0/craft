@@ -35,3 +35,15 @@ State-root precedence is explicit `--state-root`, trusted `CRAFT_STATE_ROOT`, th
 `found: false` means only that this installation has no record under that identity. A different machine, state root or operation ID may hold the evidence. It is never proof that a remote effect did not occur. Corrupt, locked, unavailable or cancelled state reads return an error instead of local absence.
 
 Provider refresh, `operation list`, `operation wait` and `operation reconcile` remain unavailable in the public CLI. The [internal Jira reconciliation host and candidate](jira-reconciliation.md) bind supported original writes to exact journal evidence and inspect known/explicit issue IDs under separate persisted project recovery policy. Missing local evidence or create identities return without opening credentials. Recovery preserves uncertainty and grants no replay authority. Public/live qualification and broader correlation/job strategies remain unfinished. No marker reset, retry, deletion or remote compensation is offered. See the [journal contract](journal.md), [local inspection evidence](evidence/operation-inspection.md) and [current implementation state](../STATE.md).
+
+## Listing local records
+
+`craft operation list` pages the same records in operation-identity order, so an agent can find every interrupted write after a crash without remembering its identity.
+
+```text
+craft operation list --limit 20
+craft operation list --unresolved-only
+craft operation list --limit 20 --after-operation-id bravo
+```
+
+Each item is the record `operation get` returns. `has_more` and `next_after_operation_id` continue the walk; pass the latter back as `--after-operation-id`. Paging is by primary key, so records that already exist are never skipped or repeated; a record created during the walk appears only if its identity sorts after the current position. `--unresolved-only` keeps records with a started or unknown submission or an unknown job, and `scanned` reports how many records the page examined, including excluded ones. The list rejects `--profile`, reads only the selected state root and, like `get`, carries `live_verified: false` and `replay_authorized: false`. An empty page is not evidence that no remote write happened. Use `operation reconcile` on an unresolved record to investigate it.

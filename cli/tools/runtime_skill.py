@@ -104,7 +104,9 @@ def check(directory=SKILL, snapshot=CONTRACT):
     contract_bytes = snapshot.read_bytes()
     contract = json.loads(contract_bytes)
     compatibility = json.loads((directory / "compatibility.json").read_text(encoding="utf-8"))
-    require(compatibility["contract_snapshot_sha256"] == hashlib.sha256(contract_bytes).hexdigest(),
+    # Hash checked-in text, not checkout line endings, so CRLF and LF worktrees agree.
+    normalized = contract_bytes.replace(b"\r\n", b"\n")
+    require(compatibility["contract_snapshot_sha256"] == hashlib.sha256(normalized).hexdigest(),
             "Skill compatibility snapshot changed; review instructions before rebinding")
     require(compatibility["contract_version"] == contract["contract_version"], "Contract version mismatch")
     cargo = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
