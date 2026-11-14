@@ -72,10 +72,36 @@ fn item_target(installation: &str, key: &SecretKey) -> Result<String, StoreError
     Ok(format!("Craft/v1/{installation}/{digest}"))
 }
 
+/// errSecInteractionNotAllowed: the keychain is locked and interaction is disabled.
+#[cfg(target_os = "macos")]
+const INTERACTION_NOT_ALLOWED: i32 = -25308;
+
+#[cfg(target_os = "macos")]
+fn interaction_refused(inner: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    inner
+        .downcast_ref::<security_framework::base::Error>()
+        .is_some_and(|error| error.code() == INTERACTION_NOT_ALLOWED)
+}
+
+/// Disables keychain UI for one operation, so a locked keychain fails instead of prompting.
+/// The setting is process-wide; the vault's gate serializes it with every keychain call.
+#[cfg(target_os = "macos")]
+fn without_interaction()
+-> Result<security_framework::os::macos::keychain::KeychainUserInteractionLock, StoreError> {
+    security_framework::os::macos::keychain::SecKeychain::disable_user_interaction()
+        .map_err(|_| StoreError::Unavailable)
+}
+
 #[cfg(any(windows, target_os = "macos"))]
 fn native_error(error: keyring_core::Error, mutating: bool) -> StoreError {
     use keyring_core::Error;
     use zeroize::Zeroize;
+    #[cfg(target_os = "macos")]
+    if let Error::PlatformFailure(inner) | Error::NoStorageAccess(inner) = &error
+        && interaction_refused(inner.as_ref())
+    {
+        return StoreError::Locked;
+    }
     match error {
         Error::BadEncoding(mut bytes) | Error::BadDataFormat(mut bytes, _) => {
             bytes.zeroize();
@@ -251,6 +277,7 @@ impl CredentialStore for NativeVault {
         }
         #[cfg(target_os = "macos")]
         {
+            let _interaction = without_interaction()?;
             match self.entry(&target)?.get_secret() {
                 Ok(bytes) => {
                     let secret = SecretBytes::new(bytes).map_err(|_| StoreError::Corrupt)?;
@@ -290,6 +317,7 @@ impl CredentialStore for NativeVault {
         }
         #[cfg(target_os = "macos")]
         {
+            let _interaction = without_interaction()?;
             self.entry(&target)?
                 .set_secret(secret.expose())
                 .map_err(|error| native_error(error, true))
@@ -321,6 +349,7 @@ impl CredentialStore for NativeVault {
         }
         #[cfg(target_os = "macos")]
         {
+            let _interaction = without_interaction()?;
             match self.entry(&target)?.delete_credential() {
                 Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
                 Err(error) => Err(native_error(error, true)),

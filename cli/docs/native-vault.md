@@ -39,15 +39,13 @@ Readers refuse unresolved staging and corrupt/mixed chunks. `recover` activates 
 The explicit Windows acceptance checks oversized Unicode/binary generations across fresh processes, child-process logout, stale-version refusal, incomplete-staging recovery and owned synthetic-entry cleanup:
 
 ```text
-cargo test -p craft-runtime --lib --locked --offline windows_generations_survive_restart_recover_and_logout -- --ignored --exact secrets::tests::native::windows_generations_survive_restart_recover_and_logout
+cargo test -p craft-runtime --lib --locked --offline native_generations_survive_restart_recover_and_logout -- --ignored --exact secrets::tests::native::native_generations_survive_restart_recover_and_logout
 ```
 
 This test is ignored by the ordinary gate because it writes synthetic entries to the real vault. [Generation evidence](evidence/credential-generations.md) separates deterministic, kernel-lock and native results from remaining auth/platform work.
 
-## Remaining backends and qualification
+## macOS and Linux backends
 
-macOS and Linux selections currently fail explicitly. Their implementations and native tests remain required. The inspected Linux wrapper, `zbus-secret-service-keyring-store` 1.0.1, automatically unlocks matching items and collections. Its unchanged behavior violates Craft's ordinary noninteractive contract. A replacement must avoid executing prompts even when lock state changes between operations, and it must use an existing persistent collection rather than a session-only store.
+Each OS selects exactly one store and refuses the other two: Windows Credential Manager, the macOS login keychain (generic passwords through `apple-native-keyring-store` 1.0.2) or the Linux Secret Service login collection. Linux items carry one attribute, the hashed per-installation target, and are reached through the `secret-service` 5.2.0 blocking API directly rather than the keyring wrapper above, because that wrapper unlocks items and collections implicitly. Craft never calls an unlock method: a locked collection or item returns `Locked` for read, write, delete and the health probe, so no prompt can appear. Writes also refuse when the default collection is the session-only alias. Both Unix stores use an 8 KiB item limit; generations chunk above it.
 
-The macOS candidate requires operation-level suppression of Keychain UI and native locked/missing-store tests. The cached `security-framework` 3.7.0 source exposes a user-interaction suppression guard; its process-global lifetime and restoration behavior need qualification before adoption. Neither platform is accepted based on source inspection alone.
-
-Windows logon-session failure, service/container principals, malicious same-principal execution, actual OAuth refresh/logout races, power-loss durability and consequential auth enablement still require their owning tests and independent review. The successful synthetic generation and lock tests do not establish those behaviors.
+The Linux opt-in `vault::tests::native_linux_secret_service_round_trip_limits_and_locked_refusal`, the cross-platform generation test above and the native service-cache test pass against a real gnome-keyring Secret Service; see [platform qualification](evidence/platform-qualification.md). The macOS adapter is compiled only on macOS and has not been built or run, so macOS remains unqualified.

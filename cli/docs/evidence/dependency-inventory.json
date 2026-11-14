@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "lock_sha256": "d6e76c7d365d250752fe8e5f2850f831597705c8d8604f758b3bf8e60cf64819",
+  "lock_sha256": "ac8ffaf4ff24e3ec908b4b9f47f553c90c89a4c465b814292bfd1b0595151433",
   "packages": [
     {
       "name": "aes",
@@ -2269,7 +2269,7 @@
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "0c213241f7a40b236ec0a7e0141ce740009ed002938ee9021bdcec1720c1e567",
+      "manifest_sha256": "e6bdea02f395e6c3592234e7b64cd0b4c2658cc9efbd45f05c0dfce7d3fd72d2",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",
@@ -2397,6 +2397,13 @@
         {
           "package": "secret-service",
           "version": "5.2.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "security-framework",
+          "version": "3.7.0",
           "kinds": [
             "normal"
           ]

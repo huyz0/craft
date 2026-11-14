@@ -33,6 +33,7 @@ windows-native-keyring-store.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring-core.workspace = true
 apple-native-keyring-store.workspace = true
+security-framework.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 secret-service.workspace = true

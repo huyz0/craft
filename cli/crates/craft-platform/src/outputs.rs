@@ -317,6 +317,13 @@ impl OutputFile {
                 self.attempted = false;
                 Err(OutputCommitError::NotPublished(error))
             }
+            // A failed link or rename leaves the namespace unchanged, so staging is still ours.
+            #[cfg(unix)]
+            Err(error) => {
+                self.attempted = false;
+                Err(OutputCommitError::NotPublished(error))
+            }
+            #[cfg(windows)]
             Err(_) => Err(OutputCommitError::OutcomeUnknown),
         }
     }
@@ -455,6 +462,9 @@ mod unix {
 
     /// Create-new publication uses a hard link, which refuses an existing destination
     /// atomically on every Unix; the staging name is then removed. Replacement uses rename.
+    /// Both calls either take effect or leave the directory unchanged, so any error here is a
+    /// clean refusal. Filesystems without hard links (FAT, some network and FUSE mounts)
+    /// therefore refuse create-new publication rather than risk replacing a file.
     pub(super) fn publish(
         parent: &InputRoot,
         staging: &str,
@@ -463,11 +473,15 @@ mod unix {
     ) -> io::Result<()> {
         let directory = parent.directory()?;
         if replace {
-            return renameat(directory, staging, directory, leaf).map_err(os);
+            renameat(directory, staging, directory, leaf).map_err(os)?;
+        } else {
+            linkat(directory, staging, directory, leaf, AtFlags::empty()).map_err(os)?;
+            // The destination is complete at this point; leftover staging is only clutter.
+            let _ = unlinkat(directory, staging, UnlinkatFlags::NoRemoveDir);
         }
-        linkat(directory, staging, directory, leaf, AtFlags::empty()).map_err(os)?;
-        // The destination is complete at this point; leftover staging is only clutter.
-        let _ = unlinkat(directory, staging, UnlinkatFlags::NoRemoveDir);
+        // Best effort: the name is already published, so a failed directory sync cannot be
+        // reported as an unpublished output. It only weakens crash durability of the name.
+        let _ = directory.sync_all();
         Ok(())
     }
 

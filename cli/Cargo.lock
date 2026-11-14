@@ -695,6 +695,7 @@ dependencies = [
  "rustls",
  "schemars",
  "secret-service",
+ "security-framework",
  "serde",
  "serde_json",
  "sha2",
