@@ -40,3 +40,7 @@ Linux/macOS compilation and native filesystem cases remain unrun. Their API sign
 The root limit applies per artifact, not as a total disk quota. Cleanup is bounded and may report an error after earlier staging was reclaimed. No final artifact deletion or overwrite API is enabled. No real OAuth credential, live provider, repository commit, push, publication or release was changed.
 
 Local receipt inspection and digest-bound export recovery are described in [local recovery evidence](local-artifact-recovery.md). That adapter does not establish live-provider or cross-platform qualification.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

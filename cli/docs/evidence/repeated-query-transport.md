@@ -27,3 +27,7 @@ Source/document hashes and final validation are recorded in `target/repeated-que
 ## Limits
 
 No live provider, actual field endpoint, field adapter/host/policy, other-platform native test, public auth activation or independent review was exercised. Existing consequential auth/write qualification remains required. GET transport preserves duplicates and empty items as data; this does not establish that a particular provider filter accepts them. Broad transport and Jira-context tasks remain incomplete.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

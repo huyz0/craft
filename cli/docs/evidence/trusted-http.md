@@ -39,3 +39,7 @@ Final review tightened bearer padding to the trailing position required by beare
 The current context is synchronous-host only and rejects nesting inside an existing Tokio runtime. It does not provide a broker-origin/auth flow, binary transfer, durable send marker, production mutation, retry/job policy, provider cursor store or live scope/permission proof. Platform-native verifier work can be synchronous; pathological chain/network stalls and cancellation inside that work are not qualified by the local fixtures. Linux/macOS compilation/native TLS and independent consequential auth/write review remain unrun. The full task and goal remain incomplete.
 
 The later [journal-bound JSON mutation checkpoint](journaled-http.md) composes existing durable claims with a separate consuming host request and retained response/persistence evidence. This supersedes the absence of a host send-marker composition, while the ordinary provider-facing context still refuses mutations. Public provider/CLI writes, reviewed operation-specific recovery, live qualification and the other remaining acceptance above are unfinished.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

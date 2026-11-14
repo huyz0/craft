@@ -226,7 +226,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### tenant-auth-inventory
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Establish deployment inputs needed for honest auth and permission support.
 
@@ -244,7 +244,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### native-vault-backends
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Select and expose real persistent OS credential stores without fallback.
 
@@ -262,7 +262,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### credential-generation-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Persist variable-size credentials safely across interruption and backend limits.
 
@@ -280,7 +280,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### grant-locking
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Serialize refresh and logout by actual credential grant across local processes.
 
@@ -298,7 +298,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### service-oauth
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Acquire unattended Atlassian sessions through eligible service credentials.
 
@@ -408,7 +408,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### trusted-http
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Centralize authenticated routing and prevent provider data redefining trust.
 
@@ -426,7 +426,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### retry-deadlines
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Bound retries, rate limits and cancellation by operation semantics.
 
@@ -444,7 +444,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### artifact-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read/write non-secret artifacts without path escape or accidental replacement.
 
@@ -462,7 +462,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### binary-transfer
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Stream attachments through bounded secure transport and artifact receipts.
 
@@ -480,7 +480,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### mutation-journal
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Make write intent and observed effects durable before relying on retries.
 
@@ -554,7 +554,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### response-projection
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Fetch and emit only declared fields while preserving control evidence.
 
@@ -568,11 +568,11 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Projection saves agent-visible content without fabricating nulls or losing IDs/version/next metadata.
 
-**Evidence:** none
+**Evidence:** docs/evidence/foundation-closure.md
 
 ### cursor-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Persist opaque continuation with identity binding and fetched remainders.
 
@@ -590,7 +590,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### bounded-listing
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Make default paging small, lossless and honest about live collections.
 
@@ -666,7 +666,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-context
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read Jira context and live field/workflow constraints with bounded output.
 

@@ -13,3 +13,7 @@ Checks passed in the 33-test workspace/local verification run:
 - Direct invocations of `craft.exe capabilities --command version --fields availability.implemented` and the corresponding selected compact response schema returned complete valid JSON.
 
 No provider HTTP field mask, upstream continuation retention, protected cursor store, redaction attribution, server bandwidth measurement or token-cost evaluation is established. The owning tasks remain unchecked until those dependencies and full acceptance hold.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).
