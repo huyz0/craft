@@ -39,4 +39,4 @@ Schema eleven atomically adds an empty write table and preserves existing policy
 
 Candidate response schemas advertise the complete publication host receipt, including known resources, local persistence/journal evidence, HTTP status/request ID/retry delay, separate credential-cache receipts and replay_authorized false. Local input, apply and receipt-capacity checks precede private state or authentication. Dispatch preserves the original request identity and the complete handler envelope.
 
-See [publication behavior](confluence-publication.md) and [observed command evidence](evidence/confluence-write-command.md).
+See [publication behavior](confluence-publication.md), [observed command evidence](evidence/confluence-write-command.md) and [trash, comment, badge and attachment writes](confluence-space-writes.md).

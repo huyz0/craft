@@ -934,7 +934,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Upload, filename upsert and ID replacement cannot silently substitute for one another; uncertain writes preserve IDs/state.
 
-**Evidence:** none
+**Evidence:** docs/evidence/confluence-space-writes.md
 
 ### confluence-content-state
 
@@ -952,7 +952,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Badge changes never authorize plan tickets or act as Jira workflow transitions.
 
-**Evidence:** none
+**Evidence:** docs/evidence/confluence-space-writes.md
 
 ### confluence-conformance
 

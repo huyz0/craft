@@ -15,8 +15,8 @@ Provisioning, policy administration and selected cloud commands are now public a
 
 | Kind | Target | Meaning of operations |
 | --- | --- | --- |
-| confluence-read | site | Exact space/page get/list/search and separate page-bound comment get allowances |
-| confluence-write | space | Page create and/or update, independently enabled |
+| confluence-read | site | Exact space/page get/list/search, page-bound comment get/list/replies, content-state get/available and attachment get/list allowances |
+| confluence-write | space | Page create/update/trash, footer comment create/update/delete, content-state set/clear and attachment trash, each listed explicitly |
 | jira-create | project | Only jira.issue.create |
 | jira-read | site | Issue get/search, edit metadata, transitions, permission checks, link/comment reads and attachment metadata/list/settings |
 | jira-project-read | site | Project listing, with explicit continuation_site |
