@@ -16,7 +16,7 @@ use super::*;
 use crate::control::SystemClock;
 use crate::profiles::random_id;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 pub(crate) mod native;
 
 pub(crate) struct Fixture {

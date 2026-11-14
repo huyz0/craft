@@ -30,6 +30,13 @@ http-body.workspace = true
 keyring-core.workspace = true
 windows-native-keyring-store.workspace = true
 
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring-core.workspace = true
+apple-native-keyring-store.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service.workspace = true
+
 [dev-dependencies]
 craft-provider-jira = { path = "../craft-provider-jira" }
 craft-test-support = { path = "../craft-test-support" }

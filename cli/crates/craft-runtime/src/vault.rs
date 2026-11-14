@@ -10,10 +10,15 @@ use serde_json::json;
 
 use crate::profiles::{NativeBackend, is_opaque_id};
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use keyring_core::api::CredentialStoreApi;
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 pub const WINDOWS_ITEM_LIMIT: usize = 2_560;
+/// Keychain and Secret Service accept larger items; generations still chunk above this.
+pub const UNIX_ITEM_LIMIT: usize = 8_192;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -41,6 +46,8 @@ pub struct NativeVault {
     gate: Mutex<()>,
     #[cfg(windows)]
     store: std::sync::Arc<windows_native_keyring_store::Store>,
+    #[cfg(target_os = "macos")]
+    store: std::sync::Arc<apple_native_keyring_store::keychain::Store>,
 }
 
 impl fmt::Debug for NativeVault {
@@ -65,7 +72,7 @@ fn item_target(installation: &str, key: &SecretKey) -> Result<String, StoreError
     Ok(format!("Craft/v1/{installation}/{digest}"))
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 fn native_error(error: keyring_core::Error, mutating: bool) -> StoreError {
     use keyring_core::Error;
     use zeroize::Zeroize;
@@ -89,8 +96,9 @@ fn native_error(error: keyring_core::Error, mutating: bool) -> StoreError {
 }
 
 impl NativeVault {
-    /// Opens Windows Credential Manager with explicit local persistence, without writing an item.
-    /// Unsupported backend/host combinations fail instead of selecting another store.
+    /// Opens this host's one native store without writing an item: Windows Credential Manager
+    /// with local persistence, the macOS login keychain, or the Linux Secret Service login
+    /// collection. Unsupported backend/host combinations fail instead of selecting another store.
     pub fn open(backend: NativeBackend, installation: &str) -> Result<Self, StoreError> {
         if !is_opaque_id(installation, "ins_") {
             return Err(StoreError::Invalid);
@@ -109,7 +117,33 @@ impl NativeVault {
                 store,
             })
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        {
+            if backend != NativeBackend::MacosKeychain {
+                return Err(StoreError::Unavailable);
+            }
+            let store = apple_native_keyring_store::keychain::Store::new()
+                .map_err(|error| native_error(error, false))?;
+            Ok(Self {
+                backend,
+                installation: installation.into(),
+                gate: Mutex::new(()),
+                store,
+            })
+        }
+        #[cfg(target_os = "linux")]
+        {
+            // Connection happens per operation; opening never contacts or unlocks the service.
+            if backend != NativeBackend::LinuxSecretService {
+                return Err(StoreError::Unavailable);
+            }
+            Ok(Self {
+                backend,
+                installation: installation.into(),
+                gate: Mutex::new(()),
+            })
+        }
+        #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
         {
             let _ = backend;
             Err(StoreError::Unavailable)
@@ -119,14 +153,22 @@ impl NativeVault {
     pub fn item_limit_bytes(&self) -> usize {
         match self.backend {
             NativeBackend::WindowsCredentialManager => WINDOWS_ITEM_LIMIT,
-            _ => 0,
+            NativeBackend::MacosKeychain | NativeBackend::LinuxSecretService => UNIX_ITEM_LIMIT,
         }
     }
 
     /// Probes only this installation's reserved item and never tests permission by writing.
     pub fn health(&self) -> VaultHealth {
         let principal = craft_platform::current_process_principal().ok();
+        #[cfg(target_os = "linux")]
+        let collection = linux::locked();
+        #[cfg(not(target_os = "linux"))]
+        let collection: Result<bool, StoreError> = Ok(false);
         let read_access = if principal.is_none() {
+            VaultAccess::Unavailable
+        } else if collection == Ok(true) || collection == Err(StoreError::Locked) {
+            VaultAccess::Locked
+        } else if collection.is_err() {
             VaultAccess::Unavailable
         } else {
             match self.read(&SecretKey {
@@ -141,7 +183,11 @@ impl NativeVault {
         VaultHealth {
             backend: self.backend,
             principal,
-            persistence: "local_machine",
+            persistence: match self.backend {
+                NativeBackend::WindowsCredentialManager => "local_machine",
+                NativeBackend::MacosKeychain => "login_keychain",
+                NativeBackend::LinuxSecretService => "login_collection",
+            },
             read_access,
             write_access: VaultAccess::Unknown,
             item_limit_bytes: self.item_limit_bytes(),
@@ -171,6 +217,14 @@ impl NativeVault {
             Err(error) => Err(native_error(error, false)),
         }
     }
+
+    /// One generic password per hashed target in the user's login keychain.
+    #[cfg(target_os = "macos")]
+    fn entry(&self, target: &str) -> Result<keyring_core::Entry, StoreError> {
+        self.store
+            .build("Craft AI Factory", target, None)
+            .map_err(|error| native_error(error, false))
+    }
 }
 
 impl CredentialStore for NativeVault {
@@ -195,7 +249,25 @@ impl CredentialStore for NativeVault {
                 Err(error) => Err(native_error(error, false)),
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        {
+            match self.entry(&target)?.get_secret() {
+                Ok(bytes) => {
+                    let secret = SecretBytes::new(bytes).map_err(|_| StoreError::Corrupt)?;
+                    if secret.expose().len() > self.item_limit_bytes() {
+                        return Err(StoreError::Corrupt);
+                    }
+                    Ok(Some(secret))
+                }
+                Err(keyring_core::Error::NoEntry) => Ok(None),
+                Err(error) => Err(native_error(error, false)),
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            linux::read(&target, self.item_limit_bytes())
+        }
+        #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
         {
             let _ = target;
             Err(StoreError::Unavailable)
@@ -216,7 +288,17 @@ impl CredentialStore for NativeVault {
                 .set_secret(secret.expose())
                 .map_err(|error| native_error(error, true))
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        {
+            self.entry(&target)?
+                .set_secret(secret.expose())
+                .map_err(|error| native_error(error, true))
+        }
+        #[cfg(target_os = "linux")]
+        {
+            linux::write(&target, secret)
+        }
+        #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
         {
             let _ = target;
             Err(StoreError::Unavailable)
@@ -237,7 +319,18 @@ impl CredentialStore for NativeVault {
                 Err(error) => Err(native_error(error, true)),
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        {
+            match self.entry(&target)?.delete_credential() {
+                Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+                Err(error) => Err(native_error(error, true)),
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            linux::delete(&target)
+        }
+        #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
         {
             let _ = target;
             Err(StoreError::Unavailable)
@@ -287,19 +380,38 @@ mod tests {
 
     #[test]
     fn unsupported_backend_selection_never_becomes_an_implicit_fallback() {
-        for backend in [
-            NativeBackend::MacosKeychain,
-            NativeBackend::LinuxSecretService,
-        ] {
+        let other_hosts: &[NativeBackend] = if cfg!(windows) {
+            &[
+                NativeBackend::MacosKeychain,
+                NativeBackend::LinuxSecretService,
+            ]
+        } else if cfg!(target_os = "macos") {
+            &[
+                NativeBackend::WindowsCredentialManager,
+                NativeBackend::LinuxSecretService,
+            ]
+        } else {
+            &[
+                NativeBackend::WindowsCredentialManager,
+                NativeBackend::MacosKeychain,
+            ]
+        };
+        for &backend in other_hosts {
             assert_eq!(
                 NativeVault::open(backend, INSTALLATION).err(),
                 Some(StoreError::Unavailable)
             );
         }
-        assert_eq!(
-            NativeVault::open(NativeBackend::WindowsCredentialManager, "bad").err(),
-            Some(StoreError::Invalid)
-        );
+        for backend in [
+            NativeBackend::WindowsCredentialManager,
+            NativeBackend::MacosKeychain,
+            NativeBackend::LinuxSecretService,
+        ] {
+            assert_eq!(
+                NativeVault::open(backend, "bad").err(),
+                Some(StoreError::Invalid)
+            );
+        }
     }
 
     #[test]
@@ -491,6 +603,43 @@ mod tests {
         vault.delete(key)?;
         assert!(vault.read(key)?.is_none());
         vault.delete(key)?;
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    #[ignore = "Writes randomly namespaced synthetic items to a real Secret Service and locks its default collection; run explicitly in a disposable session"]
+    fn native_linux_secret_service_round_trip_limits_and_locked_refusal()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let installation = crate::profiles::random_id("ins_")?;
+        let vault = NativeVault::open(NativeBackend::LinuxSecretService, &installation)?;
+        let key = SecretKey {
+            service: "native-vault-acceptance".into(),
+            account: "binary-sentinel".into(),
+        };
+        let full = SecretBytes::new((0..UNIX_ITEM_LIMIT).map(|n| (n % 251) as u8).collect())?;
+        assert!(vault.read(&key)?.is_none());
+        vault.write(&key, &full)?;
+        assert!(vault.read(&key)?.ok_or("missing")?.expose() == full.expose());
+        let replaced = SecretBytes::new("日本語🦀".as_bytes().to_vec())?;
+        vault.write(&key, &replaced)?;
+        assert!(vault.read(&key)?.ok_or("missing")?.expose() == replaced.expose());
+        let oversized = SecretBytes::new(vec![7; UNIX_ITEM_LIMIT + 1])?;
+        assert_eq!(vault.write(&key, &oversized), Err(StoreError::TooLarge));
+        assert_eq!(vault.health().read_access, VaultAccess::Available);
+        vault.delete(&key)?;
+        vault.delete(&key)?;
+        assert!(vault.read(&key)?.is_none());
+
+        // Lock without unlocking: every operation must refuse rather than prompt.
+        vault.write(&key, &replaced)?;
+        let service =
+            secret_service::blocking::SecretService::connect(secret_service::EncryptionType::Dh)?;
+        service.get_default_collection()?.lock()?;
+        assert_eq!(vault.read(&key).err(), Some(StoreError::Locked));
+        assert_eq!(vault.write(&key, &replaced), Err(StoreError::Locked));
+        assert_eq!(vault.delete(&key), Err(StoreError::Locked));
+        assert_eq!(vault.health().read_access, VaultAccess::Locked);
         Ok(())
     }
 }

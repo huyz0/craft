@@ -525,8 +525,10 @@ fn competing_revision_writers_cannot_overwrite_a_winning_project_policy() -> Tes
                 let barrier = barrier.clone();
                 scope.spawn(move || -> Result<_, CraftError> {
                     let control = control()?;
-                    let store = ProfileStore::open(&root, &control)?;
+                    // Reach the barrier even when opening fails, so the other writer cannot wait forever.
+                    let opened = ProfileStore::open(&root, &control);
                     barrier.wait();
+                    let store = opened?;
                     store.set_issue_recovery_policy(
                         "factory",
                         update("100", Some(1), false),
