@@ -830,7 +830,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### confluence-context
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read spaces/pages/search with representation and continuation provenance.
 

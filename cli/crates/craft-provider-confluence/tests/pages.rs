@@ -557,7 +557,7 @@ fn space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name() -
     assert!(prepare_space_create(&op, &taken).is_err());
     assert!(prepare_space_create(&op, &response(500, json!({}))).is_err());
     for bad in [
-        json!({"key":"CRAFT-1","name":"x","visibility":"private"}),
+        json!({"key":"PLAN-X","name":"x","visibility":"private"}),
         json!({"key":"CRAFT1","name":"x"}),
         json!({"key":"CRAFT1","name":"x","visibility":"public"}),
         json!({"key":"CRAFT1","name":" ","visibility":"private"}),
