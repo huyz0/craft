@@ -893,3 +893,35 @@ fn metadata_errors_cancellation_and_wrong_operation_fail_without_followup_or_ret
     assert_eq!(host.calls.len(), 1);
     Ok(())
 }
+
+/// Live create metadata reports the system issue type with an empty operations
+/// list (the type is fixed by the per-type route) and a required reporter with a
+/// default. Create must still compile with the issue type named in the body.
+#[test]
+fn live_shaped_issue_type_without_operations_still_compiles_create()
+-> Result<(), Box<dyn std::error::Error>> {
+    let clock = Arc::new(TestClock::default());
+    let registry = registry(clock.clone())?;
+    let mut values = fields();
+    values[1]["operations"] = json!([]);
+    let mut reporter = field("reporter", "user", true);
+    reporter["hasDefaultValue"] = json!(true);
+    values.push(reporter);
+    let mut host = context(values);
+    let read = operation(
+        &registry,
+        create_metadata::COMMAND,
+        json!({"issue_type_id":"10001"}),
+    )?;
+    let proof = create_metadata::read_context(&read, &mut host, principal(), clock)?;
+    let create = operation(
+        &registry,
+        created_issue::COMMAND,
+        json!({"summary":"craft-test live shape"}),
+    )?;
+    let frozen = proof.prepare_create(&create, &principal())?;
+    let body = frozen.call().body.as_ref().ok_or("Missing body")?;
+    assert_eq!(body["fields"]["issuetype"]["id"], "10001");
+    assert!(body["fields"].get("reporter").is_none());
+    Ok(())
+}

@@ -57,7 +57,13 @@ pub(super) fn parse(
     {
         return Err(malformed());
     }
-    let settable = field.operations.iter().any(|operation| operation == "set");
+    // Live create metadata reports the system issue type with no operations,
+    // because the type is already fixed by the per-type metadata route. The create
+    // body must still name it, so that exact field stays settable to its const.
+    let settable = field.operations.iter().any(|operation| operation == "set")
+        || (field.field_id == "issuetype"
+            && field.schema.custom.is_none()
+            && field.schema.system.as_deref() == Some("issuetype"));
     let schema = if settable {
         compile(&field, project, issue_type, parent)
     } else {
