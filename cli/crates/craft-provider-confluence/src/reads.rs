@@ -150,6 +150,12 @@ pub fn read_get(
     if command == crate::comments::COMMENT_GET {
         return crate::comments::read_get(operation, context);
     }
+    if matches!(
+        command.as_str(),
+        crate::content_state::CONTENT_STATE_GET | crate::content_state::CONTENT_STATE_AVAILABLE
+    ) {
+        return crate::content_state::read_get(operation, context);
+    }
     if !is_get(command) {
         return Err(CraftError::field("/command", "expected_confluence_get"));
     }

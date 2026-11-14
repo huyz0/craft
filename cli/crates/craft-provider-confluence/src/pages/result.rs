@@ -53,6 +53,9 @@ impl PreparedPageWrite {
                 K::Trash | K::CommentCreate | K::CommentDelete => {
                     matches!(response.status, 400 | 401 | 404)
                 }
+                K::ContentStateSet | K::ContentStateClear => {
+                    matches!(response.status, 400 | 401 | 403 | 404)
+                }
             };
             result.state = if refusal {
                 SubmissionState::Failed
@@ -62,7 +65,7 @@ impl PreparedPageWrite {
             let code = match response.status {
                 400 | 413 if refusal => ErrorCode::InputInvalid,
                 401 if refusal => ErrorCode::AuthRequired,
-                404 if refusal => ErrorCode::PermissionDenied,
+                403 | 404 if refusal => ErrorCode::PermissionDenied,
                 409 if refusal => ErrorCode::VersionConflict,
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::WriteOutcomeUnknown,
@@ -80,6 +83,25 @@ impl PreparedPageWrite {
         let raw = &response.body;
         if matches!(self.kind, K::CommentCreate | K::CommentUpdate) {
             return self.interpret_comment(raw, result);
+        }
+        if matches!(self.kind, K::ContentStateSet | K::ContentStateClear) {
+            // The page identity is the compiled target; only the badge outcome needs evidence.
+            if let Some(id) = &self.id {
+                result.resources.push(ResourceRef {
+                    resource_type: "page".into(),
+                    id: id.clone(),
+                    ..self.site.clone()
+                });
+            }
+            if self.content_state_confirmed(raw) {
+                result.state = SubmissionState::Confirmed;
+            } else {
+                result.error = Some(failure(
+                    ErrorCode::WriteOutcomeUnknown,
+                    RequestState::SentUnknown,
+                ));
+            }
+            return result;
         }
         let id = raw
             .get("id")

@@ -77,6 +77,10 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "confluence.comment.create"
                 | "confluence.comment.update"
                 | "confluence.comment.delete"
+                | "confluence.content-state.get"
+                | "confluence.content-state.available"
+                | "confluence.content-state.set"
+                | "confluence.content-state.clear"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -146,6 +150,10 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.comment.create"
             | "confluence.comment.update"
             | "confluence.comment.delete"
+            | "confluence.content-state.get"
+            | "confluence.content-state.available"
+            | "confluence.content-state.set"
+            | "confluence.content-state.clear"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -367,6 +375,11 @@ pub enum ConfluenceAction {
         #[command(subcommand)]
         action: ConfluencePageAction,
     },
+    #[command(name = "content-state")]
+    ContentState {
+        #[command(subcommand)]
+        action: ConfluenceContentStateAction,
+    },
 }
 #[derive(Subcommand)]
 pub enum ConfluenceCommentAction {
@@ -382,6 +395,13 @@ pub enum ConfluenceCommentAction {
 pub enum ConfluenceSpaceAction {
     Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
     List(Box<crate::confluence_reads::command::ConfluenceSpaceListArgs>),
+}
+#[derive(Subcommand)]
+pub enum ConfluenceContentStateAction {
+    Get(Box<crate::confluence_reads::command::ConfluenceContentStateArgs>),
+    Available(Box<crate::confluence_reads::command::ConfluenceContentStateArgs>),
+    Set(Box<crate::confluence_pages::command::ContentStateSetArgs>),
+    Clear(Box<crate::confluence_pages::command::ContentStateClearArgs>),
 }
 #[derive(Subcommand)]
 pub enum ConfluencePageAction {

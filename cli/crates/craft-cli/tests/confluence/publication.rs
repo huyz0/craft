@@ -763,6 +763,8 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
                 Op::CommentCreate,
                 Op::CommentUpdate,
                 Op::CommentDelete,
+                Op::ContentStateSet,
+                Op::ContentStateClear,
             ],
         },
         true,
@@ -1045,6 +1047,99 @@ fn footer_comment_writes_read_page_and_comment_evidence_then_send_once() -> Test
                         assert_eq!(sent.method, "DELETE");
                         assert!(sent.target.ends_with("/footer-comments/201"));
                     }
+                }
+            }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn content_state_writes_require_an_offered_state_and_pin_current_status() -> TestResult {
+    let badge = json!({"id":1,"name":"In progress","color":"#2684ff"});
+    let mine = json!({"id":77,"name":"Mine","color":"#ff7452"});
+    let available = json!({"spaceContentStates":[badge],"customContentStates":[mine]});
+    for mode in ["set", "custom", "not_offered", "clear", "set_mismatch"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(&format!(
+            "{WRITE_SCOPES} write:content:confluence read:content-details:confluence"
+        ))?;
+        let state_id = match mode {
+            "custom" => 77,
+            "not_offered" => 2,
+            _ => 1,
+        };
+        let (command, input) = if mode == "clear" {
+            (
+                pages::CONTENT_STATE_CLEAR,
+                json!({"space_id":"100","page_id":"101"}),
+            )
+        } else {
+            (
+                pages::CONTENT_STATE_SET,
+                json!({"space_id":"100","page_id":"101","state_id":state_id}),
+            )
+        };
+        let mut replies = vec![identity(), identity(), reply(current_page())?];
+        if mode != "clear" {
+            replies.push(reply(available.clone())?);
+        }
+        match mode {
+            "set" => replies.push(reply(json!({"contentState":badge}))?),
+            "custom" => replies.push(reply(json!({"contentState":mine}))?),
+            "set_mismatch" => replies.push(reply(
+                json!({"contentState":{"id":0,"name":"Rough draft","color":"#ffc400"}}),
+            )?),
+            "clear" => replies.push(reply(json!({"contentState":null}))?),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, command, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let writes: Vec<_> = requests.iter().filter(|r| r.method != "GET").collect();
+        match mode {
+            "not_offered" => {
+                assert!(!result.envelope.ok);
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+                assert!(writes.is_empty());
+            }
+            "set_mismatch" => {
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(data["reconciliation_required"], true);
+            }
+            _ => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "101");
+                let sent = writes[0];
+                assert!(sent.target.contains("/wiki/rest/api/content/101/state"));
+                assert!(sent.target.contains("status=current"));
+                if mode == "clear" {
+                    assert_eq!(sent.method, "DELETE");
+                } else {
+                    assert_eq!(sent.method, "PUT");
+                    let body: Value = serde_json::from_slice(&sent.body)?;
+                    assert_eq!(body, json!({"id": state_id}));
                 }
             }
         }

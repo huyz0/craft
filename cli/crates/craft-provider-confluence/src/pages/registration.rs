@@ -22,6 +22,28 @@ pub struct PageWriteData {
 pub struct ConfluencePages;
 pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
     use PageWriteKind as K;
+    if matches!(kind, K::ContentStateSet | K::ContentStateClear) {
+        return NativeRoute {
+            id: kind.route().into(),
+            method: if kind == K::ContentStateSet {
+                HttpMethod::Put
+            } else {
+                HttpMethod::Delete
+            },
+            path: ["wiki", "rest", "api", "content"]
+                .map(|p| RouteSegment::Literal(p.into()))
+                .into_iter()
+                .chain([
+                    RouteSegment::Parameter("id".into()),
+                    RouteSegment::Literal("state".into()),
+                ])
+                .collect(),
+            query_parameters: vec!["status".into()],
+            continuation_parameters: vec![],
+            repeated_query_parameters: vec![],
+            response_max_bytes: 262_144,
+        };
+    }
     let collection = if kind.resource_type() == "page" {
         "pages"
     } else {
@@ -37,13 +59,16 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
         K::CommentUpdate | K::CommentDelete => {
             path.push(RouteSegment::Parameter("comment-id".into()))
         }
+        // Badge routes return above with their v1 shape.
+        K::ContentStateSet | K::ContentStateClear => {}
     }
     NativeRoute {
         id: kind.route().into(),
         method: match kind {
             K::Create | K::CommentCreate => HttpMethod::Post,
             K::Update | K::CommentUpdate => HttpMethod::Put,
-            K::Trash | K::CommentDelete => HttpMethod::Delete,
+            K::Trash | K::CommentDelete | K::ContentStateClear => HttpMethod::Delete,
+            K::ContentStateSet => HttpMethod::Put,
         },
         path,
         query_parameters: if kind == PageWriteKind::Create {
@@ -103,7 +128,25 @@ impl ProviderModule for ConfluencePages {
                     json!({"space_id":"100","page_id":"101","id":"201","expected":comment_revision}),
                     "delete:comment:confluence",
                 ),
+                PageWriteKind::ContentStateSet => (
+                    schema_for::<ContentStateSetInput>()?,
+                    json!({"space_id":"100","page_id":"101","state_id":1}),
+                    "write:confluence-content",
+                ),
+                PageWriteKind::ContentStateClear => (
+                    schema_for::<ContentStateClearInput>()?,
+                    json!({"space_id":"100","page_id":"101"}),
+                    "write:confluence-content",
+                ),
             };
+            let mut scope_alternatives = vec![vec![scopes.to_string()]];
+            if scopes == "write:confluence-content" {
+                // Atlassian also accepts the granular pair for these v1 badge routes.
+                scope_alternatives.push(vec![
+                    "write:content:confluence".into(),
+                    "read:content-details:confluence".into(),
+                ]);
+            }
             let descriptor = OperationDescriptor {
                 id:command.into(), provider:"confluence".into(), contract_version:SCHEMA_VERSION.into(), api_revision:"confluence-cloud-v2".into(),
                 description:match kind {
@@ -111,6 +154,8 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::CommentCreate => "Add a footer comment or reply to a current page in an allowed space; comment text is not approval.",
                     PageWriteKind::CommentUpdate => "Replace the body of a reviewed footer comment revision; edits never establish approval.",
                     PageWriteKind::CommentDelete => "Permanently delete a reviewed footer comment revision; Confluence offers no trash for comments.",
+                    PageWriteKind::ContentStateSet => "Set the published page's content-state badge to a state the space offers; a badge is not approval or lifecycle.",
+                    PageWriteKind::ContentStateClear => "Remove the published page's content-state badge; this never changes review or ticket authority.",
                     _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
                 }.into(),
                 effect,
@@ -118,11 +163,12 @@ impl ProviderModule for ConfluencePages {
                 response_schema:response_schema::<PageWriteData>()?,
                 example,
                 response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if matches!(kind, PageWriteKind::Update | PageWriteKind::CommentUpdate) { 2 } else { 1 }}))),
-                projection:None, scope_alternatives:vec![vec![scopes.into()]],
+                projection:None, scope_alternatives,
                 permissions:vec![match kind {
                     PageWriteKind::Trash => "Native Confluence space/content visibility and page delete permission.",
                     PageWriteKind::CommentCreate => "View the page and add comments in its space.",
                     PageWriteKind::CommentUpdate | PageWriteKind::CommentDelete => "View the page; edit or delete own comments, or space administration for others' comments.",
+                    PageWriteKind::ContentStateSet | PageWriteKind::ContentStateClear => "Edit the page; space settings must allow the selected suggested or custom state.",
                     _ => "Native Confluence space/content visibility and page creation or editing permissions.",
                 }.into()],
                 tenant_conditions:vec![match kind {
@@ -131,6 +177,8 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::Trash => "Exact site/space/grant/actor and a fresh current page matching the reviewed revision. Trash is recoverable by space administrators; purge is not offered.",
                     PageWriteKind::CommentCreate => "Exact site/space/grant/actor; the page must be current in that space and a reply parent must be a current comment on the same page.",
                     PageWriteKind::CommentUpdate | PageWriteKind::CommentDelete => "Exact site/space/grant/actor; the page must be current in that space and the comment must match the reviewed revision.",
+                    PageWriteKind::ContentStateSet => "Exact site/space/grant/actor; the page must be current in that space and the state ID must be offered now. Always targets status=current.",
+                    PageWriteKind::ContentStateClear => "Exact site/space/grant/actor; the page must be current in that space. Always targets status=current.",
                 }.into()],
                 routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
@@ -147,6 +195,16 @@ impl ProviderModule for ConfluencePages {
                     .register_typed_handler::<CommentUpdateInput>(descriptor, Arc::new(Handler))?,
                 PageWriteKind::CommentDelete => registry
                     .register_typed_handler::<CommentDeleteInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::ContentStateSet => registry
+                    .register_typed_handler::<ContentStateSetInput>(
+                        descriptor,
+                        Arc::new(Handler),
+                    )?,
+                PageWriteKind::ContentStateClear => registry
+                    .register_typed_handler::<ContentStateClearInput>(
+                        descriptor,
+                        Arc::new(Handler),
+                    )?,
             }
         }
         Ok(())

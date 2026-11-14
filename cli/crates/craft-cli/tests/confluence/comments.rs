@@ -319,3 +319,134 @@ fn page_bound_comment_reads_use_explicit_policy_and_preserve_renewal_on_refusal(
     }
     Ok(())
 }
+
+#[test]
+fn content_state_reads_pin_current_status_and_never_grant_approval() -> TestResult {
+    use craft_cli::confluence_reads::command::{
+        ConfluenceContentStateArgs, ConfluenceReadArgs, PreparedInvocation,
+    };
+    use craft_provider_confluence::content_state::{CONTENT_STATE_AVAILABLE, CONTENT_STATE_GET};
+    use craft_runtime::confluence_read_policy::ConfluenceReadOperation as Op;
+    for mode in ["get", "unset", "available", "malformed", "denied"] {
+        let setup = Setup::new()?;
+        setup.store.set_confluence_read_policy(
+            "factory",
+            craft_runtime::confluence_read_policy::ConfluenceReadPolicyUpdate {
+                target: target(),
+                expected_actor: "actor-one".into(),
+                operations: vec![Op::ContentStateGet, Op::ContentStateAvailable],
+                enabled: true,
+                expected_revision: None,
+            },
+            true,
+            &control()?,
+            |_| Ok(()),
+        )?;
+        let badge = json!({"id":1,"name":"In progress","color":"#2684ff"});
+        let (command, raw, status) = match mode {
+            "get" => (
+                CONTENT_STATE_GET,
+                json!({"contentState":badge,"lastUpdated":"2026-11-10T00:00:00.000Z"}),
+                200,
+            ),
+            "unset" => (CONTENT_STATE_GET, json!({"contentState":null}), 200),
+            "available" => (
+                CONTENT_STATE_AVAILABLE,
+                json!({"spaceContentStates":[badge],"customContentStates":[]}),
+                200,
+            ),
+            "malformed" => (
+                CONTENT_STATE_AVAILABLE,
+                json!({"spaceContentStates":"no"}),
+                200,
+            ),
+            _ => (CONTENT_STATE_GET, json!({}), 403),
+        };
+        let issuer = issuer(
+            "read:confluence-user read:content-details:confluence write:content:confluence",
+        )?;
+        let product = TlsServer::start(Reply::Sequence(vec![
+            identity(),
+            identity(),
+            Reply::json(status, &serde_json::to_vec(&raw)?, &[]),
+        ]))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let args = ConfluenceContentStateArgs {
+            cloud_id: Some(CLOUD.into()),
+            page_id: "101".into(),
+        };
+        let args = if command == CONTENT_STATE_GET {
+            ConfluenceReadArgs::ContentStateGet(args)
+        } else {
+            ConfluenceReadArgs::ContentStateAvailable(args)
+        };
+        let result = PreparedInvocation::prepare(
+            args,
+            &[],
+            &craft_cli::profiles::InvocationOptions {
+                state_root: Some(&setup.root),
+                profile: Some("factory"),
+                request_id: "badge-request",
+                max_bytes: 16384,
+            },
+            &setup.store,
+            &control()?,
+        )?
+        .execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let success = matches!(mode, "get" | "unset" | "available");
+        assert_eq!(
+            result.envelope.ok, success,
+            "{mode}: {:?}",
+            result.envelope.error
+        );
+        let registry = craft_cli::catalog::registry()?;
+        assert!(
+            jsonschema::validator_for(&registry.descriptor(command)?.response_schema)?
+                .is_valid(&serde_json::to_value(&result.envelope)?),
+            "{mode}"
+        );
+        let data = result.envelope.data.ok_or("data")?;
+        if success {
+            assert_eq!(data["item"]["grants_approval"], false);
+            assert_eq!(data["item"]["page_id"], "101");
+        }
+        match mode {
+            "get" => assert_eq!(data["item"]["state"]["name"], "In progress"),
+            "unset" => assert!(data["item"]["state"].is_null()),
+            "available" => assert_eq!(data["item"]["space_states"][0]["id"], 1),
+            "denied" => assert_eq!(
+                result.envelope.error.ok_or("err")?.code,
+                ErrorCode::PermissionDenied
+            ),
+            _ => {}
+        }
+        let requests = product.finish()?;
+        let sent = &requests[2];
+        assert!(
+            sent.target.contains("/wiki/rest/api/content/101/state"),
+            "{}",
+            sent.target
+        );
+        if command == CONTENT_STATE_GET {
+            assert!(sent.target.contains("status=current"));
+        } else {
+            assert!(sent.target.contains("/state/available"));
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}

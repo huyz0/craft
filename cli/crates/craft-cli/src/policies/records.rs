@@ -22,7 +22,12 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
         || values.len()
             > if matches!(kind, PolicyKind::JiraRead | PolicyKind::JiraMutation) {
                 14
-            } else if matches!(kind, PolicyKind::ConfluenceRead | PolicyKind::JiraRecovery) {
+            } else if matches!(
+                kind,
+                PolicyKind::ConfluenceRead | PolicyKind::ConfluenceWrite
+            ) {
+                16
+            } else if kind == PolicyKind::JiraRecovery {
                 8
             } else {
                 6

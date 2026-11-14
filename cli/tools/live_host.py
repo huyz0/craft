@@ -70,11 +70,13 @@ def policies(state_root, site, cloud, actor, project, space):
             "jira.issue.delete"], None),
         ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
          ["confluence.page.create", "confluence.page.update", "confluence.page.trash",
-          "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete"], None),
+          "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
+          "confluence.content-state.set", "confluence.content-state.clear"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
-            "confluence.comment.replies"], None),
+            "confluence.comment.replies", "confluence.content-state.get",
+            "confluence.content-state.available"], None),
     ]
     results = []
     for profile, kind, target, operations, continuation in plans:
@@ -277,6 +279,22 @@ def page_lifecycle(state_root, space):
             step("confluence.comment.delete", run(state_root, "cf-test", "confluence.comment.delete", {
                 "operation_id": f"craft-test-{stamp}-comment-delete", "apply": True, "space_id": space,
                 "page_id": page, "id": comment, "expected": comment_revision()}))
+    step("confluence.content-state.get", run(state_root, "cf-test", "confluence.content-state.get", {"page_id": page}))
+    if "--badges" in sys.argv:
+        offered = step("confluence.content-state.available", run(
+            state_root, "cf-test", "confluence.content-state.available", {"page_id": page}))
+        states = ((offered.get("data") or {}).get("item") or {}).get("space_states") or []
+        if states:
+            step("confluence.content-state.set", run(state_root, "cf-test", "confluence.content-state.set", {
+                "operation_id": f"craft-test-{stamp}-badge", "apply": True, "space_id": space,
+                "page_id": page, "state_id": states[0]["id"]}))
+            step("confluence.content-state.get after set", run(
+                state_root, "cf-test", "confluence.content-state.get", {"page_id": page}))
+            step("confluence.content-state.clear", run(state_root, "cf-test", "confluence.content-state.clear", {
+                "operation_id": f"craft-test-{stamp}-badge-clear", "apply": True, "space_id": space,
+                "page_id": page}))
+        else:
+            report.append("confluence.content-state.set => SKIP space offers no states")
     if "--trash" in sys.argv:
         step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
             "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
@@ -293,6 +311,7 @@ def main():
     parser.add_argument("--space", help="numeric Confluence space id")
     parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
     parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
+    parser.add_argument("--badges", action="store_true", help="also set and clear a content-state badge")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:

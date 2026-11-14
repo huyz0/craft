@@ -23,6 +23,10 @@ pub enum ConfluenceWriteOperation {
     CommentUpdate,
     #[serde(rename = "confluence.comment.delete")]
     CommentDelete,
+    #[serde(rename = "confluence.content-state.set")]
+    ContentStateSet,
+    #[serde(rename = "confluence.content-state.clear")]
+    ContentStateClear,
 }
 impl ConfluenceWriteOperation {
     pub fn command(self) -> &'static str {
@@ -33,6 +37,8 @@ impl ConfluenceWriteOperation {
             Self::CommentCreate => "confluence.comment.create",
             Self::CommentUpdate => "confluence.comment.update",
             Self::CommentDelete => "confluence.comment.delete",
+            Self::ContentStateSet => "confluence.content-state.set",
+            Self::ContentStateClear => "confluence.content-state.clear",
         }
     }
 }
@@ -82,7 +88,7 @@ fn validate(
         ));
     }
     if operations.is_empty()
-        || operations.len() > 6
+        || operations.len() > 16
         || operations.windows(2).any(|pair| pair[0] >= pair[1])
     {
         return Err(CraftError::field(

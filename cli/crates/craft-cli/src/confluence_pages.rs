@@ -17,10 +17,13 @@ use craft_core::storage::{
     Clock, JournalRecord, OperationBinding, OperationJournal, SubmissionState,
 };
 use craft_provider_confluence::comments::COMMENT_GET;
+use craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE;
 use craft_provider_confluence::pages::{
-    self, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE, CommentCreateInput, CommentDeleteInput,
-    CommentUpdateInput, ConfluencePages, PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE, PageCreateInput,
-    PagePlacement, PageTrashInput, PageUpdateInput, PageWriteKind, PreparedPageWrite,
+    self, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE, CONTENT_STATE_CLEAR, CONTENT_STATE_SET,
+    CommentCreateInput, CommentDeleteInput, CommentUpdateInput, ConfluencePages,
+    ContentStateClearInput, ContentStateSetInput, PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE,
+    PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput, PageWriteKind,
+    PreparedPageWrite,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -47,6 +50,8 @@ enum Intent {
     CommentCreate(CommentCreateInput),
     CommentUpdate(CommentUpdateInput),
     CommentDelete(CommentDeleteInput),
+    ContentStateSet(ContentStateSetInput),
+    ContentStateClear(ContentStateClearInput),
 }
 impl Intent {
     fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
@@ -57,6 +62,8 @@ impl Intent {
             PageWriteKind::CommentCreate => Self::CommentCreate(decode(input)?),
             PageWriteKind::CommentUpdate => Self::CommentUpdate(decode(input)?),
             PageWriteKind::CommentDelete => Self::CommentDelete(decode(input)?),
+            PageWriteKind::ContentStateSet => Self::ContentStateSet(decode(input)?),
+            PageWriteKind::ContentStateClear => Self::ContentStateClear(decode(input)?),
         })
     }
     fn kind(&self) -> PageWriteKind {
@@ -67,6 +74,8 @@ impl Intent {
             Self::CommentCreate(_) => PageWriteKind::CommentCreate,
             Self::CommentUpdate(_) => PageWriteKind::CommentUpdate,
             Self::CommentDelete(_) => PageWriteKind::CommentDelete,
+            Self::ContentStateSet(_) => PageWriteKind::ContentStateSet,
+            Self::ContentStateClear(_) => PageWriteKind::ContentStateClear,
         }
     }
     fn space_id(&self) -> &str {
@@ -77,6 +86,8 @@ impl Intent {
             Self::CommentCreate(i) => &i.space_id,
             Self::CommentUpdate(i) => &i.space_id,
             Self::CommentDelete(i) => &i.space_id,
+            Self::ContentStateSet(i) => &i.space_id,
+            Self::ContentStateClear(i) => &i.space_id,
         }
     }
 }
@@ -209,6 +220,7 @@ impl PreparedPagePublication {
             target: self.binding.target.clone(),
             input: match page_id {
                 Some(page_id) => json!({"id":id,"page_id":page_id}),
+                None if command == CONTENT_STATE_AVAILABLE => json!({"page_id":id}),
                 None => json!({"id":id}),
             },
             selection: Selection {
@@ -262,6 +274,22 @@ impl PreparedPagePublication {
                         &self.read_operation(COMMENT_GET, parent, Some(page_id), None)?,
                     )?;
                 }
+            }
+            Intent::ContentStateSet(ContentStateSetInput { page_id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(CONTENT_STATE_AVAILABLE, page_id, None, None)?,
+                )?;
+            }
+            Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
             }
             Intent::CommentUpdate(CommentUpdateInput { page_id, id, .. })
             | Intent::CommentDelete(CommentDeleteInput { page_id, id, .. }) => {
@@ -336,6 +364,10 @@ impl PreparedPagePublication {
         let (route, parameter) = match command {
             PAGE_GET => ("confluence-page-get", "id"),
             COMMENT_GET => ("confluence-footer-comment-get", "comment-id"),
+            CONTENT_STATE_AVAILABLE => (
+                craft_provider_confluence::content_state::AVAILABLE_ROUTE,
+                "id",
+            ),
             _ => ("confluence-space-get", "id"),
         };
         let response = context.invoke(&NativeCall {
@@ -492,6 +524,26 @@ impl PreparedPagePublication {
                 } else {
                     pages::prepare_comment_update(&self.operation, &page, &comment)
                 }
+            }
+            Intent::ContentStateSet(ContentStateSetInput { page_id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                let available = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: CONTENT_STATE_AVAILABLE,
+                        id: page_id,
+                        page_id: None,
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_content_state_set(&self.operation, &page, &available)
+            }
+            Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
+                let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+                pages::prepare_content_state_clear(&self.operation, &page)
             }
         }
     }

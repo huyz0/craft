@@ -1,5 +1,6 @@
 //! Pure page publication preparation. The caller must supply verified fresh evidence and a journaled host.
 mod comment_writes;
+mod content_state_writes;
 mod input;
 mod registration;
 mod result;
@@ -8,6 +9,11 @@ pub use comment_writes::{
     COMMENT_CREATE, COMMENT_CREATE_ROUTE, COMMENT_DELETE, COMMENT_DELETE_ROUTE, COMMENT_UPDATE,
     COMMENT_UPDATE_ROUTE, CommentCreateInput, CommentDeleteInput, CommentUpdateInput,
     prepare_comment_create, prepare_comment_delete, prepare_comment_update,
+};
+pub use content_state_writes::{
+    CONTENT_STATE_CLEAR, CONTENT_STATE_CLEAR_ROUTE, CONTENT_STATE_SET, CONTENT_STATE_SET_ROUTE,
+    ContentStateClearInput, ContentStateSetInput, prepare_content_state_clear,
+    prepare_content_state_set,
 };
 use craft_core::contracts::{CanonicalRequest, EffectClass, ResourceRef};
 use craft_core::error::{CraftError, ErrorCode};
@@ -40,6 +46,8 @@ pub enum PageWriteKind {
     CommentCreate,
     CommentUpdate,
     CommentDelete,
+    ContentStateSet,
+    ContentStateClear,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -50,6 +58,8 @@ impl PageWriteKind {
             Self::CommentCreate => COMMENT_CREATE,
             Self::CommentUpdate => COMMENT_UPDATE,
             Self::CommentDelete => COMMENT_DELETE,
+            Self::ContentStateSet => CONTENT_STATE_SET,
+            Self::ContentStateClear => CONTENT_STATE_CLEAR,
         }
     }
     pub fn route(self) -> &'static str {
@@ -60,15 +70,19 @@ impl PageWriteKind {
             Self::CommentCreate => COMMENT_CREATE_ROUTE,
             Self::CommentUpdate => COMMENT_UPDATE_ROUTE,
             Self::CommentDelete => COMMENT_DELETE_ROUTE,
+            Self::ContentStateSet => CONTENT_STATE_SET_ROUTE,
+            Self::ContentStateClear => CONTENT_STATE_CLEAR_ROUTE,
         }
     }
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 8] = [
         Self::Create,
         Self::Update,
         Self::Trash,
         Self::CommentCreate,
         Self::CommentUpdate,
         Self::CommentDelete,
+        Self::ContentStateSet,
+        Self::ContentStateClear,
     ];
     pub fn effect(self) -> EffectClass {
         match self {
@@ -79,8 +93,8 @@ impl PageWriteKind {
     }
     pub fn resource_type(self) -> &'static str {
         match self {
-            Self::Create | Self::Update | Self::Trash => "page",
-            _ => "comment",
+            Self::CommentCreate | Self::CommentUpdate | Self::CommentDelete => "comment",
+            _ => "page",
         }
     }
     pub fn from_command(command: &str) -> Option<Self> {

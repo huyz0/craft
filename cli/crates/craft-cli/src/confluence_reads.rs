@@ -83,7 +83,7 @@ impl PreparedConfluenceRead {
                 .iter()
                 .any(|c| c == &request.command)
             || policy.allowed_commands.is_empty()
-            || policy.allowed_commands.len() > 8
+            || policy.allowed_commands.len() > 16
             || policy
                 .allowed_commands
                 .iter()
@@ -101,6 +101,8 @@ impl PreparedConfluenceRead {
                         | craft_provider_confluence::comments::COMMENT_GET
                         | craft_provider_confluence::comments::paging::COMMENT_LIST
                         | craft_provider_confluence::comments::paging::COMMENT_REPLIES
+                        | craft_provider_confluence::content_state::CONTENT_STATE_GET
+                        | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
                 )
             })
             || !policy.grant.id.strip_prefix("gr_").is_some_and(|suffix| {
@@ -143,6 +145,15 @@ impl PreparedConfluenceRead {
                 )
                 .map_err(|_| internal())?,
             ),
+            craft_provider_confluence::content_state::CONTENT_STATE_GET
+            | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
+                serde_json::to_value(
+                    serde_json::from_value::<
+                        craft_provider_confluence::content_state::ContentStateInput,
+                    >(operation.request().input.clone())
+                    .map_err(|_| internal())?,
+                )
+            }
             PAGE_GET | SPACE_GET => serde_json::to_value(
                 serde_json::from_value::<GetInput>(operation.request().input.clone())
                     .map_err(|_| internal())?,
@@ -508,7 +519,11 @@ impl PageSource for ConfluenceSource<'_> {
 fn is_get(command: &str) -> bool {
     matches!(
         command,
-        PAGE_GET | SPACE_GET | craft_provider_confluence::comments::COMMENT_GET
+        PAGE_GET
+            | SPACE_GET
+            | craft_provider_confluence::comments::COMMENT_GET
+            | craft_provider_confluence::content_state::CONTENT_STATE_GET
+            | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
     )
 }
 

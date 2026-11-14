@@ -176,7 +176,19 @@ pub struct ConfluenceCommentRepliesArgs {
     #[schemars(length(min = 36, max = 36))]
     pub cursor: Option<String>,
 }
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConfluenceContentStateArgs {
+    #[arg(long)]
+    #[schemars(length(min = 36, max = 36))]
+    pub cloud_id: Option<String>,
+    #[arg(long, default_value = "")]
+    #[schemars(length(min = 1, max = 19), regex(pattern = "^[1-9][0-9]*$"))]
+    pub page_id: String,
+}
 pub enum ConfluenceReadArgs {
+    ContentStateGet(ConfluenceContentStateArgs),
+    ContentStateAvailable(ConfluenceContentStateArgs),
     CommentList(ConfluenceCommentListArgs),
     CommentReplies(ConfluenceCommentRepliesArgs),
     CommentGet(ConfluenceCommentGetArgs),
@@ -200,6 +212,18 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::Comment {
             action: crate::args::ConfluenceCommentAction::Get(_),
         } => craft_provider_confluence::comments::COMMENT_GET,
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Get(_),
+        } => craft_provider_confluence::content_state::CONTENT_STATE_GET,
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Available(_),
+        } => craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Set(_),
+        } => craft_provider_confluence::pages::CONTENT_STATE_SET,
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Clear(_),
+        } => craft_provider_confluence::pages::CONTENT_STATE_CLEAR,
         A::Page {
             action: P::Create(_),
         } => craft_provider_confluence::pages::PAGE_CREATE,
@@ -241,6 +265,17 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         A::Comment {
             action: crate::args::ConfluenceCommentAction::Get(v),
         } => encoded(v),
+        A::ContentState {
+            action:
+                crate::args::ConfluenceContentStateAction::Get(v)
+                | crate::args::ConfluenceContentStateAction::Available(v),
+        } => encoded(v),
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Set(v),
+        } => encoded(v),
+        A::ContentState {
+            action: crate::args::ConfluenceContentStateAction::Clear(v),
+        } => encoded(v),
         A::Page {
             action: P::Create(v),
         } => encoded(v),
@@ -280,6 +315,12 @@ impl From<ConfluenceReadArgs> for crate::args::ConfluenceAction {
             ConfluenceReadArgs::CommentGet(v) => Self::Comment {
                 action: crate::args::ConfluenceCommentAction::Get(Box::new(v)),
             },
+            ConfluenceReadArgs::ContentStateGet(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Get(Box::new(v)),
+            },
+            ConfluenceReadArgs::ContentStateAvailable(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Available(Box::new(v)),
+            },
             ConfluenceReadArgs::SpaceGet(v) => Self::Space {
                 action: S::Get(Box::new(v)),
             },
@@ -314,6 +355,12 @@ impl TryFrom<crate::args::ConfluenceAction> for ConfluenceReadArgs {
             A::Comment {
                 action: crate::args::ConfluenceCommentAction::Get(v),
             } => Self::CommentGet(*v),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Get(v),
+            } => Self::ContentStateGet(*v),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Available(v),
+            } => Self::ContentStateAvailable(*v),
             A::Space { action: S::Get(v) } => Self::SpaceGet(*v),
             A::Space { action: S::List(v) } => Self::SpaceList(*v),
             A::Page { action: P::Get(v) } => Self::PageGet(*v),
@@ -345,6 +392,8 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, CraftError>
 impl ConfluenceReadArgs {
     pub fn operation(&self) -> Operation {
         match self {
+            Self::ContentStateGet(_) => Operation::ContentStateGet,
+            Self::ContentStateAvailable(_) => Operation::ContentStateAvailable,
             Self::CommentList(_) => Operation::CommentList,
             Self::CommentReplies(_) => Operation::CommentReplies,
             Self::CommentGet(_) => Operation::CommentGet,
@@ -364,6 +413,12 @@ impl ConfluenceReadArgs {
                 Self::CommentReplies(decode(value)?)
             }
             craft_provider_confluence::comments::COMMENT_GET => Self::CommentGet(decode(value)?),
+            craft_provider_confluence::content_state::CONTENT_STATE_GET => {
+                Self::ContentStateGet(decode(value)?)
+            }
+            craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
+                Self::ContentStateAvailable(decode(value)?)
+            }
             SPACE_GET => Self::SpaceGet(decode(value)?),
             SPACE_LIST => Self::SpaceList(decode(value)?),
             PAGE_GET => Self::PageGet(decode(value)?),
@@ -377,6 +432,7 @@ impl ConfluenceReadArgs {
             Self::CommentList(v) => encoded(v),
             Self::CommentReplies(v) => encoded(v),
             Self::CommentGet(v) => encoded(v),
+            Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => encoded(v),
             Self::SpaceGet(v) | Self::PageGet(v) => encoded(v),
             Self::SpaceList(v) => encoded(v),
             Self::PageList(v) => encoded(v),
@@ -388,6 +444,7 @@ impl ConfluenceReadArgs {
             Self::CommentList(v) => v.cloud_id.as_deref(),
             Self::CommentReplies(v) => v.cloud_id.as_deref(),
             Self::CommentGet(v) => v.cloud_id.as_deref(),
+            Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => v.cloud_id.as_deref(),
             Self::SpaceGet(v) | Self::PageGet(v) => v.cloud_id.as_deref(),
             Self::SpaceList(v) => v.cloud_id.as_deref(),
             Self::PageList(v) => v.cloud_id.as_deref(),
@@ -413,6 +470,11 @@ impl ConfluenceReadArgs {
                 id: v.id.clone(),
                 page_id: v.page_id.clone(),
             }),
+            Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => encoded(
+                &craft_provider_confluence::content_state::ContentStateInput {
+                    page_id: v.page_id.clone(),
+                },
+            ),
             Self::SpaceGet(v) | Self::PageGet(v) => encoded(&GetInput { id: v.id.clone() }),
             Self::SpaceList(v) => encoded(&SpaceListInput {
                 key: v.key.clone(),
@@ -432,7 +494,11 @@ impl ConfluenceReadArgs {
     }
     fn selection(&self, fields: &[String], bytes: usize) -> Result<Selection, CraftError> {
         let (limit, cursor) = match self {
-            Self::SpaceGet(_) | Self::PageGet(_) | Self::CommentGet(_) => (20, None),
+            Self::SpaceGet(_)
+            | Self::PageGet(_)
+            | Self::CommentGet(_)
+            | Self::ContentStateGet(_)
+            | Self::ContentStateAvailable(_) => (20, None),
             Self::CommentList(v) => (v.limit, v.cursor.clone()),
             Self::CommentReplies(v) => (v.limit, v.cursor.clone()),
             Self::SpaceList(v) => (v.limit, v.cursor.clone()),
@@ -512,9 +578,16 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
         craft_provider_confluence::comments::COMMENT_GET,
         craft_provider_confluence::comments::paging::COMMENT_LIST,
         craft_provider_confluence::comments::paging::COMMENT_REPLIES,
+        craft_provider_confluence::content_state::CONTENT_STATE_GET,
+        craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
     ] {
         let mut descriptor = native.descriptor(command)?.clone();
         match command {
+            craft_provider_confluence::content_state::CONTENT_STATE_GET
+            | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE => {
+                descriptor.input_schema = schema_for::<ConfluenceContentStateArgs>()?;
+                registry.register_typed::<ConfluenceContentStateArgs>(descriptor)?;
+            }
             craft_provider_confluence::comments::paging::COMMENT_LIST => {
                 descriptor.input_schema = schema_for::<ConfluenceCommentListArgs>()?;
                 registry.register_typed::<ConfluenceCommentListArgs>(descriptor)?;

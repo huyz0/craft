@@ -175,6 +175,41 @@ pub struct CommentDeleteArgs {
     #[arg(long, value_parser = comment_revision, default_value = NO_COMMENT_REVISION)]
     pub expected: craft_provider_confluence::comments::CommentRevision,
 }
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentStateSetArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    /// An ID from `confluence content-state available`; IDs 0 to 2 are space defaults, so there
+    /// is no default value.
+    #[arg(long)]
+    #[schemars(required)]
+    pub state_id: Option<u64>,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentStateClearArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
@@ -182,6 +217,8 @@ pub enum PageWriteArgs {
     CommentCreate(CommentCreateArgs),
     CommentUpdate(CommentUpdateArgs),
     CommentDelete(CommentDeleteArgs),
+    ContentStateSet(ContentStateSetArgs),
+    ContentStateClear(ContentStateClearArgs),
 }
 /// Maps a saved space allowance to the host write it permits.
 fn kind_of(operation: Operation) -> PageWriteKind {
@@ -192,6 +229,8 @@ fn kind_of(operation: Operation) -> PageWriteKind {
         Operation::CommentCreate => PageWriteKind::CommentCreate,
         Operation::CommentUpdate => PageWriteKind::CommentUpdate,
         Operation::CommentDelete => PageWriteKind::CommentDelete,
+        Operation::ContentStateSet => PageWriteKind::ContentStateSet,
+        Operation::ContentStateClear => PageWriteKind::ContentStateClear,
     }
 }
 fn site(cloud: &str) -> ResourceRef {
@@ -216,6 +255,8 @@ impl PageWriteArgs {
             Self::CommentCreate(_) => Operation::CommentCreate,
             Self::CommentUpdate(_) => Operation::CommentUpdate,
             Self::CommentDelete(_) => Operation::CommentDelete,
+            Self::ContentStateSet(_) => Operation::ContentStateSet,
+            Self::ContentStateClear(_) => Operation::ContentStateClear,
         }
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
@@ -226,6 +267,8 @@ impl PageWriteArgs {
             COMMENT_CREATE => Ok(Self::CommentCreate(decode(&value)?)),
             COMMENT_UPDATE => Ok(Self::CommentUpdate(decode(&value)?)),
             COMMENT_DELETE => Ok(Self::CommentDelete(decode(&value)?)),
+            CONTENT_STATE_SET => Ok(Self::ContentStateSet(decode(&value)?)),
+            CONTENT_STATE_CLEAR => Ok(Self::ContentStateClear(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -237,6 +280,8 @@ impl PageWriteArgs {
             Self::CommentCreate(v) => encoded(v),
             Self::CommentUpdate(v) => encoded(v),
             Self::CommentDelete(v) => encoded(v),
+            Self::ContentStateSet(v) => encoded(v),
+            Self::ContentStateClear(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
@@ -247,6 +292,8 @@ impl PageWriteArgs {
             Self::CommentCreate(v) => v.cloud_id.as_deref(),
             Self::CommentUpdate(v) => v.cloud_id.as_deref(),
             Self::CommentDelete(v) => v.cloud_id.as_deref(),
+            Self::ContentStateSet(v) => v.cloud_id.as_deref(),
+            Self::ContentStateClear(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
@@ -257,6 +304,8 @@ impl PageWriteArgs {
             Self::CommentCreate(v) => v.space_id.as_deref(),
             Self::CommentUpdate(v) => v.space_id.as_deref(),
             Self::CommentDelete(v) => v.space_id.as_deref(),
+            Self::ContentStateSet(v) => v.space_id.as_deref(),
+            Self::ContentStateClear(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
@@ -267,6 +316,8 @@ impl PageWriteArgs {
             Self::CommentCreate(v) => &v.operation_id,
             Self::CommentUpdate(v) => &v.operation_id,
             Self::CommentDelete(v) => &v.operation_id,
+            Self::ContentStateSet(v) => &v.operation_id,
+            Self::ContentStateClear(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
@@ -277,6 +328,8 @@ impl PageWriteArgs {
             Self::CommentCreate(v) => v.apply,
             Self::CommentUpdate(v) => v.apply,
             Self::CommentDelete(v) => v.apply,
+            Self::ContentStateSet(v) => v.apply,
+            Self::ContentStateClear(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -323,6 +376,17 @@ impl PageWriteArgs {
                 page_id: v.page_id.clone(),
                 id: v.id.clone(),
                 expected: v.expected.clone(),
+            }),
+            Self::ContentStateSet(v) => encoded(&pages::ContentStateSetInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                state_id: v
+                    .state_id
+                    .ok_or_else(|| CraftError::field("/state_id", "expected_available_state_id"))?,
+            }),
+            Self::ContentStateClear(v) => encoded(&pages::ContentStateClearInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
             }),
         }
     }
@@ -394,6 +458,12 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             PageWriteArgs::CommentCreate(v) => comment(C::Create(Box::new(v))),
             PageWriteArgs::CommentUpdate(v) => comment(C::Update(Box::new(v))),
             PageWriteArgs::CommentDelete(v) => comment(C::Delete(Box::new(v))),
+            PageWriteArgs::ContentStateSet(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Set(Box::new(v)),
+            },
+            PageWriteArgs::ContentStateClear(v) => Self::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Clear(Box::new(v)),
+            },
         }
     }
 }
@@ -422,6 +492,12 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Comment {
                 action: C::Delete(v),
             } => Ok(Self::CommentDelete(*v)),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Set(v),
+            } => Ok(Self::ContentStateSet(*v)),
+            A::ContentState {
+                action: crate::args::ConfluenceContentStateAction::Clear(v),
+            } => Ok(Self::ContentStateClear(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -437,6 +513,8 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             COMMENT_CREATE,
             COMMENT_UPDATE,
             COMMENT_DELETE,
+            CONTENT_STATE_SET,
+            CONTENT_STATE_CLEAR,
         ],
     )
 }
@@ -451,6 +529,8 @@ pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
             COMMENT_CREATE,
             COMMENT_UPDATE,
             COMMENT_DELETE,
+            CONTENT_STATE_SET,
+            CONTENT_STATE_CLEAR,
         ],
     )
 }
@@ -481,8 +561,8 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
         let resource = kind.resource_type();
         let version = match kind {
             PageWriteKind::Update | PageWriteKind::CommentUpdate => Value::from(2),
-            PageWriteKind::Trash | PageWriteKind::CommentDelete => Value::Null,
-            _ => Value::from(1),
+            PageWriteKind::Create | PageWriteKind::CommentCreate => Value::from(1),
+            _ => Value::Null,
         };
         let status = match kind {
             PageWriteKind::Trash | PageWriteKind::CommentDelete => 204,
@@ -518,9 +598,17 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
                 d.input_schema = schema_for::<CommentUpdateArgs>()?;
                 registry.register_typed::<CommentUpdateArgs>(d)?;
             }
-            _ => {
+            COMMENT_DELETE => {
                 d.input_schema = schema_for::<CommentDeleteArgs>()?;
                 registry.register_typed::<CommentDeleteArgs>(d)?;
+            }
+            CONTENT_STATE_SET => {
+                d.input_schema = schema_for::<ContentStateSetArgs>()?;
+                registry.register_typed::<ContentStateSetArgs>(d)?;
+            }
+            _ => {
+                d.input_schema = schema_for::<ContentStateClearArgs>()?;
+                registry.register_typed::<ContentStateClearArgs>(d)?;
             }
         }
     }
