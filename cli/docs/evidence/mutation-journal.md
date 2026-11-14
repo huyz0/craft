@@ -42,3 +42,7 @@ Review disposition: the implementing agent reviewed binding, transaction and evi
 The later [local operation inspection checkpoint](operation-inspection.md) exposes existing journal reads through `operation get`, with strict input, projected schemas and explicit lack of live verification/replay authority. Its separate evidence supersedes the earlier statement that public inspection is unimplemented. Listing, provider refresh/reconciliation and reviewed production send integration remain incomplete.
 
 The subsequent [journal-bound HTTP checkpoint](journaled-http.md) consumes a privately prepared JSON request only after its exact native request obtains a durable claim. It retains response/error separately from unknown-recording failure and permits provider-qualified receipt recording after cancellation. Provider/CLI mutation handlers, recovery envelopes, live evidence and independent consequential review remain unfinished; this internal composition does not complete the broader journal task.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

@@ -457,3 +457,24 @@ fn bad_download_specs_and_undeclared_routes_are_local_refusals() -> TestResult {
     assert_eq!(server.finish()?.len(), 0);
     Ok(())
 }
+#[test]
+fn retryable_status_before_streaming_is_repeated_once_and_publishes_one_artifact() -> TestResult {
+    let bytes = b"retried-binary".to_vec();
+    let server = TlsServer::start(Reply::Sequence(vec![
+        raw(
+            503,
+            b"busy",
+            &[("Content-Length", "4".into()), ("Retry-After", "0".into())],
+        ),
+        complete(&bytes),
+    ]))?;
+    let (registry, operation) = fixtures::prepared(EffectClass::Read)?;
+    let store = MemoryArtifacts::new(Faults::default(), 100);
+    let outcome = prepared(&registry, &operation, &server, 100, None)?.receive(&store, || Ok(()));
+    assert!(outcome.error.is_none(), "{:?}", outcome.error);
+    assert_eq!(outcome.http_status, Some(200));
+    assert_eq!(outcome.received_bytes, bytes.len() as u64);
+    assert_eq!(outcome.artifact_write_state, RequestState::Confirmed);
+    assert_eq!(server.finish()?.len(), 2);
+    Ok(())
+}

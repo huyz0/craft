@@ -87,7 +87,7 @@ fn native_child(root: &Path, mode: &str) -> Result<(), Box<dyn std::error::Error
         &[
             "--ignored",
             "--exact",
-            "secrets::tests::native::windows_generations_survive_restart_recover_and_logout",
+            "secrets::tests::native::native_generations_survive_restart_recover_and_logout",
         ],
         None,
         RunOptions {
@@ -116,8 +116,8 @@ fn native_child(root: &Path, mode: &str) -> Result<(), Box<dyn std::error::Error
 }
 
 #[test]
-#[ignore = "Writes owned synthetic credential generations to the real Windows vault; run explicitly with native access"]
-fn windows_generations_survive_restart_recover_and_logout() -> Result<(), Box<dyn std::error::Error>>
+#[ignore = "Writes owned synthetic credential generations to the real native vault; run explicitly with native access"]
+fn native_generations_survive_restart_recover_and_logout() -> Result<(), Box<dyn std::error::Error>>
 {
     if let Some(root) = std::env::var_os("CRAFT_NATIVE_GENERATION_ROOT") {
         let profiles = ProfileStore::open(Path::new(&root), &control(30_000)?)?;

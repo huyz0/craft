@@ -300,10 +300,9 @@ impl ServiceOAuthClient {
             client_id: stored.credentials.client_id,
             client_secret: stored.credentials.client_secret,
         };
-        let (token, cache_update) = if let Some(mut token) = restored {
-            self.verify_product(&mut token, tenant, Some(&stored.actor))?;
-            (token, None)
-        } else {
+        // The one reacquisition: a single exchange, every provisioned product verified with the
+        // new token, then activation. No path here performs a second exchange.
+        let reacquire = || -> Result<(ServiceToken, Option<GenerationReceipt>), AuthFailure> {
             let mut token = self.acquire(&credentials)?;
             for target in &stored.targets {
                 self.verify_product(&mut token, target, Some(&stored.actor))?;
@@ -312,9 +311,17 @@ impl ServiceOAuthClient {
             let receipt = locked
                 .replace(&snapshot.version, &bytes, IncompletePolicy::KeepPrevious)
                 .map_err(activation_failure)?;
-            (token, Some(receipt))
+            Ok((token, Some(receipt)))
         };
-        Ok((token, cache_update))
+        match restored {
+            Some(mut token) => match self.verify_product(&mut token, tenant, Some(&stored.actor)) {
+                Ok(_) => Ok((token, None)),
+                // A cached token refused before its renewal time is treated as revoked.
+                Err(failure) if identity::credential_rejected(&failure) => reacquire(),
+                Err(failure) => Err(failure),
+            },
+            None => reacquire(),
+        }
     }
 
     pub fn open_service_session(

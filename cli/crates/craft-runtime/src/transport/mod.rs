@@ -3,8 +3,10 @@
 mod downloads;
 mod multipart;
 mod mutations;
+mod retry;
 pub use downloads::{DownloadOutcome, DownloadRequest, PreparedHttpDownload};
 pub use multipart::MultipartFile;
+use retry::ReadRetry;
 mod routing;
 pub use mutations::{MutationAttempt, PreparedHttpMutation};
 pub use routing::{JiraFieldSite, JiraProjectSite};
@@ -182,6 +184,10 @@ pub struct HttpContext {
     effect: EffectClass,
     control: InvocationControl,
     operation_digest: String,
+    /// Present only for sealed safe-read descriptors; mutation sends never consult it.
+    retry: Option<ReadRetry>,
+    /// Sends made by the most recent read invocation, for exhaustion diagnostics.
+    sends: std::cell::Cell<u8>,
 }
 
 impl HttpContext {
@@ -250,6 +256,8 @@ impl HttpContext {
             effect: operation.effect(),
             control,
             operation_digest: operation.digest().into(),
+            retry: ReadRetry::for_descriptor(descriptor),
+            sends: std::cell::Cell::new(0),
         })
     }
 
@@ -332,13 +340,90 @@ impl HttpContext {
             error.code = ErrorCode::WriteOutcomeUnknown;
         }
         error.retryable = false;
-        error.next_action = if read {
-            "Inspect connection/provider conditions; no automatic retry was performed."
+        error.next_action = if !read {
+            "Inspect the operation receipt and reconcile before replay.".into()
+        } else if self.sends.get() > 1 {
+            format!(
+                "Inspect connection/provider conditions; {} bounded attempts were already sent for this safe read.",
+                self.sends.get()
+            )
         } else {
-            "Inspect the operation receipt and reconcile before replay."
-        }
-        .into();
+            "Inspect connection/provider conditions; no automatic retry was performed.".into()
+        };
         error
+    }
+
+    /// Sends a safe read up to the descriptor's bounded attempt count. Only retryable statuses
+    /// and connection failures before any response are repeated; the deadline is never reset.
+    fn exchange_retrying(
+        &self,
+        request: Request,
+        maximum: usize,
+    ) -> Result<NativeResponse, CraftError> {
+        let mut retry = 0u8;
+        loop {
+            // The effect is rechecked here so no context can repeat a send it labels as a write.
+            let policy = self
+                .retry
+                .filter(|_| matches!(self.effect, EffectClass::Read));
+            let attempt = match policy {
+                Some(_) => request.try_clone().ok_or_else(internal)?,
+                None => {
+                    self.sends.set(1);
+                    return self.exchange_request(request, maximum);
+                }
+            };
+            self.sends.set(retry.saturating_add(1));
+            let outcome = self.exchange_attempt(attempt, maximum);
+            retry = retry.saturating_add(1);
+            let advice = match &outcome {
+                Ok(response) if ReadRetry::retryable_status(response.status) => {
+                    response.retry_after
+                }
+                Err(Attempt::Connection(_)) => None,
+                _ => return outcome.map_err(Attempt::into_error),
+            };
+            match policy.and_then(|policy| policy.wait(retry, advice, &self.control)) {
+                Some(wait) => self.pause(wait)?,
+                None => return outcome.map_err(Attempt::into_error),
+            }
+        }
+    }
+
+    fn exchange_attempt(
+        &self,
+        request: Request,
+        maximum: usize,
+    ) -> Result<NativeResponse, Attempt> {
+        self.control.check().map_err(Attempt::Final)?;
+        self.runtime.block_on(async {
+            let exchange = exchange_attempt(&self.client, request, maximum);
+            tokio::pin!(exchange);
+            loop {
+                tokio::select! {
+                    biased;
+                    result = &mut exchange => return result,
+                    _ = tokio::time::sleep(Duration::from_millis(10)) => {
+                        self.control.check().map_err(Attempt::Final)?;
+                    }
+                }
+            }
+        })
+    }
+
+    /// Waits between safe-read attempts while observing cancellation and the deadline.
+    fn pause(&self, wait: Duration) -> Result<(), CraftError> {
+        self.runtime.block_on(async {
+            let end = tokio::time::Instant::now() + wait;
+            loop {
+                self.control.check()?;
+                let now = tokio::time::Instant::now();
+                if now >= end {
+                    return Ok(());
+                }
+                tokio::time::sleep((end - now).min(Duration::from_millis(10))).await;
+            }
+        })
     }
 
     fn exchange_request(
@@ -410,13 +495,55 @@ pub(crate) fn retry_after(value: Option<&HeaderValue>) -> Option<RetryAfter> {
         .map(RetryAfter::AtUnixMillis)
 }
 
+/// Separates failures before any response, which a safe read may repeat, from final ones.
+enum Attempt {
+    Connection(CraftError),
+    Final(CraftError),
+}
+
+impl Attempt {
+    fn into_error(self) -> CraftError {
+        match self {
+            Self::Connection(error) | Self::Final(error) => error,
+        }
+    }
+}
+
 async fn exchange(
     client: &Client,
     request: Request,
     maximum: usize,
 ) -> Result<NativeResponse, CraftError> {
+    exchange_attempt(client, request, maximum)
+        .await
+        .map_err(Attempt::into_error)
+}
+
+async fn exchange_attempt(
+    client: &Client,
+    request: Request,
+    maximum: usize,
+) -> Result<NativeResponse, Attempt> {
     let allow_empty_ok = request.method() == reqwest::Method::DELETE;
-    let mut response = client.execute(request).await.map_err(network_error)?;
+    let response = client.execute(request).await.map_err(|error| {
+        // Only a connection that dropped after the request was written is repeatable. Connect,
+        // DNS and certificate failures are deterministic enough to report on the first attempt.
+        if error.is_timeout() || error.is_connect() {
+            Attempt::Final(network_error(error))
+        } else {
+            Attempt::Connection(network_error(error))
+        }
+    })?;
+    read_response(response, maximum, allow_empty_ok)
+        .await
+        .map_err(Attempt::Final)
+}
+
+async fn read_response(
+    mut response: reqwest::Response,
+    maximum: usize,
+    allow_empty_ok: bool,
+) -> Result<NativeResponse, CraftError> {
     let status = response.status().as_u16();
     if (300..400).contains(&status) {
         return Err(denied());
@@ -528,7 +655,7 @@ impl OperationContext for HttpContext {
         }
         let (request, maximum) = self.request(call)?;
         self.control.check()?;
-        let result = self.exchange_request(request, maximum);
+        let result = self.exchange_retrying(request, maximum);
         result.map_err(|error| self.after_attempt(error))
     }
 

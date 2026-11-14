@@ -754,7 +754,13 @@ fn search_warning_denial_disconnect_and_bad_data_keep_renewal_receipts_without_s
             "redirect" => Reply::json(302, b"{}", &[("Location", "https://untrusted.invalid")]),
             _ => reply(json!({"issues":[{"id":17}]}))?,
         };
-        let product = TlsServer::start(Reply::Sequence(vec![identity(), identity(), response]))?;
+        let product = TlsServer::start(Reply::Sequence({
+            // A dropped connection is a retryable safe-read failure: three bounded attempts.
+            let attempts = if mode == "disconnect" { 3 } else { 1 };
+            let mut replies = vec![identity(), identity()];
+            replies.extend(std::iter::repeat_n(response, attempts));
+            replies
+        }))?;
         let clock = Arc::new(ManualClock::new(1000));
         let fixture = setup.fixture(&issuer, &product, clock.clone())?;
         let locked = fixture.lock(&setup.grant, &control()?)?;
@@ -781,7 +787,10 @@ fn search_warning_denial_disconnect_and_bad_data_keep_renewal_receipts_without_s
             "confirmed"
         );
         assert!(!serde_json::to_string(&result.envelope)?.contains("private-sentinel"));
-        assert_eq!(product.finish()?.len(), 3);
+        assert_eq!(
+            product.finish()?.len(),
+            if mode == "disconnect" { 5 } else { 3 }
+        );
         assert_eq!(issuer.finish()?.len(), 2);
     }
     Ok(())

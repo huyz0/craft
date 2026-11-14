@@ -243,7 +243,7 @@ pub fn read_page(
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::RemoteUnavailable,
             },
-            "Project read failed; no automatic retry was performed.",
+            "Project read failed; no further automatic retry is made.",
         ));
     }
     let body = response.body;

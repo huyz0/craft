@@ -171,7 +171,7 @@ fn invoke(context: &mut dyn OperationContext, call: &NativeCall) -> Result<Value
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::RemoteUnavailable,
             },
-            "Field discovery failed; no automatic retry was performed.",
+            "Field discovery failed; no further automatic retry is made.",
         );
         error.details.write_state = craft_core::contracts::RequestState::Failed;
         return Err(error);

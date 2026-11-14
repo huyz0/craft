@@ -16,7 +16,7 @@ use crate::profiles::{ProfileStore, random_id};
 use crate::secrets::tests::native::NativeCleanup;
 use crate::secrets::{IncompletePolicy, NativeCredentials};
 
-const TEST: &str = "auth::service::tests::native_tests::windows_service_cache_restarts_serializes_reacquisition_and_preserves_logout";
+const TEST: &str = "auth::service::tests::native_tests::native_service_cache_restarts_serializes_reacquisition_and_preserves_logout";
 const RESULT_PREFIX: &str = "native-service-result=";
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -278,8 +278,8 @@ fn scan_files(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[ignore = "Writes owned synthetic service credentials to the real Windows vault; run explicitly with native loopback access"]
-fn windows_service_cache_restarts_serializes_reacquisition_and_preserves_logout()
+#[ignore = "Writes owned synthetic service credentials to the real native vault; run explicitly with native loopback access"]
+fn native_service_cache_restarts_serializes_reacquisition_and_preserves_logout()
 -> Result<(), Box<dyn std::error::Error>> {
     if let Some(root) = std::env::var_os("CRAFT_NATIVE_SERVICE_ROOT") {
         return child(Path::new(&root));

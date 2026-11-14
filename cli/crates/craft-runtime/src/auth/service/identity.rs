@@ -4,6 +4,21 @@ use serde::Deserialize;
 
 use super::*;
 use crate::transport::{bearer_header, product_identity_url};
+use craft_core::error::FieldIssue;
+
+/// Issue rule attached when a current-user probe is refused with HTTP 401.
+pub(super) const CREDENTIAL_REJECTED: &str = "credential_rejected";
+
+/// True only for an identity probe whose bearer token the product refused outright.
+pub(super) fn credential_rejected(failure: &AuthFailure) -> bool {
+    failure.error.code == ErrorCode::AuthRequired
+        && failure
+            .error
+            .details
+            .issues
+            .iter()
+            .any(|issue| issue.rule == CREDENTIAL_REJECTED)
+}
 
 /// A successful current-user probe, not a claim of project/space or mutation permission.
 #[derive(Debug, Clone, Serialize)]
@@ -133,7 +148,16 @@ impl ServiceOAuthClient {
                     .execute(request)
                     .await
                     .map_err(network_failure)?;
-                let bytes = bounded_body(response).await?;
+                let rejected = response.status().as_u16() == 401;
+                let bytes = bounded_body(response).await.map_err(|mut failure| {
+                    if rejected {
+                        failure.error.details.issues.push(FieldIssue::new(
+                            "/token",
+                            CREDENTIAL_REJECTED,
+                        ));
+                    }
+                    failure
+                })?;
                 serde_json::from_slice(&bytes).map_err(|_| response_failure())
             })
             .map_err(|mut failure| {

@@ -225,6 +225,30 @@ fn checked_profile(row: &Row<'_>) -> rusqlite::Result<Profile> {
     Ok(profile)
 }
 
+/// Repeats one idempotent connection statement while another connection holds the lock.
+/// Opening uses these before any transaction, and a concurrent writer must delay them
+/// within the invocation budget rather than fail them as unreadable state.
+fn wait_busy<T>(
+    control: &InvocationControl,
+    mut statement: impl FnMut() -> rusqlite::Result<T>,
+) -> Result<T, CraftError> {
+    loop {
+        control.check()?;
+        match statement() {
+            Ok(value) => return Ok(value),
+            Err(error)
+                if matches!(
+                    error.sqlite_error_code(),
+                    Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+                ) =>
+            {
+                std::thread::sleep(control.remaining()?.min(Duration::from_millis(10)));
+            }
+            Err(error) => return Err(state_error(error)),
+        }
+    }
+}
+
 pub(super) fn begin<'a>(
     connection: &'a Connection,
     control: &InvocationControl,
@@ -334,27 +358,27 @@ impl ProfileStore {
         connection
             .busy_timeout(Duration::ZERO)
             .map_err(state_error)?;
-        let page_size: i64 = connection
-            .query_row("PRAGMA page_size", [], |row| row.get(0))
-            .map_err(state_error)?;
+        let page_size: i64 = wait_busy(control, || {
+            connection.query_row("PRAGMA page_size", [], |row| row.get(0))
+        })?;
         if page_size != 4096 {
             return Err(invalid_state());
         }
-        connection
-            .execute_batch(
+        wait_busy(control, || {
+            connection.execute_batch(
                 "PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;",
             )
-            .map_err(state_error)?;
+        })?;
         // Persistent rollback journals allow every SQLite path to remain pinned and private.
-        let mode: String = connection
-            .query_row("PRAGMA journal_mode=PERSIST", [], |row| row.get(0))
-            .map_err(state_error)?;
+        let mode: String = wait_busy(control, || {
+            connection.query_row("PRAGMA journal_mode=PERSIST", [], |row| row.get(0))
+        })?;
         if mode != "persist" {
             return Err(invalid_state());
         }
-        connection
-            .execute_batch("PRAGMA journal_size_limit=0; PRAGMA max_page_count=16384;")
-            .map_err(state_error)?;
+        wait_busy(control, || {
+            connection.execute_batch("PRAGMA journal_size_limit=0; PRAGMA max_page_count=16384;")
+        })?;
         let transaction = begin(&connection, control)?;
         let application: i64 = transaction
             .query_row("PRAGMA application_id", [], |row| row.get(0))

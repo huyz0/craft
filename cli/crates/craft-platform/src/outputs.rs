@@ -3,9 +3,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-#[cfg(windows)]
+#[cfg(any(windows, unix))]
 use super::InputRoot;
-#[cfg(windows)]
+#[cfg(any(windows, unix))]
 use std::fs::File;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -35,35 +35,40 @@ impl std::fmt::Display for OutputCommitError {
 impl std::error::Error for OutputCommitError {}
 
 pub struct OutputRoot {
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     protected: Option<super::PrivateRoot>,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     _root: InputRoot,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     path: PathBuf,
     _private: (),
 }
 
 pub struct OutputFile {
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     file: Option<File>,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     _parent: InputRoot,
+    /// Unix publication is anchored to the pinned parent handle by these two names.
+    #[cfg(unix)]
+    staging: String,
+    #[cfg(unix)]
+    leaf: String,
     destination: PathBuf,
     maximum: u64,
     bytes: u64,
     failed: bool,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     prepared: bool,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     attempted: bool,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     published: bool,
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     policy: OverwritePolicy,
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, unix)))]
 fn unsupported() -> io::Error {
     io::Error::new(
         io::ErrorKind::Unsupported,
@@ -82,7 +87,7 @@ impl OutputRoot {
     }
     /// Selects an existing no-follow output root. Input authority does not imply output authority.
     pub fn open(path: &Path) -> io::Result<Self> {
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             Ok(Self {
                 _root: InputRoot::open(path)?,
@@ -91,7 +96,7 @@ impl OutputRoot {
                 _private: (),
             })
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             let _ = path;
             Err(unsupported())
@@ -101,13 +106,13 @@ impl OutputRoot {
     /// Keeps an additional private authority excluded from every destination parent,
     /// even when the selected output root itself is outside that authority.
     pub fn open_excluding(path: &Path, protected: super::PrivateRoot) -> io::Result<Self> {
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             let mut root = Self::open(path)?;
             root.protected = Some(protected);
             Ok(root)
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             let _ = (path, protected);
             Err(unsupported())
@@ -147,7 +152,7 @@ impl OutputRoot {
         policy: OverwritePolicy,
         protected: Option<&super::PrivateRoot>,
     ) -> io::Result<OutputFile> {
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             let parts = super::inputs::relative(destination)?;
             let leaf = parts.last().ok_or_else(|| {
@@ -202,10 +207,17 @@ impl OutputRoot {
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {}
                 Err(error) => return Err(error),
             }
+            #[cfg(windows)]
             let file = super::windows::create_output_file(&parent_path.join(staging))?;
+            #[cfg(unix)]
+            let file = unix::create_staging(&parent, staging)?;
             Ok(OutputFile {
                 file: Some(file),
                 _parent: parent,
+                #[cfg(unix)]
+                staging: staging.to_owned(),
+                #[cfg(unix)]
+                leaf: (*leaf).to_owned(),
                 destination,
                 maximum,
                 bytes: 0,
@@ -216,7 +228,7 @@ impl OutputRoot {
                 policy,
             })
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             let _ = (destination, staging, maximum, policy, protected);
             Err(unsupported())
@@ -235,24 +247,30 @@ impl OutputFile {
         if self.failed {
             return Err(io::Error::other("Output writer failed"));
         }
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             self.prepared = false;
             let file = self
                 .file
                 .as_mut()
                 .ok_or_else(|| io::Error::other("Output writer is closed"))?;
+            #[cfg(windows)]
             let result = file
                 .flush()
                 .and_then(|()| file.sync_all())
                 .and_then(|()| super::windows::input_file_identity(file).map(|_| ()));
+            #[cfg(unix)]
+            let result = file
+                .flush()
+                .and_then(|()| file.sync_all())
+                .and_then(|()| unix::verify_staging(&self._parent, &self.staging, file));
             self.prepared = result.is_ok();
             if result.is_err() {
                 self.failed = true;
             }
             result
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             Err(unsupported())
         }
@@ -260,7 +278,7 @@ impl OutputFile {
 
     /// Flushes complete staging before atomic rename. Once rename is attempted, an
     /// unclassified error cannot be represented as a known absence of filesystem effects.
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     pub fn commit(mut self) -> Result<(), OutputCommitError> {
         if self.failed {
             return Err(OutputCommitError::NotPublished(io::Error::other(
@@ -274,11 +292,23 @@ impl OutputFile {
             OutputCommitError::NotPublished(io::Error::other("Output writer is closed"))
         })?;
         self.attempted = true;
-        match super::windows::publish_output_file(
+        #[cfg(windows)]
+        let published = super::windows::publish_output_file(
             file,
             &self.destination,
             self.policy == OverwritePolicy::Replace,
-        ) {
+        );
+        #[cfg(unix)]
+        let published = {
+            let _ = file;
+            unix::publish(
+                &self._parent,
+                &self.staging,
+                &self.leaf,
+                self.policy == OverwritePolicy::Replace,
+            )
+        };
+        match published {
             Ok(()) => {
                 self.published = true;
                 Ok(())
@@ -287,11 +317,18 @@ impl OutputFile {
                 self.attempted = false;
                 Err(OutputCommitError::NotPublished(error))
             }
+            // A failed link or rename leaves the namespace unchanged, so staging is still ours.
+            #[cfg(unix)]
+            Err(error) => {
+                self.attempted = false;
+                Err(OutputCommitError::NotPublished(error))
+            }
+            #[cfg(windows)]
             Err(_) => Err(OutputCommitError::OutcomeUnknown),
         }
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, unix)))]
     pub fn commit(self) -> Result<(), OutputCommitError> {
         Err(OutputCommitError::NotPublished(unsupported()))
     }
@@ -311,7 +348,7 @@ impl Write for OutputFile {
                 "Output byte ceiling exceeded or writer failed",
             ));
         }
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             self.prepared = false;
             let result = self
@@ -330,7 +367,7 @@ impl Write for OutputFile {
                 }
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             Err(unsupported())
         }
@@ -340,7 +377,7 @@ impl Write for OutputFile {
         if self.failed {
             return Err(io::Error::other("Output writer failed"));
         }
-        #[cfg(windows)]
+        #[cfg(any(windows, unix))]
         {
             let result = self
                 .file
@@ -352,7 +389,7 @@ impl Write for OutputFile {
             }
             result
         }
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, unix)))]
         {
             Err(unsupported())
         }
@@ -369,5 +406,86 @@ impl Drop for OutputFile {
             // Abort refers to the retained staging object, never a re-opened path.
             let _ = super::windows::discard_output_file(file);
         }
+        #[cfg(unix)]
+        if !self.attempted && !self.published && self.file.take().is_some() {
+            // The name is resolved only inside the pinned parent and only while it is ours.
+            let _ = unix::discard(&self._parent, &self.staging);
+        }
+    }
+}
+
+/// Directory-handle-relative staging and publication. Every name is resolved inside the
+/// pinned no-follow parent, so a concurrently swapped path component cannot redirect bytes.
+#[cfg(unix)]
+mod unix {
+    use std::fs::File;
+    use std::io;
+    use std::os::unix::fs::MetadataExt;
+
+    use nix::fcntl::{AtFlags, OFlag, openat, renameat};
+    use nix::sys::stat::{Mode, fstatat};
+    use nix::unistd::{UnlinkatFlags, linkat, unlinkat};
+
+    use super::InputRoot;
+
+    fn os(error: nix::Error) -> io::Error {
+        io::Error::from_raw_os_error(error as i32)
+    }
+
+    pub(super) fn create_staging(parent: &InputRoot, staging: &str) -> io::Result<File> {
+        let descriptor = openat(
+            parent.directory()?,
+            staging,
+            OFlag::O_WRONLY | OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_NOFOLLOW | OFlag::O_CLOEXEC,
+            Mode::from_bits_truncate(0o600),
+        )
+        .map_err(os)?;
+        Ok(File::from(descriptor))
+    }
+
+    /// The staging name must still be our single-link regular file before publication.
+    pub(super) fn verify_staging(parent: &InputRoot, staging: &str, file: &File) -> io::Result<()> {
+        let held = file.metadata()?;
+        let named =
+            fstatat(parent.directory()?, staging, AtFlags::AT_SYMLINK_NOFOLLOW).map_err(os)?;
+        if !held.is_file()
+            || held.nlink() != 1
+            || named.st_dev as u64 != held.dev()
+            || named.st_ino as u64 != held.ino()
+        {
+            return Err(io::Error::other(
+                "Output staging changed before publication",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Create-new publication uses a hard link, which refuses an existing destination
+    /// atomically on every Unix; the staging name is then removed. Replacement uses rename.
+    /// Both calls either take effect or leave the directory unchanged, so any error here is a
+    /// clean refusal. Filesystems without hard links (FAT, some network and FUSE mounts)
+    /// therefore refuse create-new publication rather than risk replacing a file.
+    pub(super) fn publish(
+        parent: &InputRoot,
+        staging: &str,
+        leaf: &str,
+        replace: bool,
+    ) -> io::Result<()> {
+        let directory = parent.directory()?;
+        if replace {
+            renameat(directory, staging, directory, leaf).map_err(os)?;
+        } else {
+            linkat(directory, staging, directory, leaf, AtFlags::empty()).map_err(os)?;
+            // The destination is complete at this point; leftover staging is only clutter.
+            let _ = unlinkat(directory, staging, UnlinkatFlags::NoRemoveDir);
+        }
+        // Best effort: the name is already published, so a failed directory sync cannot be
+        // reported as an unpublished output. It only weakens crash durability of the name.
+        let _ = directory.sync_all();
+        Ok(())
+    }
+
+    pub(super) fn discard(parent: &InputRoot, staging: &str) -> io::Result<()> {
+        unlinkat(parent.directory()?, staging, UnlinkatFlags::NoRemoveDir).map_err(os)
     }
 }

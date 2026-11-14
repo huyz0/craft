@@ -56,7 +56,7 @@ fn typed_create_recovery_uses_separate_policy_and_retains_uncertainty_and_renewa
                 replies.push(Reply::json(
                     429,
                     b"private-provider-text",
-                    &[("Retry-After", "7")],
+                    &[("Retry-After", "60")],
                 ));
             }
         }
@@ -241,7 +241,7 @@ fn lost_create_investigation_keeps_candidates_unattributed_and_never_posts_again
             });
             if matches!(mode, "two_candidates" | "partial") {
                 replies.push(if mode == "partial" {
-                    Reply::json(429, b"private-provider-text", &[("Retry-After", "7")])
+                    Reply::json(429, b"private-provider-text", &[("Retry-After", "60")])
                 } else {
                     observed("10004")?
                 });

@@ -226,7 +226,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### tenant-auth-inventory
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Establish deployment inputs needed for honest auth and permission support.
 
@@ -244,7 +244,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### native-vault-backends
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Select and expose real persistent OS credential stores without fallback.
 
@@ -262,7 +262,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### credential-generation-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Persist variable-size credentials safely across interruption and backend limits.
 
@@ -280,7 +280,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### grant-locking
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Serialize refresh and logout by actual credential grant across local processes.
 
@@ -298,7 +298,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### service-oauth
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Acquire unattended Atlassian sessions through eligible service credentials.
 
@@ -342,7 +342,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Depends on:** broker-protocol, fixture-testkit, dependency-baseline
 
-**Build:** Build a separately configured Rust service with organization auth, transaction TTL/single redemption, server-side app-secret access, callback checks, redacted telemetry and token-handoff cleanup. Deployment remains separately authorized.
+**Build:** Build a separately configured Rust service with organization auth, transaction TTL/single redemption, server-side app-secret access, callback checks, redacted telemetry and token-handoff cleanup. Add the broker origin to the CLI's trusted host allowlist under the existing typed-route and credential-attachment rules. Deployment remains separately authorized.
 
 **Verify:** Service integration tests cover concurrent redemption, invalid state/proof, expiry, logging/proxy redaction and interrupted handoff.
 
@@ -408,7 +408,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### trusted-http
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Centralize authenticated routing and prevent provider data redefining trust.
 
@@ -416,7 +416,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Depends on:** operation-registry, profile-resolution, fixture-testkit
 
-**Build:** Implement allowlisted provider/broker host templates, typed route components, TLS/enterprise CA policy and auth attachment through host-owned ports. Normalize next links within provider/tenant context.
+**Build:** Implement allowlisted provider host templates, typed route components, TLS/enterprise CA policy and auth attachment through host-owned ports. Normalize next links within provider/tenant context. Broker origins join the same allowlist when `broker-service` defines them; until then no broker origin exists to route to.
 
 **Verify:** Test query/fragment/encoded-ID abuse, cross-host redirects, malicious next links and wrong cloud IDs; inspect credential headers and URL logs.
 
@@ -426,7 +426,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### retry-deadlines
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Bound retries, rate limits and cancellation by operation semantics.
 
@@ -440,11 +440,11 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Write retries require declared safe semantics; deadlines bound the whole invocation rather than resetting on each packet.
 
-**Evidence:** none
+**Evidence:** docs/evidence/retry-deadlines.md
 
 ### artifact-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read/write non-secret artifacts without path escape or accidental replacement.
 
@@ -462,7 +462,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### binary-transfer
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Stream attachments through bounded secure transport and artifact receipts.
 
@@ -480,7 +480,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### mutation-journal
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Make write intent and observed effects durable before relying on retries.
 
@@ -554,7 +554,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### response-projection
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Fetch and emit only declared fields while preserving control evidence.
 
@@ -568,11 +568,11 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Projection saves agent-visible content without fabricating nulls or losing IDs/version/next metadata.
 
-**Evidence:** none
+**Evidence:** docs/evidence/foundation-closure.md
 
 ### cursor-store
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Persist opaque continuation with identity binding and fetched remainders.
 
@@ -590,7 +590,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### bounded-listing
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Make default paging small, lossless and honest about live collections.
 
@@ -666,7 +666,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-context
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read Jira context and live field/workflow constraints with bounded output.
 

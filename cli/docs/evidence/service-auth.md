@@ -61,3 +61,7 @@ Owned secret buffers zeroize; complete erasure of transport/parser internal allo
 ## Setup adapter follow-up
 
 Explicit-profile policy get/set adapters now connect the existing Confluence read/write and Jira create/read/mutation/recovery stores to candidate command dispatch. See [setup evidence](policy-setup.md) for checks, exact source boundaries and pending activation review. This adds no credential export, schema or authentication lifecycle. Public provisioning/setup and live qualification remain unfinished.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

@@ -38,3 +38,7 @@ The separate Windows native test `auth::service::tests::native_tests::windows_se
 The source port is injected trusted code. These tests do not qualify its eventual sealed auth composition, token renewal, provider permission visibility, routing or a real provider's continuation protocol. Payload checksums are not same-principal tamper protection. A simulated SQL insertion failure is not process-kill or power-loss proof. The generic engine has no public dispatch, optional count, overflow artifact export or provider snapshot mode. Jira short/empty-page offset semantics and site/gateway next-link handling remain for the dependent typed adapter. The inspected official pagination guide supports empty pages and changing totals but does not settle that advancement rule.
 
 No independent reviewer was invoked or claimed. Consequential auth/write activation still requires the existing independent review and live/public qualification. The broad cursor-store and bounded-listing tasks remain unchecked, linked to this partial evidence; the overall CLI delivery goal remains active. Next, qualify and compose Jira project discovery against the actual host and envelope contracts without weakening authenticated routing.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

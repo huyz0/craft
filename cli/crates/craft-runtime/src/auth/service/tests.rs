@@ -13,7 +13,7 @@ use crate::tls_fixture::{Reply, TlsServer};
 mod access_tests;
 mod cache_tests;
 mod identity_tests;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 mod native_tests;
 
 const TOKEN: &str = "service-bearer-sentinel";

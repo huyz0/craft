@@ -207,6 +207,26 @@ impl InputRoot {
         Ok(false)
     }
 
+    /// Compares native directory identities, so alternate spellings cannot hide the root.
+    #[cfg(unix)]
+    pub(super) fn contains_private_root(&self, protected: &super::PrivateRoot) -> io::Result<bool> {
+        use std::os::unix::fs::MetadataExt;
+        let protected = protected._pins.last().ok_or_else(invalid)?.metadata()?;
+        for directory in &self.pins {
+            let metadata = directory.metadata()?;
+            if (metadata.dev(), metadata.ino()) == (protected.dev(), protected.ino()) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// The pinned handle of the selected directory itself, for handle-relative operations.
+    #[cfg(unix)]
+    pub(super) fn directory(&self) -> io::Result<&File> {
+        self.pins.last().ok_or_else(invalid)
+    }
+
     /// Selects an existing input directory without creating it or changing its permissions.
     /// The caller must supply this authority explicitly; remote content must not choose it.
     pub fn open(path: &Path) -> io::Result<Self> {

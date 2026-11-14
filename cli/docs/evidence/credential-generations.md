@@ -32,3 +32,7 @@ Current development executable SHA-256: `9a5fc9404d4c3b745f83db8013f7bcf6e64dd3e
 Native macOS/Linux tests, unavailable Windows logon sessions, other principals/services/containers, actual refresh/logout races, power-loss durability, copied-installation migration and independent consequential review remain unrun. The Windows restart test exercises process restarts, not OS restart or power failure. Fault recovery does not turn transient vault unavailability into proof of missing data.
 
 The generation adapter does not make native calls interruptible and cannot recover a remote rotation response lost before staging. The auth protocol still needs external exchange intent, broker/provider integration and its own recovery decisions. No credential-facing cloud command is enabled. Real OAuth credentials, live tenants, remote resources, commits, pushes and releases were unchanged.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

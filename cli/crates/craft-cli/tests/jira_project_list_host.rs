@@ -855,12 +855,14 @@ fn stalled_project_read_obeys_deadline_without_a_retry_or_continuation() -> Test
 }
 
 #[test]
-fn disconnected_project_read_does_not_retry_or_publish_continuation() -> TestResult {
+fn disconnected_project_read_stops_after_bounded_attempts_without_continuation() -> TestResult {
     let setup = Setup::new()?;
     let issuer = issuer("read:jira-user read:jira-work")?;
     let product = TlsServer::start(Reply::Sequence(vec![
         identity(),
         identity(),
+        Reply::Disconnect,
+        Reply::Disconnect,
         Reply::Disconnect,
     ]))?;
     let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
@@ -883,7 +885,7 @@ fn disconnected_project_read_does_not_retry_or_publish_continuation() -> TestRes
         Some(ErrorCode::RemoteUnavailable)
     );
     assert!(result.envelope.page.is_none());
-    assert_eq!(product.finish()?.len(), 3);
+    assert_eq!(product.finish()?.len(), 5);
     assert_eq!(issuer.finish()?.len(), 1);
     Ok(())
 }

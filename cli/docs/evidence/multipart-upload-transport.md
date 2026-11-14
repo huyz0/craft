@@ -21,3 +21,7 @@ Observed validation:
 No real credentials, vault writes, live tenant changes, upload activation or new bundle occurred. Full/default verification remains pending because its Confluence composed-host executable was previously rejected by Windows Application Control; it was not retried or bypassed. Other-platform file semantics and a real server response before body completion remain unqualified. The pure response-qualification regression covers that incomplete-framing interpretation without claiming end-to-end early-response acceptance.
 
 Next integration: implement provider upload context for exact issue/project/principal, native attachment settings and Create attachments permission; capture an explicit InputRoot file into a named uploads snapshot under the current invocation; bind that snapshot and canonical request to the normal journal/recovery host; append explicit upload policy authority; normalize one acknowledged attachment without claiming remote SHA-256 verification; then qualify and register the public command. A failed or uncertain upload must not be adopted by filename equality or replayed. Confluence multipart variants and deletion remain separate unfinished operations.
+
+## Closure
+
+On 15 November 2026 the owning ledger task was closed. The remaining gaps listed above are answered in [foundation closure](foundation-closure.md), with platform runs in [platform qualification](platform-qualification.md) and review in [foundation review](foundation-review.md).

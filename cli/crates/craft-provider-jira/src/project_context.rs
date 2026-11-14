@@ -194,7 +194,7 @@ fn invoke(
             if status == 404 {
                 "Project is absent or invisible; this does not establish absence."
             } else {
-                "Project context read failed; no automatic retry was performed."
+                "Project context read failed; no further automatic retry is made."
             },
         );
         error.details.write_state = craft_core::contracts::RequestState::Failed;

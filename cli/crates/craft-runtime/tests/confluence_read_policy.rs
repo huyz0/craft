@@ -328,8 +328,10 @@ fn competing_confluence_policy_writers_preserve_one_revision_winner() -> TestRes
                 let barrier = barrier.clone();
                 scope.spawn(move || -> Result<_, CraftError> {
                     let control = control()?;
-                    let store = ProfileStore::open(&root, &control)?;
+                    // Reach the barrier even when opening fails, so the other writer cannot wait forever.
+                    let opened = ProfileStore::open(&root, &control);
                     barrier.wait();
+                    let store = opened?;
                     store.set_confluence_read_policy(
                         "factory",
                         update(Some(1), false),

@@ -325,7 +325,7 @@ fn invoke(context: &mut dyn OperationContext, call: NativeCall) -> Result<Value,
             if response.status == 404 {
                 "Issue is absent or invisible; absence was not established."
             } else {
-                "Issue metadata read failed; no automatic retry was performed."
+                "Issue metadata read failed; no further automatic retry is made."
             },
         );
         error.details.write_state = craft_core::contracts::RequestState::Failed;

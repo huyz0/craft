@@ -190,7 +190,7 @@ fn invoke(
         };
         return Err(CraftError::new(
             code,
-            "Create metadata read did not return a qualified response; no automatic retry was performed.",
+            "Create metadata read did not return a qualified response; no further automatic retry is made.",
         ));
     }
     let size = serde_json::to_vec(&response.body)
