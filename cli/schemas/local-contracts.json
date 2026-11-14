@@ -4948,6 +4948,1337 @@
         "version": "sha256:8f26d69235b0a795f3e4437600448973af397f882c771e8a06ad115b9e776782"
       }
     },
+    "confluence.attachment.replace": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "confluence-cloud-v1-attachment-upload",
+        "contract_version": "1.0",
+        "description": "Replace the binary of one reviewed attachment by ID with an exact immutable snapshot.",
+        "effect": "write",
+        "example": {
+          "apply": true,
+          "artifact_name": "design-upload.bin",
+          "attachment_id": "att301",
+          "expected": {
+            "file_id": "0b6f6a1c-file",
+            "version": 1
+          },
+          "file": "design.bin",
+          "file_root": "D:/workspace",
+          "filename": "design.bin",
+          "operation_id": "upload-design",
+          "page_id": "101",
+          "space_id": "100"
+        },
+        "id": "confluence.attachment.replace",
+        "input_schema": {
+          "$defs": {
+            "AttachmentRevision": {
+              "additionalProperties": false,
+              "properties": {
+                "file_id": {
+                  "type": "string"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "version",
+                "file_id"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "file": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "file_root": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file_root",
+                  "file"
+                ]
+              },
+              "if": {
+                "properties": {
+                  "from_artifact": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "from_artifact"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "expected_digest": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "null"
+                  },
+                  "file_root": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "expected_digest"
+                ]
+              }
+            }
+          ],
+          "properties": {
+            "apply": {
+              "default": false,
+              "type": "boolean"
+            },
+            "artifact_name": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]+$",
+              "type": "string"
+            },
+            "attachment_id": {
+              "description": "Replacement only: the exact attachment whose binary is replaced.",
+              "pattern": "^att[1-9][0-9]*$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "byte_limit": {
+              "default": 16777216,
+              "format": "uint64",
+              "maximum": 1073741824,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "cloud_id": {
+              "maxLength": 36,
+              "minLength": 36,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AttachmentRevision"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Replacement only: the reviewed version and file ID from `confluence attachment get`."
+            },
+            "expected_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "file": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "file_root": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "filename": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            "from_artifact": {
+              "default": false,
+              "type": "boolean"
+            },
+            "media_type": {
+              "default": "application/octet-stream",
+              "maxLength": 256,
+              "minLength": 3,
+              "type": "string"
+            },
+            "operation_id": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "page_id": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            },
+            "space_id": {
+              "description": "Optional when trusted profile context supplies the space.",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "operation_id",
+            "page_id",
+            "artifact_name",
+            "filename",
+            "attachment_id",
+            "expected"
+          ],
+          "title": "UploadArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "View the page and add attachments in its space."
+        ],
+        "projection": null,
+        "provider": "confluence",
+        "reconciliation": "correlation",
+        "response_example": {
+          "command": "confluence.attachment.replace",
+          "data": {
+            "acknowledged": false,
+            "artifact_name": "design-upload.bin",
+            "atomic_page_check": false,
+            "attachment_id": "att301",
+            "credential_cache_update": null,
+            "desired_fields_verified": false,
+            "http_status": null,
+            "latest_record": null,
+            "page_id": "101",
+            "pending_record": null,
+            "pending_record_state": "unrecorded",
+            "persistence": "unrecorded",
+            "prior_record": null,
+            "provider_request_id": null,
+            "receipt": {
+              "confirmed_resources": [],
+              "operation_id": "upload-design",
+              "request_state": "not_sent"
+            },
+            "reconciliation_required": false,
+            "remote_digest_verified": false,
+            "replay_authorized": false,
+            "retry_after": null,
+            "saved_request": null,
+            "snapshot": null,
+            "snapshot_collection": "uploads",
+            "snapshot_reused": false,
+            "snapshot_write_state": "not_sent",
+            "target": {
+              "deployment": "cloud",
+              "id": "100",
+              "provider": "confluence",
+              "resource_type": "space",
+              "tenant": "00000000-1111-2222-3333-444444444444"
+            },
+            "unqualified_acknowledgments": [],
+            "version": null
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "ArtifactReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "local_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ResourceRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "media_type",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "JournalRecord": {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/OperationBinding"
+                },
+                "revision": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/JournalStep"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "binding",
+                "revision",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "JournalStep": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "request_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/SubmissionState"
+                }
+              },
+              "required": [
+                "state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "OperationBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "description": "Host-verified effective actor under the selected provider/tenant authority.",
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_digest",
+                "descriptor_digest",
+                "target",
+                "grant",
+                "actor"
+              ],
+              "type": "object"
+            },
+            "OperationReceipt": {
+              "additionalProperties": false,
+              "description": "Confirmed effects survive a later failed or uncertain request in a composite operation.",
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "PersistenceState": {
+              "enum": [
+                "recorded",
+                "unrecorded",
+                "uncertain"
+              ],
+              "type": "string"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "SavedReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "digest": {
+                  "maxLength": 71,
+                  "minLength": 71,
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 77,
+                  "minLength": 77,
+                  "pattern": "^request-[0-9a-f]{64}\\.json$",
+                  "type": "string"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "acknowledged": {
+                  "type": "boolean"
+                },
+                "artifact_name": {
+                  "type": "string"
+                },
+                "atomic_page_check": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "attachment_id": {
+                  "description": "The replaced attachment, or the new attachment once acknowledged.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "desired_fields_verified": {
+                  "type": "boolean"
+                },
+                "http_status": {
+                  "format": "uint16",
+                  "maximum": 65535,
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "latest_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "page_id": {
+                  "type": "string"
+                },
+                "pending_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pending_record_state": {
+                  "$ref": "#/$defs/PersistenceState"
+                },
+                "persistence": {
+                  "$ref": "#/$defs/PersistenceState"
+                },
+                "prior_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provider_request_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "receipt": {
+                  "$ref": "#/$defs/OperationReceipt"
+                },
+                "reconciliation_required": {
+                  "type": "boolean"
+                },
+                "remote_digest_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "saved_request": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SavedReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshot": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshot_collection": {
+                  "const": "uploads",
+                  "type": "string"
+                },
+                "snapshot_reused": {
+                  "type": "boolean"
+                },
+                "snapshot_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "unqualified_acknowledgments": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "receipt",
+                "target",
+                "page_id",
+                "artifact_name",
+                "snapshot_collection",
+                "snapshot_write_state",
+                "snapshot_reused",
+                "acknowledged",
+                "desired_fields_verified",
+                "remote_digest_verified",
+                "atomic_page_check",
+                "unqualified_acknowledgments",
+                "persistence",
+                "pending_record_state",
+                "reconciliation_required",
+                "replay_authorized"
+              ],
+              "title": "UploadData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "reconcile_before_replay",
+        "routes": [
+          {
+            "continuation_parameters": [],
+            "id": "confluence-attachment-replace",
+            "method": "post",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "rest"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "content"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              },
+              {
+                "kind": "literal",
+                "value": "child"
+              },
+              {
+                "kind": "literal",
+                "value": "attachment"
+              },
+              {
+                "kind": "parameter",
+                "value": "attachmentId"
+              },
+              {
+                "kind": "literal",
+                "value": "data"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 1048576
+          }
+        ],
+        "scope_alternatives": [
+          [
+            "read:page:confluence",
+            "read:attachment:confluence",
+            "write:confluence-file"
+          ],
+          [
+            "read:page:confluence",
+            "read:attachment:confluence",
+            "read:content-details:confluence",
+            "write:attachment:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Page/filename/attachment checks are non-atomic. Remote byte digest remains unverified."
+        ]
+      },
+      "flags": {
+        "apply": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "apply",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "artifact_name": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "artifact-name",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "attachment_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "attachment-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "byte_limit": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "16777216"
+          ],
+          "delimiter": null,
+          "long": "byte-limit",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "cloud_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "cloud-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "expected",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected_digest": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "expected-digest",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file_root": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "file-root",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "filename": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "filename",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "from_artifact": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "from-artifact",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "media_type": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "application/octet-stream"
+          ],
+          "delimiter": null,
+          "long": "media-type",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "page_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "page-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "space_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "confluence",
+        "attachment",
+        "replace"
+      ],
+      "selectable_fields": {}
+    },
     "confluence.attachment.trash": {
       "controls": {
         "fields": "rejected",
@@ -5858,6 +7189,1309 @@
         "confluence",
         "attachment",
         "trash"
+      ],
+      "selectable_fields": {}
+    },
+    "confluence.attachment.upload": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "confluence-cloud-v1-attachment-upload",
+        "contract_version": "1.0",
+        "description": "Add one exact immutable snapshot as a new page attachment; an existing filename is refused, never versioned.",
+        "effect": "write",
+        "example": {
+          "apply": true,
+          "artifact_name": "design-upload.bin",
+          "file": "design.bin",
+          "file_root": "D:/workspace",
+          "filename": "design.bin",
+          "operation_id": "upload-design",
+          "page_id": "101",
+          "space_id": "100"
+        },
+        "id": "confluence.attachment.upload",
+        "input_schema": {
+          "$defs": {
+            "AttachmentRevision": {
+              "additionalProperties": false,
+              "properties": {
+                "file_id": {
+                  "type": "string"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "version",
+                "file_id"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "file": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "file_root": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file_root",
+                  "file"
+                ]
+              },
+              "if": {
+                "properties": {
+                  "from_artifact": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "from_artifact"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "expected_digest": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "null"
+                  },
+                  "file_root": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "expected_digest"
+                ]
+              }
+            }
+          ],
+          "properties": {
+            "apply": {
+              "default": false,
+              "type": "boolean"
+            },
+            "artifact_name": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]+$",
+              "type": "string"
+            },
+            "attachment_id": {
+              "type": "null"
+            },
+            "byte_limit": {
+              "default": 16777216,
+              "format": "uint64",
+              "maximum": 1073741824,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "cloud_id": {
+              "maxLength": 36,
+              "minLength": 36,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "expected": {
+              "type": "null"
+            },
+            "expected_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "file": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "file_root": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "filename": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "type": "string"
+            },
+            "from_artifact": {
+              "default": false,
+              "type": "boolean"
+            },
+            "media_type": {
+              "default": "application/octet-stream",
+              "maxLength": 256,
+              "minLength": 3,
+              "type": "string"
+            },
+            "operation_id": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "page_id": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            },
+            "space_id": {
+              "description": "Optional when trusted profile context supplies the space.",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "operation_id",
+            "page_id",
+            "artifact_name",
+            "filename"
+          ],
+          "title": "UploadArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "View the page and add attachments in its space."
+        ],
+        "projection": null,
+        "provider": "confluence",
+        "reconciliation": "correlation",
+        "response_example": {
+          "command": "confluence.attachment.upload",
+          "data": {
+            "acknowledged": false,
+            "artifact_name": "design-upload.bin",
+            "atomic_page_check": false,
+            "attachment_id": null,
+            "credential_cache_update": null,
+            "desired_fields_verified": false,
+            "http_status": null,
+            "latest_record": null,
+            "page_id": "101",
+            "pending_record": null,
+            "pending_record_state": "unrecorded",
+            "persistence": "unrecorded",
+            "prior_record": null,
+            "provider_request_id": null,
+            "receipt": {
+              "confirmed_resources": [],
+              "operation_id": "upload-design",
+              "request_state": "not_sent"
+            },
+            "reconciliation_required": false,
+            "remote_digest_verified": false,
+            "replay_authorized": false,
+            "retry_after": null,
+            "saved_request": null,
+            "snapshot": null,
+            "snapshot_collection": "uploads",
+            "snapshot_reused": false,
+            "snapshot_write_state": "not_sent",
+            "target": {
+              "deployment": "cloud",
+              "id": "100",
+              "provider": "confluence",
+              "resource_type": "space",
+              "tenant": "00000000-1111-2222-3333-444444444444"
+            },
+            "unqualified_acknowledgments": [],
+            "version": null
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "ArtifactReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "local_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ResourceRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "media_type",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "JournalRecord": {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/OperationBinding"
+                },
+                "revision": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/JournalStep"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "binding",
+                "revision",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "JournalStep": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "request_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/SubmissionState"
+                }
+              },
+              "required": [
+                "state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "OperationBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "description": "Host-verified effective actor under the selected provider/tenant authority.",
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_digest",
+                "descriptor_digest",
+                "target",
+                "grant",
+                "actor"
+              ],
+              "type": "object"
+            },
+            "OperationReceipt": {
+              "additionalProperties": false,
+              "description": "Confirmed effects survive a later failed or uncertain request in a composite operation.",
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "PersistenceState": {
+              "enum": [
+                "recorded",
+                "unrecorded",
+                "uncertain"
+              ],
+              "type": "string"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "SavedReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "digest": {
+                  "maxLength": 71,
+                  "minLength": 71,
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 77,
+                  "minLength": 77,
+                  "pattern": "^request-[0-9a-f]{64}\\.json$",
+                  "type": "string"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "acknowledged": {
+                  "type": "boolean"
+                },
+                "artifact_name": {
+                  "type": "string"
+                },
+                "atomic_page_check": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "attachment_id": {
+                  "description": "The replaced attachment, or the new attachment once acknowledged.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "desired_fields_verified": {
+                  "type": "boolean"
+                },
+                "http_status": {
+                  "format": "uint16",
+                  "maximum": 65535,
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "latest_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "page_id": {
+                  "type": "string"
+                },
+                "pending_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pending_record_state": {
+                  "$ref": "#/$defs/PersistenceState"
+                },
+                "persistence": {
+                  "$ref": "#/$defs/PersistenceState"
+                },
+                "prior_record": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provider_request_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "receipt": {
+                  "$ref": "#/$defs/OperationReceipt"
+                },
+                "reconciliation_required": {
+                  "type": "boolean"
+                },
+                "remote_digest_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "saved_request": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SavedReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshot": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshot_collection": {
+                  "const": "uploads",
+                  "type": "string"
+                },
+                "snapshot_reused": {
+                  "type": "boolean"
+                },
+                "snapshot_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "unqualified_acknowledgments": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "receipt",
+                "target",
+                "page_id",
+                "artifact_name",
+                "snapshot_collection",
+                "snapshot_write_state",
+                "snapshot_reused",
+                "acknowledged",
+                "desired_fields_verified",
+                "remote_digest_verified",
+                "atomic_page_check",
+                "unqualified_acknowledgments",
+                "persistence",
+                "pending_record_state",
+                "reconciliation_required",
+                "replay_authorized"
+              ],
+              "title": "UploadData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "reconcile_before_replay",
+        "routes": [
+          {
+            "continuation_parameters": [],
+            "id": "confluence-attachment-upload",
+            "method": "post",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "rest"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "content"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              },
+              {
+                "kind": "literal",
+                "value": "child"
+              },
+              {
+                "kind": "literal",
+                "value": "attachment"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 1048576
+          }
+        ],
+        "scope_alternatives": [
+          [
+            "read:page:confluence",
+            "read:attachment:confluence",
+            "write:confluence-file"
+          ],
+          [
+            "read:page:confluence",
+            "read:attachment:confluence",
+            "read:content-details:confluence",
+            "write:attachment:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Page/filename/attachment checks are non-atomic. Remote byte digest remains unverified."
+        ]
+      },
+      "flags": {
+        "apply": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "apply",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "artifact_name": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "artifact-name",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "attachment_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "attachment-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "byte_limit": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "16777216"
+          ],
+          "delimiter": null,
+          "long": "byte-limit",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "cloud_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "cloud-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "expected",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected_digest": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "expected-digest",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file_root": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "file-root",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "filename": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "filename",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "from_artifact": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "from-artifact",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "media_type": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "application/octet-stream"
+          ],
+          "delimiter": null,
+          "long": "media-type",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "page_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "page-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "space_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "confluence",
+        "attachment",
+        "upload"
       ],
       "selectable_fields": {}
     },

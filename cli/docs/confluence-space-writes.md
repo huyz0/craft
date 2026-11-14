@@ -40,9 +40,15 @@ A mismatch stops with `VERSION_CONFLICT` before any write.
 
 `confluence content-state get` and `available` are reads that need a `confluence-read` allowance. `set` accepts only a state ID that `available` reports for the page at send time; there is no free-form name or color, so Craft never creates new custom states. IDs 0 to 2 are space defaults, so `state_id` has no default. Badge responses carry `grants_approval: false`. A badge never authorizes plan tickets, approves a review or acts as a Jira workflow transition.
 
+## Attachment upload and replacement
+
+`confluence attachment upload` sends one immutable snapshot of a workspace file (`file_root` plus relative `file`) or of an existing upload artifact selected by `expected_digest`, with an explicit `filename` and `media_type`. Before sending it confirms the page is current in the space and that no current attachment on the page has that filename; an existing name is refused with `VERSION_CONFLICT` rather than turned into a new version. `confluence attachment replace` takes `attachment_id` and `expected` (version and file ID from `confluence attachment get`) and replaces only that attachment's bytes; the filename must equal its current title.
+
+Both use the v1 multipart routes with `X-Atlassian-Token: no-check` and `minorEdit=true`, send at most once, and need `--max-bytes 8388608` for complete snapshot, saved-request and journal evidence. An upload is confirmed by its returned attachment ID; filename, size and (for replacement) the next version are reported in `desired_fields_verified`. Remote byte digests are not verifiable. Filename upsert (v1 PUT) is not exposed.
+
 ## Attachment reads
 
-`confluence attachment get` and `list` return current page attachment metadata: ID (`att…`), page, title, media type, size, file ID, version and comment. Download links are not returned because they are not trusted routing input. Upload, filename upsert, binary replacement, metadata update and download are not yet available.
+`confluence attachment get` and `list` return current page attachment metadata: ID (`att…`), page, title, media type, size, file ID, version and comment. Download links are not returned because they are not trusted routing input. Download, filename upsert and metadata update are not yet available.
 
 ## Scopes
 

@@ -13,6 +13,8 @@ mod review_preparation;
 mod review_verification;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
+#[path = "confluence/uploads.rs"]
+mod uploads;
 use craft_cli::confluence_reads::{ConfluenceReadPolicy, PreparedConfluenceRead};
 use craft_core::contracts::{AuthMode, CanonicalRequest, GrantRef, ResourceRef, Selection};
 use craft_core::control::{CancellationToken, InvocationControl};

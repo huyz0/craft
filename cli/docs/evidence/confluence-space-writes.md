@@ -48,6 +48,13 @@ Through the production host with the CraftTest service profile, in the onboardin
 
 Space create is also covered by `space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name` (provider) and `space_create_needs_site_authority_an_absent_key_and_explicit_visibility` (host: default roles, private, taken key, missing site policy, lost response). `confluence_admin_policy` covers the site policy and the schema 12 to 13 migration; every existing migration test now also drops the new table.
 
+| `confluence.attachment.upload` (text file, workspace source) | confirmed with matching filename and size; a second upload with the same filename was refused `VERSION_CONFLICT` before any send |
+| `confluence.attachment.replace` (by ID with the reviewed version and file ID) | confirmed version 1 to 2 with matching size; a follow-up get showed a new file ID and size |
+
 These ran with CraftTest credential `craft-granular-4` (the earlier ten scopes plus `delete:page`, `read/write/delete:attachment`, `write/delete:comment`, `write:content` and `write:space`, all `:confluence`). `tests/live_cleanup.rs` now also purges `craft-test` pages that the CLI already moved to the trash. After cleanup, no `craft-test` pages remain current or trashed.
 
-Editor-draft interaction with another person's open draft is not live-tested. Attachment upload, replace, upsert and download are not implemented.
+Editor-draft interaction with another person's open draft is not live-tested. Attachment download and filename upsert are not implemented. Download is blocked by a design decision: both native download routes answered 302 to Atlassian's media host in a live probe, and the transport refuses redirects.
+
+## Attachment transfer tests
+
+The multipart transport seals a table of single-file protocols; the existing Jira multipart tests (11) and Jira upload host tests (4) still pass. `page_upload_refuses_existing_filename_and_sends_one_exact_multipart_snapshot` checks the v1 route, `X-Atlassian-Token`, the `minorEdit` part, exact file bytes and duplicate-filename refusal. `replace_is_bound_to_the_reviewed_attachment_id_version_and_file` covers replacement, a changed attachment and a lost response kept as `sent_unknown`. Saved-request validation accepts the two Confluence upload commands.

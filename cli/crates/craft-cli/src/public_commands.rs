@@ -31,6 +31,7 @@ impl ProviderModule for CloudCommands {
             Self::Confluence => {
                 crate::confluence_reads::command::register_candidates(&mut candidates)?;
                 crate::confluence_pages::command::register_public(&mut candidates)?;
+                crate::confluence_attachment_upload::command::register(&mut candidates)?;
             }
             Self::Jira => {
                 crate::issue_mutation::command::register_candidates(&mut candidates)?;
@@ -117,6 +118,9 @@ impl ProviderModule for CloudCommands {
                 }
                 "confluence.space.create" => {
                     register!(crate::confluence_pages::command::SpaceCreateArgs)
+                }
+                "confluence.attachment.upload" | "confluence.attachment.replace" => {
+                    register!(crate::confluence_attachment_upload::command::UploadArgs)
                 }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),

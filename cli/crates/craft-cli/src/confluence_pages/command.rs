@@ -274,9 +274,10 @@ pub enum PageWriteArgs {
     AttachmentTrash(AttachmentTrashArgs),
     SpaceCreate(SpaceCreateArgs),
 }
-/// Maps a saved space allowance to the host write it permits.
-fn kind_of(operation: Operation) -> PageWriteKind {
-    match operation {
+/// Maps a saved space allowance to the page-host write it permits; attachment transfer
+/// allowances belong to the upload host instead.
+fn kind_of(operation: Operation) -> Option<PageWriteKind> {
+    Some(match operation {
         Operation::Create => PageWriteKind::Create,
         Operation::Update => PageWriteKind::Update,
         Operation::Trash => PageWriteKind::Trash,
@@ -286,7 +287,8 @@ fn kind_of(operation: Operation) -> PageWriteKind {
         Operation::ContentStateSet => PageWriteKind::ContentStateSet,
         Operation::ContentStateClear => PageWriteKind::ContentStateClear,
         Operation::AttachmentTrash => PageWriteKind::AttachmentTrash,
-    }
+        Operation::AttachmentUpload | Operation::AttachmentReplace => return None,
+    })
 }
 fn site(cloud: &str) -> ResourceRef {
     ResourceRef {
@@ -305,7 +307,8 @@ impl PageWriteArgs {
     pub fn kind(&self) -> PageWriteKind {
         match self {
             Self::SpaceCreate(_) => PageWriteKind::SpaceCreate,
-            other => kind_of(other.operation().unwrap_or(Operation::Create)),
+            other => kind_of(other.operation().unwrap_or(Operation::Create))
+                .unwrap_or(PageWriteKind::Create),
         }
     }
     /// The per-space allowance this write needs; space creation is site-level instead.
@@ -823,7 +826,12 @@ impl PreparedInvocation {
                 grant: policy.grant.clone(),
                 expected_actor: policy.expected_actor.clone(),
                 enabled: policy.enabled,
-                allowed: policy.operations.iter().copied().map(kind_of).collect(),
+                allowed: policy
+                    .operations
+                    .iter()
+                    .copied()
+                    .filter_map(kind_of)
+                    .collect(),
             },
         )?;
         Ok(Self {
