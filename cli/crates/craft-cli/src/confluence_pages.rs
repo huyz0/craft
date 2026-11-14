@@ -24,9 +24,9 @@ use craft_provider_confluence::pages::{
     CONTENT_STATE_CLEAR, CONTENT_STATE_SET, CommentCreateInput, CommentDeleteInput,
     CommentUpdateInput, ConfluencePages, ContentStateClearInput, ContentStateSetInput, PAGE_CREATE,
     PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput,
-    PageWriteKind, PreparedPageWrite,
+    PageWriteKind, PreparedPageWrite, SPACE_CREATE, SpaceCreateInput,
 };
-use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET};
+use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET, SPACE_LIST};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
 use craft_runtime::journal::{MutationAuthority, NativeJournal};
 use craft_runtime::secrets::LockedCredentials;
@@ -54,6 +54,7 @@ enum Intent {
     ContentStateSet(ContentStateSetInput),
     ContentStateClear(ContentStateClearInput),
     AttachmentTrash(AttachmentTrashInput),
+    SpaceCreate(SpaceCreateInput),
 }
 impl Intent {
     fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
@@ -67,6 +68,7 @@ impl Intent {
             PageWriteKind::ContentStateSet => Self::ContentStateSet(decode(input)?),
             PageWriteKind::ContentStateClear => Self::ContentStateClear(decode(input)?),
             PageWriteKind::AttachmentTrash => Self::AttachmentTrash(decode(input)?),
+            PageWriteKind::SpaceCreate => Self::SpaceCreate(decode(input)?),
         })
     }
     fn kind(&self) -> PageWriteKind {
@@ -80,6 +82,7 @@ impl Intent {
             Self::ContentStateSet(_) => PageWriteKind::ContentStateSet,
             Self::ContentStateClear(_) => PageWriteKind::ContentStateClear,
             Self::AttachmentTrash(_) => PageWriteKind::AttachmentTrash,
+            Self::SpaceCreate(_) => PageWriteKind::SpaceCreate,
         }
     }
     fn space_id(&self) -> &str {
@@ -93,6 +96,8 @@ impl Intent {
             Self::ContentStateSet(i) => &i.space_id,
             Self::ContentStateClear(i) => &i.space_id,
             Self::AttachmentTrash(i) => &i.space_id,
+            // Site-level: no existing space binds this write; authority is the site policy.
+            Self::SpaceCreate(_) => "",
         }
     }
 }
@@ -226,6 +231,7 @@ impl PreparedPagePublication {
             input: match page_id {
                 Some(page_id) => json!({"id":id,"page_id":page_id}),
                 None if command == CONTENT_STATE_AVAILABLE => json!({"page_id":id}),
+                None if command == SPACE_LIST => json!({"key":id,"page_size":2}),
                 None => json!({"id":id}),
             },
             selection: Selection {
@@ -294,6 +300,12 @@ impl PreparedPagePublication {
                 access.check_operation(
                     &self.registry,
                     &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+            }
+            Intent::SpaceCreate(SpaceCreateInput { key, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(SPACE_LIST, key, None, None)?,
                 )?;
             }
             Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
@@ -376,10 +388,16 @@ impl PreparedPagePublication {
         if let Some(r) = representation {
             query.insert("body-format".into(), r.into());
         }
+        if command == SPACE_LIST {
+            // Exact-key lookup: any visible space with this key stops the create.
+            query.insert("keys".into(), id.into());
+            query.insert("limit".into(), "2".into());
+        }
         let (route, parameter) = match command {
             PAGE_GET => ("confluence-page-get", "id"),
             COMMENT_GET => ("confluence-footer-comment-get", "comment-id"),
             ATTACHMENT_GET => (craft_provider_confluence::attachments::GET_ROUTE, "id"),
+            SPACE_LIST => ("confluence-space-list", "id"),
             CONTENT_STATE_AVAILABLE => (
                 craft_provider_confluence::content_state::AVAILABLE_ROUTE,
                 "id",
@@ -388,7 +406,11 @@ impl PreparedPagePublication {
         };
         let response = context.invoke(&NativeCall {
             route: route.into(),
-            path_parameters: BTreeMap::from([(parameter.into(), id.into())]),
+            path_parameters: if command == SPACE_LIST {
+                BTreeMap::new()
+            } else {
+                BTreeMap::from([(parameter.into(), id.into())])
+            },
             query,
             repeated_query: BTreeMap::new(),
             body: None,
@@ -560,6 +582,21 @@ impl PreparedPagePublication {
             Intent::ContentStateClear(ContentStateClearInput { page_id, .. }) => {
                 let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
                 pages::prepare_content_state_clear(&self.operation, &page)
+            }
+            Intent::SpaceCreate(SpaceCreateInput { key, .. }) => {
+                let lookup = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: SPACE_LIST,
+                        id: key,
+                        page_id: None,
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_space_create(&self.operation, &lookup)
             }
             Intent::AttachmentTrash(AttachmentTrashInput { page_id, id, .. }) => {
                 let page = self.page_evidence(access, tls, control, page_id, check_policy)?;

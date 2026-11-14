@@ -288,6 +288,9 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
             action: crate::args::ConfluenceCommentAction::Delete(_),
         } => craft_provider_confluence::pages::COMMENT_DELETE,
         A::Space { action: S::Get(_) } => SPACE_GET,
+        A::Space {
+            action: S::Create(_),
+        } => craft_provider_confluence::pages::SPACE_CREATE,
         A::Space { action: S::List(_) } => SPACE_LIST,
         A::Page { action: P::Get(_) } => PAGE_GET,
         A::Page { action: P::List(_) } => PAGE_LIST,
@@ -350,6 +353,9 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         } => encoded(v),
         A::Space { action: S::Get(v) } | A::Page { action: P::Get(v) } => encoded(v),
         A::Space { action: S::List(v) } => encoded(v),
+        A::Space {
+            action: S::Create(v),
+        } => encoded(v),
         A::Page { action: P::List(v) } => encoded(v),
         A::Page {
             action: P::Search(v),

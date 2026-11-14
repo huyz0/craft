@@ -5,6 +5,7 @@ mod content_state_writes;
 mod input;
 mod registration;
 mod result;
+mod space_writes;
 use crate::models::{numeric, text};
 pub use attachment_writes::{
     ATTACHMENT_TRASH, ATTACHMENT_TRASH_ROUTE, AttachmentRevision, AttachmentTrashInput,
@@ -32,6 +33,9 @@ pub use input::{
 pub use registration::ConfluencePages;
 pub use result::PageWriteObservation;
 use serde_json::{Value, json};
+pub use space_writes::{
+    SPACE_CREATE, SPACE_CREATE_ROUTE, SpaceCreateInput, SpaceVisibility, prepare_space_create,
+};
 use std::collections::BTreeMap;
 
 pub const PAGE_CREATE: &str = "confluence.page.create";
@@ -54,6 +58,7 @@ pub enum PageWriteKind {
     ContentStateSet,
     ContentStateClear,
     AttachmentTrash,
+    SpaceCreate,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -67,6 +72,7 @@ impl PageWriteKind {
             Self::ContentStateSet => CONTENT_STATE_SET,
             Self::ContentStateClear => CONTENT_STATE_CLEAR,
             Self::AttachmentTrash => ATTACHMENT_TRASH,
+            Self::SpaceCreate => SPACE_CREATE,
         }
     }
     pub fn route(self) -> &'static str {
@@ -80,9 +86,10 @@ impl PageWriteKind {
             Self::ContentStateSet => CONTENT_STATE_SET_ROUTE,
             Self::ContentStateClear => CONTENT_STATE_CLEAR_ROUTE,
             Self::AttachmentTrash => ATTACHMENT_TRASH_ROUTE,
+            Self::SpaceCreate => SPACE_CREATE_ROUTE,
         }
     }
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Create,
         Self::Update,
         Self::Trash,
@@ -92,6 +99,7 @@ impl PageWriteKind {
         Self::ContentStateSet,
         Self::ContentStateClear,
         Self::AttachmentTrash,
+        Self::SpaceCreate,
     ];
     pub fn effect(self) -> EffectClass {
         match self {
@@ -104,6 +112,7 @@ impl PageWriteKind {
         match self {
             Self::CommentCreate | Self::CommentUpdate | Self::CommentDelete => "comment",
             Self::AttachmentTrash => "attachment",
+            Self::SpaceCreate => "space",
             _ => "page",
         }
     }
@@ -207,6 +216,7 @@ pub struct PreparedPageWrite {
     site: ResourceRef,
     space_id: String,
     page_id: Option<String>,
+    /// A reply's parent comment, or the requested key for a space create.
     parent_id: Option<String>,
     id: Option<String>,
     title: String,

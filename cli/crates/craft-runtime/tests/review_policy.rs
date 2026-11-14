@@ -232,7 +232,7 @@ fn reviewer_schema_migration_preserves_existing_configuration_and_refuses_confli
     )?;
     drop(store);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE review_policies; PRAGMA user_version=11;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE review_policies; PRAGMA user_version=11;")?;
     let migrated = files.store()?;
     assert_eq!(migrated.settings(), &settings);
     assert_eq!(migrated.get("factory", &c)?, profile);
@@ -244,9 +244,9 @@ fn reviewer_schema_migration_preserves_existing_configuration_and_refuses_confli
     drop(migrated);
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        12
+        13
     );
-    raw.execute_batch("DROP TABLE review_policies; CREATE TABLE review_policies(foreign_data TEXT); INSERT INTO review_policies VALUES('retain-owned-fixture'); PRAGMA user_version=11;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE review_policies; CREATE TABLE review_policies(foreign_data TEXT); INSERT INTO review_policies VALUES('retain-owned-fixture'); PRAGMA user_version=11;")?;
     assert!(files.store().is_err());
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
@@ -257,7 +257,9 @@ fn reviewer_schema_migration_preserves_existing_configuration_and_refuses_confli
             .get::<_, String>(0))?,
         "retain-owned-fixture"
     );
-    raw.execute_batch("DROP TABLE review_policies;")?;
+    raw.execute_batch(
+        "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE review_policies;",
+    )?;
     drop(files.store()?);
     raw.execute_batch(
         "CREATE TRIGGER review_trigger AFTER INSERT ON review_policies BEGIN SELECT 1; END;",

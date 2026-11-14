@@ -26,6 +26,7 @@ pub const SET: &str = "policy.set";
 pub enum PolicyKind {
     ConfluenceRead,
     ConfluenceWrite,
+    ConfluenceAdmin,
     JiraCreate,
     JiraRead,
     JiraProjectRead,
@@ -140,7 +141,7 @@ fn validate_target(kind: PolicyKind, target: &ResourceRef) -> Result<(), CraftEr
     target.validate()?;
     craft_runtime::auth::validate_service_target(&target.tenant_ref())?;
     let (provider, resource) = match kind {
-        PolicyKind::ConfluenceRead => ("confluence", "site"),
+        PolicyKind::ConfluenceRead | PolicyKind::ConfluenceAdmin => ("confluence", "site"),
         PolicyKind::ConfluenceWrite => ("confluence", "space"),
         PolicyKind::JiraRead | PolicyKind::JiraProjectRead | PolicyKind::JiraFieldRead => {
             ("jira", "site")

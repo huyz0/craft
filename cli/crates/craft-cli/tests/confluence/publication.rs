@@ -1227,3 +1227,131 @@ fn attachment_trash_rechecks_version_and_file_then_deletes_without_purge() -> Te
     }
     Ok(())
 }
+
+fn enable_space_create(setup: &Setup, enabled: bool) -> Result<(), CraftError> {
+    use craft_runtime::confluence_admin_policy::{
+        ConfluenceAdminOperation, ConfluenceAdminPolicyUpdate,
+    };
+    setup.store.set_confluence_admin_policy(
+        "factory",
+        ConfluenceAdminPolicyUpdate {
+            target: target(),
+            expected_actor: "actor-one".into(),
+            enabled,
+            expected_revision: None,
+            operations: vec![ConfluenceAdminOperation::SpaceCreate],
+        },
+        true,
+        &control()?,
+        |_| Ok(()),
+    )?;
+    Ok(())
+}
+
+#[test]
+fn space_create_needs_site_authority_an_absent_key_and_explicit_visibility() -> TestResult {
+    for mode in [
+        "create",
+        "private",
+        "taken",
+        "no_policy",
+        "space_policy_only",
+        "lost",
+    ] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        if mode != "no_policy" && mode != "space_policy_only" {
+            enable_space_create(&setup, true)?;
+        }
+        let issuer = issuer(&format!("{WRITE_SCOPES} write:space:confluence"))?;
+        let mut replies = vec![identity(), identity()];
+        let lookup = if mode == "taken" {
+            json!({"results":[{"id":"300","key":"CRAFTTEST","name":"Existing","type":"global","status":"current"}],"_links":{}})
+        } else {
+            json!({"results":[],"_links":{}})
+        };
+        replies.push(reply(lookup)?);
+        match mode {
+            "create" | "private" => replies.push(Reply::json(
+                201,
+                &serde_json::to_vec(&json!({"id":"301","key":"CRAFTTEST","name":"craft-test space","type":"global","status":"current"}))?,
+                &[],
+            )),
+            "lost" => replies.push(Reply::Disconnect),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let visibility = if mode == "private" {
+            "private"
+        } else {
+            "default_roles"
+        };
+        let prepared = candidate(
+            &setup,
+            pages::SPACE_CREATE,
+            json!({"key":"CRAFTTEST","name":"craft-test space","visibility":visibility}),
+        );
+        if matches!(mode, "no_policy" | "space_policy_only") {
+            assert_eq!(
+                prepared.err().ok_or("policy")?.code,
+                ErrorCode::PolicyDenied
+            );
+            drop(locked);
+            setup.no_secrets()?;
+            continue;
+        }
+        let result = prepared?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let posts: Vec<_> = requests.iter().filter(|r| r.method == "POST").collect();
+        assert!(
+            requests[2].target.contains("keys=CRAFTTEST"),
+            "{}",
+            requests[2].target
+        );
+        match mode {
+            "taken" => {
+                assert_eq!(
+                    result.envelope.error.ok_or("err")?.code,
+                    ErrorCode::VersionConflict
+                );
+                assert!(posts.is_empty());
+            }
+            "lost" => {
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(data["reconciliation_required"], true);
+                assert_eq!(posts.len(), 1);
+            }
+            _ => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                let resource = &data["receipt"]["confirmed_resources"][0];
+                assert_eq!(resource["resource_type"], "space");
+                assert_eq!(resource["id"], "301");
+                let body: Value = serde_json::from_slice(&posts[0].body)?;
+                assert!(posts[0].target.ends_with("/wiki/api/v2/spaces"));
+                assert_eq!(body["key"], "CRAFTTEST");
+                assert_eq!(body["createPrivateSpace"], mode == "private");
+                assert!(body.get("roleAssignments").is_none());
+            }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}

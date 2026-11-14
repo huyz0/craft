@@ -830,7 +830,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### confluence-context
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Read spaces/pages/search with representation and continuation provenance.
 
@@ -898,7 +898,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** No uncertain v2 create is replayed through v1 and metadata update/deletion remain outside the worker bundle.
 
-**Evidence:** none
+**Evidence:** docs/evidence/confluence-space-writes.md
 
 ### confluence-comments
 

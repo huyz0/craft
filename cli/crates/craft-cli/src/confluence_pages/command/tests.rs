@@ -206,7 +206,11 @@ fn normal_profile_and_space_selection_require_separate_captured_write_authority(
     )?;
     let prepared = PreparedInvocation::prepare(args()?, &[], &o, &store, &c)?;
     assert_eq!(prepared.grant(), &profile.grant);
-    assert_eq!(prepared.policy.target, space);
+    let Authority::Space(policy, _) = &prepared.authority else {
+        return Err("expected space authority".into());
+    };
+    assert_eq!(policy.target, space);
+    let policy = policy.clone();
     for (key, value) in [
         ("space_id", "200"),
         ("cloud_id", "11111111-1111-2222-3333-444444444444"),
@@ -239,7 +243,7 @@ fn normal_profile_and_space_selection_require_separate_captured_write_authority(
     )?;
     assert_eq!(
         store
-            .verify_confluence_write_policy(&prepared.policy, Operation::Create, &c)
+            .verify_confluence_write_policy(&policy, Operation::Create, &c)
             .err()
             .ok_or("revoked")?
             .code,
