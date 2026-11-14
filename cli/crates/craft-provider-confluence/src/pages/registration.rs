@@ -20,26 +20,26 @@ pub struct PageWriteData {
     pub version: u32,
 }
 pub struct ConfluencePages;
-pub(super) fn route(update: bool) -> NativeRoute {
+pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
     let mut path: Vec<_> = ["wiki", "api", "v2", "pages"]
         .into_iter()
         .map(|p| RouteSegment::Literal(p.into()))
         .collect();
-    if update {
+    if kind != PageWriteKind::Create {
         path.push(RouteSegment::Parameter("id".into()));
     }
     NativeRoute {
-        id: if update { UPDATE_ROUTE } else { CREATE_ROUTE }.into(),
-        method: if update {
-            HttpMethod::Put
-        } else {
-            HttpMethod::Post
+        id: kind.route().into(),
+        method: match kind {
+            PageWriteKind::Create => HttpMethod::Post,
+            PageWriteKind::Update => HttpMethod::Put,
+            PageWriteKind::Trash => HttpMethod::Delete,
         },
         path,
-        query_parameters: if update {
-            vec![]
-        } else {
+        query_parameters: if kind == PageWriteKind::Create {
             vec!["root-level".into()]
+        } else {
+            vec![]
         },
         continuation_parameters: vec![],
         repeated_query_parameters: vec![],
@@ -56,27 +56,63 @@ impl ProviderModule for ConfluencePages {
         let digest = canonical_digest(
             &json!({"id":"101","space_id":"100","title":"Plan draft","version":1,"body":body}),
         )?;
-        for command in [PAGE_CREATE, PAGE_UPDATE] {
-            let update = command == PAGE_UPDATE;
+        for kind in [
+            PageWriteKind::Create,
+            PageWriteKind::Update,
+            PageWriteKind::Trash,
+        ] {
+            let command = kind.command();
+            let revision = json!({"version":1,"digest":digest,"representation":"storage"});
+            let (effect, input_schema, example, scopes) = match kind {
+                PageWriteKind::Create => (
+                    EffectClass::Write,
+                    schema_for::<PageCreateInput>()?,
+                    json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":body}),
+                    "write:page:confluence",
+                ),
+                PageWriteKind::Update => (
+                    EffectClass::Write,
+                    schema_for::<PageUpdateInput>()?,
+                    json!({"id":"101","space_id":"100","expected":revision,"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Reviewed plan"}),
+                    "write:page:confluence",
+                ),
+                PageWriteKind::Trash => (
+                    EffectClass::Trash,
+                    schema_for::<PageTrashInput>()?,
+                    json!({"id":"101","space_id":"100","expected":revision}),
+                    "delete:page:confluence",
+                ),
+            };
             let descriptor = OperationDescriptor {
                 id:command.into(), provider:"confluence".into(), contract_version:SCHEMA_VERSION.into(), api_revision:"confluence-cloud-v2".into(),
-                description:"Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.".into(),
-                effect:EffectClass::Write,
-                input_schema:if update { schema_for::<PageUpdateInput>()? } else { schema_for::<PageCreateInput>()? },
+                description:match kind {
+                    PageWriteKind::Trash => "Move a reviewed current page to the space trash through verified context and a journaled host; never purges.",
+                    _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
+                }.into(),
+                effect,
+                input_schema,
                 response_schema:response_schema::<PageWriteData>()?,
-                example:if update { json!({"id":"101","space_id":"100","expected":{"version":1,"digest":digest,"representation":"storage"},"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Reviewed plan"}) } else { json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":body}) },
-                response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if update { 2 } else { 1 }}))),
-                projection:None, scope_alternatives:vec![vec!["write:page:confluence".into()]],
-                permissions:vec!["Native Confluence space/content visibility and page creation or editing permissions.".into()],
-                tenant_conditions:vec!["Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision for updates. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified.".into()],
-                routes:vec![route(update)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
+                example,
+                response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if kind == PageWriteKind::Update { 2 } else { 1 }}))),
+                projection:None, scope_alternatives:vec![vec![scopes.into()]],
+                permissions:vec![match kind {
+                    PageWriteKind::Trash => "Native Confluence space/content visibility and page delete permission.",
+                    _ => "Native Confluence space/content visibility and page creation or editing permissions.",
+                }.into()],
+                tenant_conditions:vec![match kind {
+                    PageWriteKind::Create => "Exact site/space/grant/actor and fresh qualified current evidence.",
+                    PageWriteKind::Update => "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified.",
+                    PageWriteKind::Trash => "Exact site/space/grant/actor and a fresh current page matching the reviewed revision. Trash is recoverable by space administrators; purge is not offered.",
+                }.into()],
+                routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
-            if update {
-                registry
-                    .register_typed_handler::<PageUpdateInput>(descriptor, Arc::new(Handler))?;
-            } else {
-                registry
-                    .register_typed_handler::<PageCreateInput>(descriptor, Arc::new(Handler))?;
+            match kind {
+                PageWriteKind::Create => registry
+                    .register_typed_handler::<PageCreateInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::Update => registry
+                    .register_typed_handler::<PageUpdateInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::Trash => registry
+                    .register_typed_handler::<PageTrashInput>(descriptor, Arc::new(Handler))?,
             }
         }
         Ok(())

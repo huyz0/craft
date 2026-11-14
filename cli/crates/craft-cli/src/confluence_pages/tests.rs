@@ -31,6 +31,7 @@ fn policy() -> PageWritePolicy {
         enabled: true,
         allow_create: true,
         allow_update: false,
+        allow_trash: false,
     }
 }
 fn prepared() -> Result<PreparedPagePublication, CraftError> {

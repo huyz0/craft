@@ -306,6 +306,7 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::confluence_reads::command::action_command(&action),
                 craft_provider_confluence::pages::PAGE_CREATE
                     | craft_provider_confluence::pages::PAGE_UPDATE
+                    | craft_provider_confluence::pages::PAGE_TRASH
             ) =>
         {
             Action::Confluence {
@@ -1116,6 +1117,7 @@ pub fn execute(
         command_id(&action),
         craft_provider_confluence::pages::PAGE_CREATE
             | craft_provider_confluence::pages::PAGE_UPDATE
+            | craft_provider_confluence::pages::PAGE_TRASH
     ) {
         return execute_page_write_candidate(
             registry,

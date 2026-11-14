@@ -27,11 +27,23 @@ impl PreparedPageWrite {
             version: None,
             error: None,
         };
-        if response.status != 200 {
-            let refusal = if self.id.is_some() {
-                matches!(response.status, 400 | 401 | 404 | 409)
-            } else {
-                matches!(response.status, 400 | 401 | 404 | 413)
+        if self.kind == PageWriteKind::Trash && response.status == 204 {
+            // The documented trash success carries no body; the compiled identity is the effect.
+            if let Some(id) = &self.id {
+                result.resources.push(ResourceRef {
+                    resource_type: "page".into(),
+                    id: id.clone(),
+                    ..self.site.clone()
+                });
+                result.state = SubmissionState::Confirmed;
+            }
+            return result;
+        }
+        if response.status != 200 || self.kind == PageWriteKind::Trash {
+            let refusal = match self.kind {
+                PageWriteKind::Create => matches!(response.status, 400 | 401 | 404 | 413),
+                PageWriteKind::Update => matches!(response.status, 400 | 401 | 404 | 409),
+                PageWriteKind::Trash => matches!(response.status, 400 | 401 | 404),
             };
             result.state = if refusal {
                 SubmissionState::Failed

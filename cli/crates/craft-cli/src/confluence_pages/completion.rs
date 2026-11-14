@@ -79,12 +79,10 @@ impl Completion {
             ));
         }
         let command = operation.request().command.clone();
-        let route = if command == PAGE_CREATE {
-            pages::CREATE_ROUTE
-        } else {
-            pages::UPDATE_ROUTE
-        }
-        .to_string();
+        let route = pages::PageWriteKind::from_command(&command)
+            .ok_or_else(denied)?
+            .route()
+            .to_string();
         let draft_policy = (command == PAGE_UPDATE)
             .then_some(pages::EditorDraftPolicy::NativeReconciliationMayOverwrite);
         let resource = ResourceRef {

@@ -10,7 +10,7 @@ use craft_core::input::canonical_digest;
 use craft_core::presence::InputField;
 pub use input::{
     EditorDraftPolicy, PageBody, PageCreateInput, PagePlacement, PageRepresentation, PageRevision,
-    PageUpdateInput,
+    PageTrashInput, PageUpdateInput,
 };
 pub use registration::ConfluencePages;
 pub use result::PageWriteObservation;
@@ -19,8 +19,39 @@ use std::collections::BTreeMap;
 
 pub const PAGE_CREATE: &str = "confluence.page.create";
 pub const PAGE_UPDATE: &str = "confluence.page.update";
+pub const PAGE_TRASH: &str = "confluence.page.trash";
 pub const CREATE_ROUTE: &str = "confluence-page-create";
 pub const UPDATE_ROUTE: &str = "confluence-page-update";
+pub const TRASH_ROUTE: &str = "confluence-page-trash";
+
+/// The compiled native effect; interpretation depends on it rather than on optional identity.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PageWriteKind {
+    Create,
+    Update,
+    Trash,
+}
+impl PageWriteKind {
+    pub fn command(self) -> &'static str {
+        match self {
+            Self::Create => PAGE_CREATE,
+            Self::Update => PAGE_UPDATE,
+            Self::Trash => PAGE_TRASH,
+        }
+    }
+    pub fn route(self) -> &'static str {
+        match self {
+            Self::Create => CREATE_ROUTE,
+            Self::Update => UPDATE_ROUTE,
+            Self::Trash => TRASH_ROUTE,
+        }
+    }
+    pub fn from_command(command: &str) -> Option<Self> {
+        [Self::Create, Self::Update, Self::Trash]
+            .into_iter()
+            .find(|kind| kind.command() == command)
+    }
+}
 
 fn invalid(path: &str, rule: &str) -> CraftError {
     CraftError::field(path, rule)
@@ -112,6 +143,7 @@ pub fn observe_page(
 /// A bound native payload, with no transport/replay authority. Keep the service grant lock and
 /// original evidence freshness checks through the host's final claimed-send callback.
 pub struct PreparedPageWrite {
+    kind: PageWriteKind,
     operation_digest: String,
     site: ResourceRef,
     space_id: String,
@@ -130,10 +162,18 @@ impl PreparedPageWrite {
     pub fn space_id(&self) -> &str {
         &self.space_id
     }
+    pub fn kind(&self) -> PageWriteKind {
+        self.kind
+    }
 }
 fn validate_operation(operation: &PreparedOperation, command: &str) -> Result<(), CraftError> {
     input::validate_request(operation.request())?;
-    if operation.request().command != command || !matches!(operation.effect(), EffectClass::Write) {
+    let effect = if command == PAGE_TRASH {
+        EffectClass::Trash
+    } else {
+        EffectClass::Write
+    };
+    if operation.request().command != command || operation.effect() != effect {
         return Err(CraftError::new(
             ErrorCode::PolicyDenied,
             "The prepared operation is not the requested page write.",
@@ -183,8 +223,9 @@ pub fn prepare_create(
         repeated_query: BTreeMap::new(),
         body: Some(body),
     };
-    registration::route(false).validate_call(&call)?;
+    registration::route(PageWriteKind::Create).validate_call(&call)?;
     Ok(PreparedPageWrite {
+        kind: PageWriteKind::Create,
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
@@ -233,14 +274,51 @@ pub fn prepare_update(
             json!({"id":input.id,"status":"current","title":title,"body":body,"version":{"number":version}}),
         ),
     };
-    registration::route(true).validate_call(&call)?;
+    registration::route(PageWriteKind::Update).validate_call(&call)?;
     Ok(PreparedPageWrite {
+        kind: PageWriteKind::Update,
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
         id: Some(input.id),
         title,
         version,
+        call,
+    })
+}
+
+/// Rechecks the reviewed published revision, then compiles one DELETE without `purge` or draft
+/// selectors, which moves the current page to the space trash.
+pub fn prepare_trash(
+    operation: &PreparedOperation,
+    page: &NativeResponse,
+) -> Result<PreparedPageWrite, CraftError> {
+    validate_operation(operation, PAGE_TRASH)?;
+    let input: PageTrashInput = input::parse(&operation.request().input)?;
+    let observed = observe_page(page, input.expected.representation)?;
+    if observed.id != input.id
+        || observed.space_id != input.space_id
+        || observed.version != input.expected.version
+        || observed.revision()?.digest != input.expected.digest
+    {
+        return Err(conflict());
+    }
+    let call = NativeCall {
+        route: TRASH_ROUTE.into(),
+        path_parameters: BTreeMap::from([("id".into(), input.id.clone())]),
+        query: BTreeMap::new(),
+        repeated_query: BTreeMap::new(),
+        body: None,
+    };
+    registration::route(PageWriteKind::Trash).validate_call(&call)?;
+    Ok(PreparedPageWrite {
+        kind: PageWriteKind::Trash,
+        operation_digest: operation.digest().into(),
+        site: operation.request().target.clone(),
+        space_id: input.space_id,
+        id: Some(input.id),
+        title: observed.title,
+        version: observed.version,
         call,
     })
 }

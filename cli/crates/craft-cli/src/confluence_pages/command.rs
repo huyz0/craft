@@ -90,9 +90,27 @@ pub struct PageUpdateArgs {
     #[schemars(required)]
     pub editor_draft_policy: Option<pages::EditorDraftPolicy>,
 }
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PageTrashArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    #[arg(long, value_parser = revision, default_value = "{\"version\":0,\"digest\":\"\",\"representation\":\"storage\"}")]
+    pub expected: pages::PageRevision,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
+    Trash(PageTrashArgs),
 }
 fn site(cloud: &str) -> ResourceRef {
     ResourceRef {
@@ -112,12 +130,14 @@ impl PageWriteArgs {
         match self {
             Self::Create(_) => Operation::Create,
             Self::Update(_) => Operation::Update,
+            Self::Trash(_) => Operation::Trash,
         }
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
         match command {
             PAGE_CREATE => Ok(Self::Create(decode(&value)?)),
             PAGE_UPDATE => Ok(Self::Update(decode(&value)?)),
+            PAGE_TRASH => Ok(Self::Trash(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -125,30 +145,35 @@ impl PageWriteArgs {
         match self {
             Self::Create(v) => encoded(v),
             Self::Update(v) => encoded(v),
+            Self::Trash(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
         match self {
             Self::Create(v) => v.cloud_id.as_deref(),
             Self::Update(v) => v.cloud_id.as_deref(),
+            Self::Trash(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
         match self {
             Self::Create(v) => v.space_id.as_deref(),
             Self::Update(v) => v.space_id.as_deref(),
+            Self::Trash(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
         match self {
             Self::Create(v) => &v.operation_id,
             Self::Update(v) => &v.operation_id,
+            Self::Trash(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
         match self {
             Self::Create(v) => v.apply,
             Self::Update(v) => v.apply,
+            Self::Trash(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -171,6 +196,11 @@ impl PageWriteArgs {
                 })?,
                 title: v.changes.title.clone(),
                 body: v.changes.body.clone(),
+            }),
+            Self::Trash(v) => encoded(&PageTrashInput {
+                id: v.id.clone(),
+                space_id: space.into(),
+                expected: v.expected.clone(),
             }),
         }
     }
@@ -226,6 +256,7 @@ impl PageWriteArgs {
                 enabled: true,
                 allow_create: true,
                 allow_update: true,
+                allow_trash: true,
             },
         )?;
         Ok(())
@@ -238,6 +269,7 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             action: match value {
                 PageWriteArgs::Create(v) => P::Create(Box::new(v)),
                 PageWriteArgs::Update(v) => P::Update(Box::new(v)),
+                PageWriteArgs::Trash(v) => P::Trash(Box::new(v)),
             },
         }
     }
@@ -253,17 +285,20 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Page {
                 action: P::Update(v),
             } => Ok(Self::Update(*v)),
+            A::Page {
+                action: P::Trash(v),
+            } => Ok(Self::Trash(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
 }
 /// Candidate discovery must expose the complete host receipt rather than provider metadata alone.
 pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
-    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE])
+    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE, PAGE_TRASH])
 }
 /// Updates are public only with the explicit native editor-draft reconciliation policy.
 pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
-    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE])
+    register_commands(registry, &[PAGE_CREATE, PAGE_UPDATE, PAGE_TRASH])
 }
 fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), CraftError> {
     let mut native = Registry::default();
@@ -293,15 +328,22 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             "example".into(),
             json!({
                 "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":"page","id":"101"}],"job":null},
-                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":if command==PAGE_CREATE {1}else{2},"persistence":"recorded","journal":null,"http_status":200,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_CREATE {Value::Null} else {json!("native_reconciliation_may_overwrite")},"editor_draft_preservation_verified":false,"credential_cache_update":null
+                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":if command==PAGE_UPDATE {Value::from(2)} else if command==PAGE_TRASH {Value::Null} else {Value::from(1)},"persistence":"recorded","journal":null,"http_status":200,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_CREATE {Value::Null} else {json!("native_reconciliation_may_overwrite")},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
-        if command == PAGE_CREATE {
-            d.input_schema = schema_for::<PageCreateArgs>()?;
-            registry.register_typed::<PageCreateArgs>(d)?;
-        } else {
-            d.input_schema = schema_for::<PageUpdateArgs>()?;
-            registry.register_typed::<PageUpdateArgs>(d)?;
+        match command {
+            PAGE_CREATE => {
+                d.input_schema = schema_for::<PageCreateArgs>()?;
+                registry.register_typed::<PageCreateArgs>(d)?;
+            }
+            PAGE_UPDATE => {
+                d.input_schema = schema_for::<PageUpdateArgs>()?;
+                registry.register_typed::<PageUpdateArgs>(d)?;
+            }
+            _ => {
+                d.input_schema = schema_for::<PageTrashArgs>()?;
+                registry.register_typed::<PageTrashArgs>(d)?;
+            }
         }
     }
     Ok(())
@@ -370,6 +412,7 @@ impl PreparedInvocation {
                 enabled: policy.enabled,
                 allow_create: policy.operations.contains(&Operation::Create),
                 allow_update: policy.operations.contains(&Operation::Update),
+                allow_trash: policy.operations.contains(&Operation::Trash),
             },
         )?;
         Ok(Self {

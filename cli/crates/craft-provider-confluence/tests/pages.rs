@@ -337,3 +337,37 @@ fn update_requires_explicit_editor_draft_policy_bound_into_digest_but_never_sent
     assert_ne!(prepare(PAGE_UPDATE, other)?.digest(), op.digest());
     Ok(())
 }
+
+#[test]
+fn trash_rechecks_revision_and_sends_one_delete_without_purge() -> TestResult {
+    let observed = observe_page(&page(), PageRepresentation::Storage)?;
+    let input = json!({"id":"101","space_id":"100","expected":observed.revision()?});
+    let op = prepare(PAGE_TRASH, input.clone())?;
+    let write = prepare_trash(&op, &page())?;
+    assert_eq!(write.call().route, TRASH_ROUTE);
+    assert!(write.call().body.is_none());
+    assert!(write.call().query.is_empty());
+    let done = write.interpret(&response(204, Value::Null));
+    assert_eq!(done.state, SubmissionState::Confirmed);
+    assert_eq!(done.resources.len(), 1);
+    assert_eq!(done.resources[0].id, "101");
+    for (status, state) in [
+        (404, SubmissionState::Failed),
+        (400, SubmissionState::Failed),
+        (200, SubmissionState::Unknown),
+        (500, SubmissionState::Unknown),
+        (429, SubmissionState::Unknown),
+    ] {
+        let observed = write.interpret(&response(status, json!({})));
+        assert_eq!(observed.state, state, "{status}");
+        assert!(observed.resources.is_empty(), "{status}");
+    }
+    let mut changed = page();
+    changed.body["version"]["number"] = json!(5);
+    assert!(prepare_trash(&op, &changed).is_err());
+    let mut stale = input;
+    stale["expected"]["digest"] = json!(format!("sha256:{}", "0".repeat(64)));
+    assert!(prepare_trash(&prepare(PAGE_TRASH, stale)?, &page()).is_err());
+    assert!(prepare_update(&op, &page()).is_err());
+    Ok(())
+}

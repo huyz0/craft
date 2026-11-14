@@ -38,6 +38,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "confluence.page.search",
         "confluence.page.create",
         "confluence.page.update",
+        "confluence.page.trash",
         "jira.issue.get",
         "jira.issue.search",
         "jira.issue.create",

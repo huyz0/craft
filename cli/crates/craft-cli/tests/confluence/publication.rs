@@ -56,7 +56,7 @@ impl Clock for PolicyClock {
                         },
                         expected_actor: "actor-one".into(),
                         enabled: self.keep_enabled,
-                        operations: vec![Op::Create, Op::Update],
+                        operations: vec![Op::Create, Op::Update, Op::Trash],
                         expected_revision: Some(1),
                     },
                     true,
@@ -414,6 +414,7 @@ fn prepared_write(
             enabled: true,
             allow_create: true,
             allow_update: true,
+            allow_trash: true,
         },
     )
 }
@@ -750,7 +751,7 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
             expected_actor: "actor-one".into(),
             enabled,
             expected_revision: revision,
-            operations: vec![Op::Create, Op::Update],
+            operations: vec![Op::Create, Op::Update, Op::Trash],
         },
         true,
         &control()?,
@@ -787,4 +788,101 @@ fn candidate(
         &setup.store,
         &control()?,
     )
+}
+
+#[test]
+fn page_trash_rechecks_revision_sends_one_delete_and_refuses_stale_or_unscoped() -> TestResult {
+    for mode in ["trash", "stale", "unscoped", "lost"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(
+            if mode == "unscoped" {
+                WRITE_SCOPES.to_string()
+            } else {
+                format!("{WRITE_SCOPES} delete:page:confluence")
+            }
+            .as_str(),
+        )?;
+        let observed = pages::observe_page(&native(current_page()), PageRepresentation::Storage)?;
+        let input = json!({"id":"101","space_id":"100","expected":observed.revision()?});
+        let mut current = current_page();
+        if mode == "stale" {
+            current["version"]["number"] = json!(4);
+        }
+        let mut replies = vec![identity(), identity()];
+        if mode != "unscoped" {
+            replies.push(reply(current)?);
+        }
+        match mode {
+            "trash" => replies.push(Reply::json(204, b"", &[])),
+            "lost" => replies.push(Reply::Disconnect),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, pages::PAGE_TRASH, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        assert_eq!(data["replay_authorized"], false, "{mode}");
+        assert!(data["editor_draft_policy"].is_null(), "{mode}");
+        match mode {
+            "trash" => {
+                assert!(result.envelope.ok, "{:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "101");
+                assert_eq!(
+                    data["receipt"]["confirmed_resources"][0]["resource_type"],
+                    "page"
+                );
+            }
+            "stale" => {
+                assert_eq!(
+                    result.envelope.error.ok_or("err")?.code,
+                    ErrorCode::VersionConflict
+                );
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+            }
+            "unscoped" => {
+                assert_eq!(data["receipt"]["request_state"], "not_sent");
+                assert!(!result.envelope.ok);
+            }
+            _ => {
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(data["reconciliation_required"], true);
+            }
+        }
+        let requests = product.finish()?;
+        let deletes: Vec<_> = requests.iter().filter(|r| r.method == "DELETE").collect();
+        assert_eq!(
+            deletes.len(),
+            usize::from(matches!(mode, "trash" | "lost")),
+            "{mode}"
+        );
+        if let Some(sent) = deletes.first() {
+            assert!(
+                sent.target.ends_with("/wiki/api/v2/pages/101"),
+                "{}",
+                sent.target
+            );
+            assert!(!sent.target.contains("purge"));
+            assert!(sent.body.is_empty());
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
 }

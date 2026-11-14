@@ -69,7 +69,7 @@ def policies(state_root, site, cloud, actor, project, space):
             "jira.issue.update", "jira.transition.apply", "jira.issue.assign", "jira.issue.unassign",
             "jira.issue.delete"], None),
         ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
-         ["confluence.page.create", "confluence.page.update"], None),
+         ["confluence.page.create", "confluence.page.update", "confluence.page.trash"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
@@ -247,6 +247,10 @@ def page_lifecycle(state_root, space):
         "operation_id": f"craft-test-{stamp}-stale", "apply": True, "space_id": space, "id": page,
         "expected": first, "editor_draft_policy": policy,
         "changes": {"title": f"craft-test host page {stamp} stale"}}), expect_ok=False, expect_code="VERSION_CONFLICT")
+    if "--trash" in sys.argv:
+        step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
+            "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
+            "expected": second}))
     return report
 
 
@@ -257,6 +261,7 @@ def main():
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
     parser.add_argument("--space", help="numeric Confluence space id")
+    parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:

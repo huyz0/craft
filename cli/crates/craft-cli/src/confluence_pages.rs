@@ -17,8 +17,8 @@ use craft_core::storage::{
     Clock, JournalRecord, OperationBinding, OperationJournal, SubmissionState,
 };
 use craft_provider_confluence::pages::{
-    self, ConfluencePages, PAGE_CREATE, PAGE_UPDATE, PageCreateInput, PagePlacement,
-    PageUpdateInput, PreparedPageWrite,
+    self, ConfluencePages, PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement,
+    PageTrashInput, PageUpdateInput, PageWriteKind, PreparedPageWrite,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -38,10 +38,21 @@ pub struct PageWritePolicy {
     pub enabled: bool,
     pub allow_create: bool,
     pub allow_update: bool,
+    pub allow_trash: bool,
 }
 enum Intent {
     Create(PageCreateInput),
     Update(PageUpdateInput),
+    Trash(PageTrashInput),
+}
+impl Intent {
+    fn kind(&self) -> PageWriteKind {
+        match self {
+            Self::Create(_) => PageWriteKind::Create,
+            Self::Update(_) => PageWriteKind::Update,
+            Self::Trash(_) => PageWriteKind::Trash,
+        }
+    }
 }
 struct ReadSpec<'a> {
     command: &'a str,
@@ -124,6 +135,7 @@ impl PreparedPagePublication {
         let intent = match operation.request().command.as_str() {
             PAGE_CREATE => Intent::Create(decode(&operation.request().input)?),
             PAGE_UPDATE => Intent::Update(decode(&operation.request().input)?),
+            PAGE_TRASH => Intent::Trash(decode(&operation.request().input)?),
             _ => {
                 return Err(CraftError::field(
                     "/command",
@@ -140,6 +152,7 @@ impl PreparedPagePublication {
         let (space_id, allowed) = match &intent {
             Intent::Create(i) => (&i.space_id, policy.allow_create),
             Intent::Update(i) => (&i.space_id, policy.allow_update),
+            Intent::Trash(i) => (&i.space_id, policy.allow_trash),
         };
         validate_identity("/expected_actor", &policy.expected_actor)?;
         if !policy.enabled
@@ -202,10 +215,10 @@ impl PreparedPagePublication {
                     )?;
                 }
             }
-            Intent::Update(input) => access.check_operation(
-                &self.registry,
-                &self.read_operation(PAGE_GET, &input.id, None)?,
-            )?,
+            Intent::Update(PageUpdateInput { id, .. })
+            | Intent::Trash(PageTrashInput { id, .. }) => {
+                access.check_operation(&self.registry, &self.read_operation(PAGE_GET, id, None)?)?
+            }
         }
         Ok(())
     }
@@ -218,11 +231,7 @@ impl PreparedPagePublication {
         })
     }
     fn check_prior(&self, prior: Option<&JournalRecord>) -> Result<(), CraftError> {
-        let route = if matches!(self.intent, Intent::Create(_)) {
-            pages::CREATE_ROUTE
-        } else {
-            pages::UPDATE_ROUTE
-        };
+        let route = self.intent.kind().route();
         if prior.is_some_and(|p| {
             p.binding != self.binding
                 || p.steps
@@ -346,8 +355,9 @@ impl PreparedPagePublication {
                     .transpose()?;
                 pages::prepare_create(&self.operation, &space, parent.as_ref())
             }
-            Intent::Update(input) => {
-                let r = match input.expected.representation {
+            Intent::Update(PageUpdateInput { id, expected, .. })
+            | Intent::Trash(PageTrashInput { id, expected, .. }) => {
+                let r = match expected.representation {
                     pages::PageRepresentation::Storage => "storage",
                     pages::PageRepresentation::AtlasDocFormat => "atlas_doc_format",
                 };
@@ -357,12 +367,16 @@ impl PreparedPagePublication {
                     control,
                     ReadSpec {
                         command: PAGE_GET,
-                        id: &input.id,
+                        id,
                         representation: Some(r),
                     },
                     check_policy,
                 )?;
-                pages::prepare_update(&self.operation, &page)
+                if matches!(self.intent, Intent::Trash(_)) {
+                    pages::prepare_trash(&self.operation, &page)
+                } else {
+                    pages::prepare_update(&self.operation, &page)
+                }
             }
         }
     }

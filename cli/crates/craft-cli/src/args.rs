@@ -73,6 +73,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "design.page-get"
                 | "confluence.page.create"
                 | "confluence.page.update"
+                | "confluence.page.trash"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -138,6 +139,7 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.page.search"
             | "confluence.page.create"
             | "confluence.page.update"
+            | "confluence.page.trash"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -376,6 +378,7 @@ pub enum ConfluenceSpaceAction {
 pub enum ConfluencePageAction {
     Create(Box<crate::confluence_pages::command::PageCreateArgs>),
     Update(Box<crate::confluence_pages::command::PageUpdateArgs>),
+    Trash(Box<crate::confluence_pages::command::PageTrashArgs>),
     Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
     List(Box<crate::confluence_reads::command::ConfluencePageListArgs>),
     Search(Box<crate::confluence_reads::command::ConfluenceSearchArgs>),
