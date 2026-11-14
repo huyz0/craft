@@ -426,7 +426,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### retry-deadlines
 
-- [x] Deliver this task.
+- [ ] Deliver this task.
 
 **Goal:** Bound retries, rate limits and cancellation by operation semantics.
 
