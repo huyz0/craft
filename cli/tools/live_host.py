@@ -444,9 +444,10 @@ def page_lifecycle(state_root, space):
             state_root, "cf-test", "confluence.content-state.available", {"page_id": page}))
         states = ((offered.get("data") or {}).get("item") or {}).get("space_states") or []
         if states:
-            step("confluence.content-state.set", run(state_root, "cf-test", "confluence.content-state.set", {
+            badge = step("confluence.content-state.set", run(state_root, "cf-test", "confluence.content-state.set", {
                 "operation_id": f"craft-test-{stamp}-badge", "apply": True, "space_id": space,
                 "page_id": page, "state_id": states[0]["id"]}))
+            report.append(f"set receipt: {json.dumps((badge.get('data') or {}).get('journal'))[-700:]}")
             step("confluence.content-state.get after set", run(
                 state_root, "cf-test", "confluence.content-state.get", {"page_id": page}))
             step("confluence.content-state.clear", run(state_root, "cf-test", "confluence.content-state.clear", {
@@ -460,7 +461,8 @@ def page_lifecycle(state_root, space):
     if "--trash" in sys.argv:
         step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
             "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
-            "expected": second}))
+            # Badge changes publish a new page version, so read the revision again.
+            "expected": revision()}))
     return report
 
 
