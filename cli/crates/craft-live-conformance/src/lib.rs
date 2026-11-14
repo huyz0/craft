@@ -185,7 +185,7 @@ impl Live {
 
     fn get_raw(&self, path: &str, auth: bool) -> Result<Exchange, String> {
         let url = self.config.site.join(path).map_err(|e| e.to_string())?;
-        self.send(HttpMethod::Get, url, None, auth, true)
+        self.send(HttpMethod::Get, url, Body::None, auth, true)
             .map_err(|e| format!("GET {path}: {}", e.message))
     }
 
@@ -193,7 +193,7 @@ impl Live {
         &self,
         method: HttpMethod,
         url: Url,
-        body: Option<&Value>,
+        body: Body<'_>,
         auth: bool,
         read_effect: bool,
     ) -> Result<Exchange, CraftError> {
@@ -220,8 +220,18 @@ impl Live {
         if auth {
             request = request.basic_auth(&self.config.email, Some(self.config.token.as_str()));
         }
-        if let Some(body) = body {
-            request = request.json(body);
+        match body {
+            Body::None => {}
+            Body::Json(body) => request = request.json(body),
+            Body::Multipart { boundary, bytes } => {
+                request = request
+                    .header("x-atlassian-token", "no-check")
+                    .header(
+                        "content-type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(bytes);
+            }
         }
         let response = self
             .runtime
@@ -327,6 +337,51 @@ impl Live {
         outcome
     }
 
+    /// Opens a live context for one registered command. Non-GET routes are sent
+    /// only when the descriptor is a read or writes were enabled on this `Live`.
+    pub fn session(
+        &self,
+        registry: &Registry,
+        command: &str,
+    ) -> Result<LiveContext<'_>, CraftError> {
+        let descriptor = registry.descriptor(command)?;
+        Ok(LiveContext {
+            live: self,
+            routes: descriptor.routes.clone(),
+            read_effect: matches!(descriptor.effect, craft_core::contracts::EffectClass::Read),
+            exchanges: Vec::new(),
+        })
+    }
+
+    /// A raw request used only to create or remove fixture data that no public
+    /// command manages. Requires writes to be enabled.
+    pub fn raw(&self, method: HttpMethod, path: &str, body: Body<'_>) -> Result<Exchange, String> {
+        let url = self.config.site.join(path).map_err(|e| e.to_string())?;
+        self.send(method, url, body, true, false)
+            .map_err(|e| format!("{path}: {}", e.message))
+    }
+
+    /// Uploads one small text attachment to an issue as fixture data.
+    pub fn upload_attachment(
+        &self,
+        issue: &str,
+        filename: &str,
+        content: &[u8],
+    ) -> Result<Exchange, String> {
+        let boundary = "craft-live-boundary-7c1e".to_owned();
+        let mut bytes = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: text/plain\r\n\r\n"
+        )
+        .into_bytes();
+        bytes.extend_from_slice(content);
+        bytes.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+        self.raw(
+            HttpMethod::Post,
+            &format!("/rest/api/3/issue/{issue}/attachments"),
+            Body::Multipart { boundary, bytes },
+        )
+    }
+
     pub fn target(&self, provider: &str, resource_type: &str, id: &str) -> ResourceRef {
         ResourceRef {
             provider: provider.into(),
@@ -346,7 +401,17 @@ fn failed(message: &str) -> CraftError {
     CraftError::new(ErrorCode::Internal, message)
 }
 
-struct LiveContext<'a> {
+/// Request payloads the harness can send.
+pub enum Body<'a> {
+    None,
+    Json(&'a Value),
+    Multipart { boundary: String, bytes: Vec<u8> },
+}
+
+/// A live execution port bound to one descriptor's declared routes. Mutation
+/// scenarios use one session for the provider's bracketing reads and another,
+/// bound to the write descriptor, to send the frozen call.
+pub struct LiveContext<'a> {
     live: &'a Live,
     routes: Vec<NativeRoute>,
     read_effect: bool,
@@ -354,6 +419,10 @@ struct LiveContext<'a> {
 }
 
 impl LiveContext<'_> {
+    pub fn exchanges(&self) -> &[Exchange] {
+        &self.exchanges
+    }
+
     fn route(&self, call: &NativeCall) -> Result<&NativeRoute, CraftError> {
         self.routes
             .iter()
@@ -401,7 +470,7 @@ impl OperationContext for LiveContext<'_> {
         let exchange = self.live.send(
             route.method,
             url,
-            call.body.as_ref(),
+            call.body.as_ref().map_or(Body::None, Body::Json),
             true,
             self.read_effect,
         )?;
