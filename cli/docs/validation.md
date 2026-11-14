@@ -60,7 +60,7 @@ Use sentinel credentials and capture argv/stdout/stderr/diagnostics/journal/arti
 
 ## Live read conformance
 
-`craft-live-conformance` runs provider read entry points against a real site with an account API token. It is opt-in (`#[ignore]` plus `CRAFT_LIVE=1`), never part of `verify.py` or `--full`, and keeps tenant data in untracked `target/live-captures/`. A live pass qualifies provider parsing of real responses only; it is not host, service-auth, permission or write qualification. Fixed divergences need a deterministic fixture mirroring the observed shape. See [usage](live-conformance.md) and [evidence](evidence/live-read-conformance.md).
+`craft-live-conformance` runs provider read entry points, and a separate owner-approved write lifecycle on labeled `craft-test` items, against a real site with an account API token. It is opt-in (`#[ignore]` plus `CRAFT_LIVE=1`), never part of `verify.py` or `--full`, and keeps tenant data in untracked `target/live-captures/`. A live pass qualifies provider request/response behavior only; it is not host, journal, service-auth or permission qualification. Fixed divergences need a deterministic fixture mirroring the observed shape. See [usage](live-conformance.md) and [evidence](evidence/live-read-conformance.md).
 
 ## Evidence records and task closure
 

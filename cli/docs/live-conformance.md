@@ -8,7 +8,7 @@ Each case prepares a request through the provider registry, so input and target 
 
 It does not exercise the production host: there is no profile, policy, journal, service-account OAuth or `api.atlassian.com` gateway. Requests use an Atlassian account API token over HTTP Basic, sent to `https://<site>.atlassian.net` with the same REST paths that the gateway serves. Continuation links that the gateway would rewrite are therefore not covered, and a pass says nothing about service-account scopes or permissions.
 
-Only routes whose descriptor declares a read effect can be sent. A read that uses POST, such as JQL search, is allowed on that basis; every other non-GET route is refused unless a scenario explicitly enables writes, and no write scenario exists yet.
+Only routes whose descriptor declares a read effect can be sent. A read that uses POST, such as JQL search, is allowed on that basis; every other non-GET route is refused unless a scenario explicitly enables writes.
 
 ## Save the credential
 
@@ -34,6 +34,17 @@ The test is `#[ignore]` and additionally fails unless `CRAFT_LIVE=1`, so a broad
 Output is a per-command PASS/FAIL/SKIP summary with the method, path and status of each exchange. Complete request paths, response bodies and a value-free shape of each body are written to `target/live-captures/`, which is never tracked. Captures contain tenant data; do not copy them into tracked files.
 
 `tests/live_probe.rs` prints the status and top-level keys (not values) of arbitrary GET paths named in `CRAFT_LIVE_PROBE`, for checking a hypothesis about a response shape.
+
+## Write lifecycle
+
+`tests/live_writes.rs` changes the site, so run it only with the site owner's agreement:
+
+```powershell
+$env:CRAFT_LIVE = '1'
+cargo test -p craft-live-conformance --offline --test live_writes -- --ignored --nocapture
+```
+
+It creates two Jira issues and a Confluence page titled `craft-test live <timestamp>`, runs provider comment, link, issue edit/assign/unassign/delete and page-create writes through the same prepare, send and interpret sequence the hosts use, reads back comments, links, an attachment and Confluence comment replies, and removes everything at the end even when a step fails. It never edits or deletes data it did not create. Its summary is written to `target/live-captures/writes-summary.txt`.
 
 ## Replaying captures
 

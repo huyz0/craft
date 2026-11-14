@@ -1,4 +1,4 @@
-# Live read conformance evidence
+# Live conformance evidence
 
 Run on **14 November 2026**, Australia/Sydney, from the Windows development host against the authorized Atlassian test site (origin kept in local configuration, not recorded here). Authentication was an Atlassian account API token saved by `tools/live-credential.ps1`; see [usage](../live-conformance.md). No tenant data was created, changed or deleted. Identifiers and response values are omitted.
 
@@ -56,9 +56,29 @@ Two early failures were harness errors, not product divergences: production read
 - `cargo clippy` with `-D warnings` on the two providers and the harness, and `cargo fmt --all --check`: clean.
 - `python tools/providers.py check`: ok. `python tools/contracts.py check` reports drift in the `artifact.get`/`artifact.export` collection enumerations; the same drift is present without these changes, so it predates this work and is left for its owner.
 
+## Write lifecycle
+
+Run on **14 November 2026** after the site owner approved it in writing. `tests/live_writes.rs` created two Jira issues and one Confluence page titled `craft-test live <timestamp>`, exercised provider writes on them, ran the five previously skipped reads against that data, and removed everything. Each provider write ran the host sequence: the provider's bracketing reads and freeze through a context bound to the read descriptor, one send of the frozen call through a context bound to the write descriptor, then the provider's interpretation of the real response.
+
+| Step | Result |
+| --- | --- |
+| `jira.comment.create`, `jira.comment.update`, `jira.comment.delete` | confirmed (201, 200, 204) |
+| `jira.link.create`, `jira.link.delete` | confirmed (201, 204) |
+| `jira.issue.update` (summary) | confirmed (204) |
+| `jira.issue.assign`, `jira.issue.unassign` | confirmed (204) |
+| `jira.issue.delete` (both issues, subtasks refused) | confirmed (204) |
+| `confluence.page.create` (root placement) | confirmed |
+| `jira.comment.get`, `jira.link.get`, `jira.attachment.get` | pass against the created data |
+| `confluence.comment.get`, `confluence.comment.replies` | pass against the created data |
+
+Fixture data no public command manages was created and removed with raw requests: the two issues, one text attachment, and a Confluence footer comment and reply. Cleanup trashed and purged the page; the attachment went with its issue. A follow-up JQL and CQL search for `craft-test` returned no issues and no pages.
+
+No provider divergence was found in the write paths. The only failures in the first attempt were harness inputs: comment and link writes bind to a numeric project target, not the site.
+
+With this run, every read listed above has passed against live data at least once (29 reads), and 11 provider writes have confirmed live outcomes.
+
 ## Limits
 
-- Read commands only. Writes (issue, comment, link, transition, page create) were not exercised; they need explicit authorization to change the test site.
-- Five reads were skipped because the site has no comments, attachments, links or Confluence footer comments. Covering them needs seeded data, which is itself a tenant change.
+- Not exercised live: `jira.issue.create` (issues were created as raw fixtures), `jira.transition.apply`, `confluence.page.update` (still withheld pending authorization), attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
 - The production host, service-account OAuth, policy, journal and `api.atlassian.com` gateway routing were not exercised. Gateway-rewritten continuation links remain unobserved. Service-account eligibility is still pending in the [tenant inventory](tenant-auth-inventory.md).
 - One small site: one Jira project, two spaces, a handful of pages. Large-page, custom-field and permission-restricted behavior is not represented.

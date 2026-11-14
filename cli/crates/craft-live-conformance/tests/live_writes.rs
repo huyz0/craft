@@ -45,7 +45,7 @@ impl craft_core::storage::Clock for Clock {
 }
 
 fn err(e: CraftError) -> String {
-    format!("{:?}: {}", e.code, e.message)
+    format!("{:?}: {} {:?}", e.code, e.message, e.details)
 }
 
 fn str_at(value: &Value, pointer: &str) -> Option<String> {
@@ -119,6 +119,8 @@ fn adf(text: &str) -> Value {
 struct Run<'a> {
     live: &'a Live,
     principal: MetadataPrincipal,
+    /// Comment and link writes are bound to the issue's project.
+    project_id: String,
     report: Vec<String>,
     failures: usize,
     created_issues: Vec<String>,
@@ -172,7 +174,7 @@ impl Run<'_> {
     }
 
     fn comment_write(&self, registry: &Registry, command: &str, input: Value) -> Step {
-        let target = self.live.site_target("jira");
+        let target = self.live.target("jira", "project", &self.project_id);
         let read_command = jira::comments::mutation::context_command(command).map_err(err)?;
         let read = prepare(registry, read_command, target.clone(), input.clone())?;
         let write = prepare(registry, command, target, input)?;
@@ -292,7 +294,7 @@ impl Run<'_> {
 
     fn link_create(&self, registry: &Registry, input: Value) -> Step {
         use jira::issue_links::write as links;
-        let target = self.live.site_target("jira");
+        let target = self.live.target("jira", "project", &self.project_id);
         let read = prepare(registry, links::CONTEXT, target.clone(), input.clone())?;
         let write = prepare(registry, links::CREATE, target.clone(), input.clone())?;
         let mut rctx = self.live.session(registry, links::CONTEXT).map_err(err)?;
@@ -328,7 +330,7 @@ impl Run<'_> {
 
     fn link_delete(&self, registry: &Registry, input: Value) -> Step {
         use jira::issue_links::write as links;
-        let target = self.live.site_target("jira");
+        let target = self.live.target("jira", "project", &self.project_id);
         let read = prepare(
             registry,
             links::DELETE_CONTEXT,
@@ -488,6 +490,7 @@ fn live_write_lifecycle() -> TestResult {
             },
             actor: account.clone(),
         },
+        project_id: project_id.clone(),
         report: Vec::new(),
         failures: 0,
         created_issues: Vec::new(),
