@@ -8,7 +8,7 @@ use craft_core::input::canonical_digest;
 use craft_core::registry::{ReconciliationClass, Registry, RetryClass};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 
 use crate::args::{
     Action, JiraAction, JiraAttachmentAction, JiraCommentAction, JiraIssueAction, JiraLinkAction,
@@ -218,7 +218,7 @@ fn observation(command: String, envelope: Envelope) -> RemoteObservation {
         envelope
             .error
             .and_then(|error| serde_json::to_value(error).ok())
-            .unwrap_or_else(|| json!(null))
+            .unwrap_or(Value::Null)
     };
     RemoteObservation {
         command,
