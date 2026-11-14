@@ -27,7 +27,7 @@ Continue using the returned opaque cursor with unchanged issue, native page size
 
 Writes use an explicit service profile, exact numeric project and issue IDs, `apply: true`, a stable operation ID and `--max-bytes 8388608` to reserve complete recovery evidence. Normal output omits ADF bodies and retains fingerprints, privacy metadata, confirmed identities, credential effects and journal dispositions. The reservation is an output ceiling, not padding.
 
-Configure separate project `jira-mutation` allowances: `jira.comment.create`, `jira.comment.update-own`, `jira.comment.update-any`, `jira.comment.delete-own` and/or `jira.comment.delete-any`. These require format five. Formats one through four grant none of these operations; existing issue/link allowances keep their earlier meanings. Up to thirteen mutation allowances can coexist. Policy updates replace the complete list and require its observed revision. Native `read:jira-work`, `write:jira-work`, identity scope, Browse projects and issue security still apply.
+Configure separate project `jira-mutation` allowances: `jira.comment.create`, `jira.comment.update-own`, `jira.comment.update-any`, `jira.comment.delete-own` and/or `jira.comment.delete-any`. These require format five. Formats one through four grant none of these operations; existing issue/link allowances keep their earlier meanings. Up to sixteen mutation allowances can coexist. Policy updates replace the complete list and require its observed revision. Native `read:jira-work`, `write:jira-work`, identity scope, Browse projects and issue security still apply.
 
 Create input, saved as an operator-provided `comment-create.json`:
 

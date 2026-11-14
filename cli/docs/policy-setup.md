@@ -18,11 +18,11 @@ Provisioning, policy administration and selected cloud commands are now public a
 | confluence-read | site | Exact space/page get/list/search and separate page-bound comment get allowances |
 | confluence-write | space | Page create and/or update, independently enabled |
 | jira-create | project | Only jira.issue.create |
-| jira-read | site | Issue get/search, edit metadata, transitions, permission checks, link/comment reads and attachment metadata/list/settings |
+| jira-read | site | Issue get/search, edit metadata, transitions, permission checks, link/comment reads, attachment metadata/list/settings and separately allowed download |
 | jira-project-read | site | Project listing, with explicit continuation_site |
 | jira-project-context | project | Exact project get/statuses, using the shared site-policy revision |
 | jira-field-read | site | Field list/search, with explicit continuation_site |
-| jira-mutation | project | Issue actions, separate cascade intent, link create/delete and independent comment create/update-own/update-any/delete-own/delete-any |
+| jira-mutation | project | Issue actions, separate cascade intent, link create/delete, independent comment create/update-own/update-any/delete-own/delete-any, attachment upload and attachment delete-own/delete-any |
 | jira-recovery | project | Read-only investigation of the named original write; no retry or write permission |
 
 Project and field setup uses the same explicit-profile, apply and revision controls. See [Jira context](jira-context.md) for setup order and shared-record receipts. Other provider settings remain in the full CLI scope.

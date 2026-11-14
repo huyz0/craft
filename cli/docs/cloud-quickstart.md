@@ -11,7 +11,7 @@ $craft = '.\target\debug\craft.exe'
 & $craft schema --command jira.issue.create --response --view full
 ```
 
-Plan/design publication is also available through `plan page-create` and `design page-create`, with current-page import through `plan page-get` and `design page-get`; see [planning usage](planning.md). Separately allowed [footer-comment get/list/replies](confluence-comments.md) supply current version metadata and bounded root/direct-reply pages. Public cloud commands include Confluence space/page reads and page creation, Jira issue get/search/create, [issue actions and reconciliation](jira-issue-writes.md), [directed links](jira-link-create.md) and [Jira comment CRUD](jira-comments.md). Confluence page update/comment writes, attachment writes and broader administration remain unavailable. An implemented capability does not prove credentials, configured policy or live permission.
+Plan/design publication is also available through `plan page-create` and `design page-create`, with current-page import through `plan page-get` and `design page-get`; see [planning usage](planning.md). Separately allowed [footer-comment get/list/replies](confluence-comments.md) supply current version metadata and bounded root/direct-reply pages. Public cloud commands include Confluence space/page reads and page creation, Jira issue get/search/create, [issue actions and reconciliation](jira-issue-writes.md), [directed links](jira-link-create.md) [Jira comment CRUD](jira-comments.md) and [Jira attachment upload, download and delete](jira-attachments.md). Confluence page update/comment writes and broader administration remain unavailable. An implemented capability does not prove credentials, configured policy or live permission.
 
 [Jira context reads](jira-context.md) include project list/get/statuses, field list/search, edit metadata, transition listing and current-user permission checks. Their local policy setup is public; discovery does not grant permissions or activate mutations.
 
@@ -66,4 +66,4 @@ An isolated [local development bundle](local-install.md) is also available, with
 
 [Jira comment CRUD](jira-comments.md) is available with separate read/write allowances, typed ADF/visibility, original-author own/any checks and complete journaled receipts. Native fingerprint checks are non-atomic; live tenant qualification remains unfinished.
 
-[Jira attachment get/list/settings](jira-attachments.md) now return bounded inert metadata and upload settings with separate read allowances. Binary transfer and attachment writes remain unfinished.
+[Jira attachment get/list/settings](jira-attachments.md) return bounded inert metadata and upload settings with separate read allowances. Download, upload and delete are separate commands with their own allowances.

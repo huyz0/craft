@@ -54,6 +54,8 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "jira.attachment.list",
         "jira.attachment.settings",
         "jira.attachment.download",
+        "jira.attachment.upload",
+        "jira.attachment.delete",
         "jira.comment.create",
         "jira.comment.update",
         "jira.comment.delete",

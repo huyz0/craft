@@ -436,7 +436,9 @@ impl PreparedInvocation {
                         | Operation::CommentUpdateAny
                         | Operation::CommentDeleteOwn
                         | Operation::CommentDeleteAny
-                        | Operation::AttachmentUpload => None,
+                        | Operation::AttachmentUpload
+                        | Operation::AttachmentDeleteOwn
+                        | Operation::AttachmentDeleteAny => None,
                     })
                     .collect(),
             },

@@ -52,6 +52,12 @@ pub fn command_id(action: &Action) -> &'static str {
             crate::args::JiraAttachmentAction::Download(_) => {
                 craft_provider_jira::attachment_download::DOWNLOAD
             }
+            crate::args::JiraAttachmentAction::Upload(_) => {
+                craft_provider_jira::attachment_upload::UPLOAD
+            }
+            crate::args::JiraAttachmentAction::Delete(_) => {
+                craft_provider_jira::attachment_delete::DELETE
+            }
             crate::args::JiraAttachmentAction::Get(_) => craft_provider_jira::attachments::GET,
             crate::args::JiraAttachmentAction::List(_) => craft_provider_jira::attachments::LIST,
             crate::args::JiraAttachmentAction::Settings(_) => {
@@ -330,6 +336,12 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 action: match action {
                     crate::args::JiraAttachmentAction::Download(_) => {
                         crate::args::JiraAttachmentAction::Download(decode(input)?)
+                    }
+                    crate::args::JiraAttachmentAction::Upload(_) => {
+                        crate::args::JiraAttachmentAction::Upload(decode(input)?)
+                    }
+                    crate::args::JiraAttachmentAction::Delete(_) => {
+                        crate::args::JiraAttachmentAction::Delete(decode(input)?)
                     }
                     crate::args::JiraAttachmentAction::Get(_) => {
                         crate::args::JiraAttachmentAction::Get(decode(input)?)
@@ -618,6 +630,8 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
             crate::args::JiraAttachmentAction::Download(v) => value(v),
+            crate::args::JiraAttachmentAction::Upload(v) => value(v),
+            crate::args::JiraAttachmentAction::Delete(v) => value(v),
             crate::args::JiraAttachmentAction::Get(v) => value(v),
             crate::args::JiraAttachmentAction::List(v) => value(v),
             crate::args::JiraAttachmentAction::Settings(v) => value(v),
@@ -855,6 +869,16 @@ pub fn execute(
             crate::args::JiraAttachmentAction::Download(v) => {
                 return Ok(crate::attachment_download::command::execute(
                     v, fields, options, control,
+                ));
+            }
+            crate::args::JiraAttachmentAction::Upload(v) => {
+                return Ok(crate::attachment_upload::command::execute(
+                    *v, fields, options, control,
+                ));
+            }
+            crate::args::JiraAttachmentAction::Delete(v) => {
+                return Ok(crate::attachment_delete::command::execute(
+                    *v, fields, options, control,
                 ));
             }
             crate::args::JiraAttachmentAction::Get(v) => A::Get(v),

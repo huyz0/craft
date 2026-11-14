@@ -105,7 +105,7 @@ pub struct PolicySetArgs {
     #[arg(long,action=clap::ArgAction::Set,num_args=1)]
     pub enabled: Option<bool>,
     #[arg(long, value_delimiter = ',', num_args = 1)]
-    #[schemars(length(min = 1, max = 14))]
+    #[schemars(length(min = 1, max = 16))]
     pub operations: Vec<String>,
     #[arg(long)]
     #[schemars(length(min = 1, max = 512))]

@@ -11,6 +11,8 @@ Local, untracked inputs:
 Commands:
   policies   create or update the local allowances the live runs need
   reads      run the public read commands through the full host and report
+  writes     create, transition, edit and delete one craft-test issue
+  attachments  upload, read back, download and delete an attachment on a craft-test issue
 """
 
 import argparse
@@ -58,7 +60,7 @@ def policies(state_root, site, cloud, actor, project, space):
             "jira.issue.get", "jira.issue.search", "jira.metadata.edit", "jira.transition.list",
             "jira.permission.check", "jira.link.get", "jira.link.list", "jira.link.types",
             "jira.comment.get", "jira.comment.list", "jira.attachment.get", "jira.attachment.list",
-            "jira.attachment.settings"], None),
+            "jira.attachment.settings", "jira.attachment.download"], None),
         ("jira-test", "jira-project-read", ref("jira", cloud, "site", cloud), ["jira.project.list"], site),
         ("jira-test", "jira-project-context", ref("jira", cloud, "project", project),
          ["jira.project.get", "jira.project.statuses"], None),
@@ -67,7 +69,7 @@ def policies(state_root, site, cloud, actor, project, space):
         ("jira-test", "jira-create", ref("jira", cloud, "project", project), ["jira.issue.create"], None),
         ("jira-test", "jira-mutation", ref("jira", cloud, "project", project), [
             "jira.issue.update", "jira.transition.apply", "jira.issue.assign", "jira.issue.unassign",
-            "jira.issue.delete"], None),
+            "jira.issue.delete", "jira.attachment.upload", "jira.attachment.delete-own"], None),
         ("cf-test", "confluence-write", ref("confluence", cloud, "space", space), ["confluence.page.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
@@ -202,6 +204,76 @@ def writes(state_root, project, issue_type):
     return report
 
 
+def attachments(state_root, project, issue_type):
+    """Uploads a file to a fresh craft-test issue, reads it back, downloads and deletes it.
+
+    The issue is deleted at the end even when a step fails, which also removes any
+    attachment that a failed delete left behind.
+    """
+    import hashlib
+    import time
+    stamp = int(time.time() * 1000)
+    report = []
+
+    def step(name, out):
+        error = out.get("error") or {}
+        detail = "" if out.get("ok") else f" {error.get('code')}: {error.get('message')} {json.dumps(error.get('details'))[:400]}"
+        report.append(f"{name} => {'PASS' if out.get('ok') else 'FAIL'}{detail}")
+        return out
+
+    source = CAPTURES / f"upload-{stamp}"
+    source.mkdir(parents=True, exist_ok=True)
+    payload = f"craft-test attachment {stamp}
+".encode()
+    (source / "craft-test.txt").write_bytes(payload)
+    digest = "sha256:" + hashlib.sha256(payload).hexdigest()
+    created = step("jira.issue.create", run(state_root, "jira-test", "jira.issue.create", {
+        "operation_id": f"craft-test-{stamp}-create", "project_id": project, "issue_type_id": issue_type,
+        "summary": f"craft-test attachments {stamp}", "apply": True}))
+    data = created.get("data") or {}
+    issue = data.get("issue_id") or next(
+        (r.get("id") for r in (data.get("receipt") or {}).get("confirmed_resources", [])
+         if r.get("resource_type") == "issue"), None)
+    if not issue:
+        report.append(f"create returned no issue id: {json.dumps(data)[:400]}")
+        return report
+    try:
+        upload = step("jira.attachment.upload", craft(state_root, [
+            "--profile", "jira-test", "--max-bytes", "8388608", "jira", "attachment", "upload"], {
+            "operation_id": f"craft-test-{stamp}-upload", "project_id": project, "issue_id": issue,
+            "artifact_name": f"craft-test-{stamp}.txt", "file_root": str(source), "file": "craft-test.txt",
+            "filename": "craft-test.txt", "media_type": "text/plain", "expected_digest": digest, "apply": True}))
+        attachment = ((upload.get("data") or {}).get("attachment") or {}).get("id")
+        uploaded = upload.get("data") or {}
+        report.append(f"  upload acknowledged={uploaded.get('acknowledged')} verified={uploaded.get('desired_fields_verified')} "
+                      f"snapshot={((uploaded.get('snapshot') or {}).get('digest'))} expected={digest}")
+        listed = step("jira.attachment.list", run(state_root, "jira-test", "jira.attachment.list", {"issue_id": issue}))
+        items = (listed.get("data") or {}).get("items") or []
+        report.append(f"  listed ids={[i.get('id') for i in items]} uploaded={attachment}")
+        if not attachment:
+            return report
+        got = step("jira.attachment.get", run(state_root, "jira-test", "jira.attachment.get", {"id": attachment}))
+        record = (got.get("data") or {}).get("attachment") or {}
+        report.append(f"  size={record.get('size_bytes')} expected={len(payload)} mime={record.get('mime_type')}")
+        downloaded = step("jira.attachment.download", craft(state_root, [
+            "--profile", "jira-test", "jira", "attachment", "download"], {
+            "id": attachment, "artifact_name": f"craft-test-{stamp}-download.txt", "output_root": str(source),
+            "output": "downloaded.txt", "byte_limit": 1048576, "expected_digest": digest}))
+        artifact = ((downloaded.get("data") or {}).get("artifact") or {})
+        report.append(f"  download digest={artifact.get('digest')} matches={artifact.get('digest') == digest}")
+        step("jira.attachment.delete", craft(state_root, [
+            "--profile", "jira-test", "--max-bytes", "8388608", "jira", "attachment", "delete"], {
+            "operation_id": f"craft-test-{stamp}-attachment-delete", "project_id": project, "issue_id": issue,
+            "attachment_id": attachment, "expected_revision": record.get("metadata_revision"),
+            "ownership": "own", "apply": True}))
+        after = run(state_root, "jira-test", "jira.attachment.list", {"issue_id": issue})
+        remaining = [i.get("id") for i in (after.get("data") or {}).get("items") or []]
+        report.append(f"jira.attachment.list after delete => {'PASS' if after.get('ok') and attachment not in remaining else 'FAIL'} remaining={remaining}")
+    finally:
+        step("jira.issue.delete", delete_issue(state_root, issue, f"craft-test-{stamp}-delete"))
+    return report
+
+
 def page_create(state_root, space):
     """Creates one craft-test Confluence page through the full host; tests/live_cleanup.rs removes it."""
     import time
@@ -217,7 +289,7 @@ def page_create(state_root, space):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["policies", "reads", "writes", "page"])
+    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "page"])
     parser.add_argument("--issue-type", help="numeric non-subtask issue type id for writes")
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
@@ -234,6 +306,8 @@ def main():
             report = reads(args.state_root, cloud)
         elif args.command == "writes":
             report = writes(args.state_root, args.project, args.issue_type)
+        elif args.command == "attachments":
+            report = attachments(args.state_root, args.project, args.issue_type)
         else:
             report = page_create(args.state_root, args.space)
         text = "\n".join(report)
