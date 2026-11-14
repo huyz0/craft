@@ -69,7 +69,8 @@ def policies(state_root, site, cloud, actor, project, space):
             "jira.issue.update", "jira.transition.apply", "jira.issue.assign", "jira.issue.unassign",
             "jira.issue.delete"], None),
         ("cf-test", "confluence-write", ref("confluence", cloud, "space", space),
-         ["confluence.page.create", "confluence.page.update", "confluence.page.trash"], None),
+         ["confluence.page.create", "confluence.page.update", "confluence.page.trash",
+          "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
             "confluence.space.get", "confluence.space.list", "confluence.page.get", "confluence.page.list",
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
@@ -247,6 +248,35 @@ def page_lifecycle(state_root, space):
         "operation_id": f"craft-test-{stamp}-stale", "apply": True, "space_id": space, "id": page,
         "expected": first, "editor_draft_policy": policy,
         "changes": {"title": f"craft-test host page {stamp} stale"}}), expect_ok=False, expect_code="VERSION_CONFLICT")
+    if "--comments" in sys.argv:
+        body = {"representation": "storage", "value": "<p>craft-test comment</p>"}
+        made = step("confluence.comment.create", run(state_root, "cf-test", "confluence.comment.create", {
+            "operation_id": f"craft-test-{stamp}-comment", "apply": True, "space_id": space, "page_id": page,
+            "body": body}))
+        found = ((made.get("data") or {}).get("receipt") or {}).get("confirmed_resources") or []
+        comment = next((r.get("id") for r in found if r.get("resource_type") == "comment"), None)
+        if comment:
+            step("confluence.comment.create reply", run(state_root, "cf-test", "confluence.comment.create", {
+                "operation_id": f"craft-test-{stamp}-reply", "apply": True, "space_id": space, "page_id": page,
+                "parent_comment_id": comment, "body": body}))
+
+            def comment_revision():
+                out = step("confluence.comment.get", craft(state_root, [
+                    "--profile", "cf-test", "confluence", "comment", "get", "--fields", "id,version,revision"],
+                    {"id": comment, "page_id": page}))
+                return ((out.get("data") or {}).get("item") or {}).get("revision")
+
+            original = comment_revision()
+            step("confluence.comment.update", run(state_root, "cf-test", "confluence.comment.update", {
+                "operation_id": f"craft-test-{stamp}-comment-edit", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": original,
+                "body": {"representation": "storage", "value": "<p>craft-test comment edited</p>"}}))
+            step("confluence.comment.delete stale revision", run(state_root, "cf-test", "confluence.comment.delete", {
+                "operation_id": f"craft-test-{stamp}-comment-stale", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": original}), expect_ok=False, expect_code="VERSION_CONFLICT")
+            step("confluence.comment.delete", run(state_root, "cf-test", "confluence.comment.delete", {
+                "operation_id": f"craft-test-{stamp}-comment-delete", "apply": True, "space_id": space,
+                "page_id": page, "id": comment, "expected": comment_revision()}))
     if "--trash" in sys.argv:
         step("confluence.page.trash", run(state_root, "cf-test", "confluence.page.trash", {
             "operation_id": f"craft-test-{stamp}-trash", "apply": True, "space_id": space, "id": page,
@@ -262,6 +292,7 @@ def main():
     parser.add_argument("--project", help="numeric Jira project id")
     parser.add_argument("--space", help="numeric Confluence space id")
     parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
+    parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:

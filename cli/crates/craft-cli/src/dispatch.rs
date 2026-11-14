@@ -307,6 +307,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 craft_provider_confluence::pages::PAGE_CREATE
                     | craft_provider_confluence::pages::PAGE_UPDATE
                     | craft_provider_confluence::pages::PAGE_TRASH
+                    | craft_provider_confluence::pages::COMMENT_CREATE
+                    | craft_provider_confluence::pages::COMMENT_UPDATE
+                    | craft_provider_confluence::pages::COMMENT_DELETE
             ) =>
         {
             Action::Confluence {
@@ -1118,6 +1121,9 @@ pub fn execute(
         craft_provider_confluence::pages::PAGE_CREATE
             | craft_provider_confluence::pages::PAGE_UPDATE
             | craft_provider_confluence::pages::PAGE_TRASH
+            | craft_provider_confluence::pages::COMMENT_CREATE
+            | craft_provider_confluence::pages::COMMENT_UPDATE
+            | craft_provider_confluence::pages::COMMENT_DELETE
     ) {
         return execute_page_write_candidate(
             registry,

@@ -209,6 +209,15 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::Page {
             action: P::Trash(_),
         } => craft_provider_confluence::pages::PAGE_TRASH,
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Create(_),
+        } => craft_provider_confluence::pages::COMMENT_CREATE,
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Update(_),
+        } => craft_provider_confluence::pages::COMMENT_UPDATE,
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Delete(_),
+        } => craft_provider_confluence::pages::COMMENT_DELETE,
         A::Space { action: S::Get(_) } => SPACE_GET,
         A::Space { action: S::List(_) } => SPACE_LIST,
         A::Page { action: P::Get(_) } => PAGE_GET,
@@ -240,6 +249,15 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         } => encoded(v),
         A::Page {
             action: P::Trash(v),
+        } => encoded(v),
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Create(v),
+        } => encoded(v),
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Update(v),
+        } => encoded(v),
+        A::Comment {
+            action: crate::args::ConfluenceCommentAction::Delete(v),
         } => encoded(v),
         A::Space { action: S::Get(v) } | A::Page { action: P::Get(v) } => encoded(v),
         A::Space { action: S::List(v) } => encoded(v),

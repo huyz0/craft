@@ -1,8 +1,14 @@
 //! Pure page publication preparation. The caller must supply verified fresh evidence and a journaled host.
+mod comment_writes;
 mod input;
 mod registration;
 mod result;
 use crate::models::{numeric, text};
+pub use comment_writes::{
+    COMMENT_CREATE, COMMENT_CREATE_ROUTE, COMMENT_DELETE, COMMENT_DELETE_ROUTE, COMMENT_UPDATE,
+    COMMENT_UPDATE_ROUTE, CommentCreateInput, CommentDeleteInput, CommentUpdateInput,
+    prepare_comment_create, prepare_comment_delete, prepare_comment_update,
+};
 use craft_core::contracts::{CanonicalRequest, EffectClass, ResourceRef};
 use craft_core::error::{CraftError, ErrorCode};
 use craft_core::execution::{NativeCall, NativeResponse, PreparedOperation};
@@ -24,12 +30,16 @@ pub const CREATE_ROUTE: &str = "confluence-page-create";
 pub const UPDATE_ROUTE: &str = "confluence-page-update";
 pub const TRASH_ROUTE: &str = "confluence-page-trash";
 
-/// The compiled native effect; interpretation depends on it rather than on optional identity.
+/// The compiled native effect on a page or one of its footer comments; interpretation depends on
+/// it rather than on optional identity.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PageWriteKind {
     Create,
     Update,
     Trash,
+    CommentCreate,
+    CommentUpdate,
+    CommentDelete,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -37,6 +47,9 @@ impl PageWriteKind {
             Self::Create => PAGE_CREATE,
             Self::Update => PAGE_UPDATE,
             Self::Trash => PAGE_TRASH,
+            Self::CommentCreate => COMMENT_CREATE,
+            Self::CommentUpdate => COMMENT_UPDATE,
+            Self::CommentDelete => COMMENT_DELETE,
         }
     }
     pub fn route(self) -> &'static str {
@@ -44,12 +57,34 @@ impl PageWriteKind {
             Self::Create => CREATE_ROUTE,
             Self::Update => UPDATE_ROUTE,
             Self::Trash => TRASH_ROUTE,
+            Self::CommentCreate => COMMENT_CREATE_ROUTE,
+            Self::CommentUpdate => COMMENT_UPDATE_ROUTE,
+            Self::CommentDelete => COMMENT_DELETE_ROUTE,
+        }
+    }
+    pub const ALL: [Self; 6] = [
+        Self::Create,
+        Self::Update,
+        Self::Trash,
+        Self::CommentCreate,
+        Self::CommentUpdate,
+        Self::CommentDelete,
+    ];
+    pub fn effect(self) -> EffectClass {
+        match self {
+            Self::Trash => EffectClass::Trash,
+            Self::CommentDelete => EffectClass::Permanent,
+            _ => EffectClass::Write,
+        }
+    }
+    pub fn resource_type(self) -> &'static str {
+        match self {
+            Self::Create | Self::Update | Self::Trash => "page",
+            _ => "comment",
         }
     }
     pub fn from_command(command: &str) -> Option<Self> {
-        [Self::Create, Self::Update, Self::Trash]
-            .into_iter()
-            .find(|kind| kind.command() == command)
+        Self::ALL.into_iter().find(|kind| kind.command() == command)
     }
 }
 
@@ -147,6 +182,8 @@ pub struct PreparedPageWrite {
     operation_digest: String,
     site: ResourceRef,
     space_id: String,
+    page_id: Option<String>,
+    parent_id: Option<String>,
     id: Option<String>,
     title: String,
     version: u32,
@@ -168,11 +205,9 @@ impl PreparedPageWrite {
 }
 fn validate_operation(operation: &PreparedOperation, command: &str) -> Result<(), CraftError> {
     input::validate_request(operation.request())?;
-    let effect = if command == PAGE_TRASH {
-        EffectClass::Trash
-    } else {
-        EffectClass::Write
-    };
+    let effect = PageWriteKind::from_command(command)
+        .map(PageWriteKind::effect)
+        .ok_or_else(|| CraftError::field("/command", "unknown_confluence_page_write"))?;
     if operation.request().command != command || operation.effect() != effect {
         return Err(CraftError::new(
             ErrorCode::PolicyDenied,
@@ -229,6 +264,8 @@ pub fn prepare_create(
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
         id: None,
         title: input.title,
         version: 1,
@@ -280,6 +317,8 @@ pub fn prepare_update(
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
         id: Some(input.id),
         title,
         version,
@@ -316,6 +355,8 @@ pub fn prepare_trash(
         operation_digest: operation.digest().into(),
         site: operation.request().target.clone(),
         space_id: input.space_id,
+        page_id: None,
+        parent_id: None,
         id: Some(input.id),
         title: observed.title,
         version: observed.version,

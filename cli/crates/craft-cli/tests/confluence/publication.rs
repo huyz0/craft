@@ -56,7 +56,14 @@ impl Clock for PolicyClock {
                         },
                         expected_actor: "actor-one".into(),
                         enabled: self.keep_enabled,
-                        operations: vec![Op::Create, Op::Update, Op::Trash],
+                        operations: vec![
+                            Op::Create,
+                            Op::Update,
+                            Op::Trash,
+                            Op::CommentCreate,
+                            Op::CommentUpdate,
+                            Op::CommentDelete,
+                        ],
                         expected_revision: Some(1),
                     },
                     true,
@@ -412,9 +419,7 @@ fn prepared_write(
             grant: grant.clone(),
             expected_actor: "actor-one".into(),
             enabled: true,
-            allow_create: true,
-            allow_update: true,
-            allow_trash: true,
+            allowed: pages::PageWriteKind::ALL.to_vec(),
         },
     )
 }
@@ -751,7 +756,14 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
             expected_actor: "actor-one".into(),
             enabled,
             expected_revision: revision,
-            operations: vec![Op::Create, Op::Update, Op::Trash],
+            operations: vec![
+                Op::Create,
+                Op::Update,
+                Op::Trash,
+                Op::CommentCreate,
+                Op::CommentUpdate,
+                Op::CommentDelete,
+            ],
         },
         true,
         &control()?,
@@ -880,6 +892,161 @@ fn page_trash_rechecks_revision_sends_one_delete_and_refuses_stale_or_unscoped()
             );
             assert!(!sent.target.contains("purge"));
             assert!(sent.body.is_empty());
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+fn native_comment(version: u64) -> Value {
+    json!({"id":"201","pageId":"101","status":"current","version":{"number":version,"authorId":"reviewer-one","createdAt":"2026-11-10T00:00:00.000Z"},"body":{"storage":{"representation":"storage","value":"<p>Looks good</p>"}}})
+}
+
+#[test]
+fn footer_comment_writes_read_page_and_comment_evidence_then_send_once() -> TestResult {
+    let body = json!({"representation":"storage","value":"<p>Agreed</p>"});
+    let revision = json!(craft_provider_confluence::comments::observe_revision(
+        &native_comment(2),
+        "201",
+        "101",
+        "storage"
+    )?);
+    for mode in ["create", "reply", "update", "delete", "stale", "unscoped"] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let scopes = if mode == "unscoped" {
+            format!("{WRITE_SCOPES} read:comment:confluence")
+        } else {
+            format!(
+                "{WRITE_SCOPES} read:comment:confluence write:comment:confluence delete:comment:confluence"
+            )
+        };
+        let issuer = issuer(&scopes)?;
+        let (command, input) = match mode {
+            "create" | "unscoped" => (
+                pages::COMMENT_CREATE,
+                json!({"space_id":"100","page_id":"101","body":body}),
+            ),
+            "reply" => (
+                pages::COMMENT_CREATE,
+                json!({"space_id":"100","page_id":"101","parent_comment_id":"201","body":body}),
+            ),
+            "update" | "stale" => (
+                pages::COMMENT_UPDATE,
+                json!({"space_id":"100","page_id":"101","id":"201","expected":revision,"body":body}),
+            ),
+            _ => (
+                pages::COMMENT_DELETE,
+                json!({"space_id":"100","page_id":"101","id":"201","expected":revision}),
+            ),
+        };
+        let mut replies = vec![identity(), identity()];
+        if mode != "unscoped" {
+            replies.push(reply(current_page())?);
+        }
+        match mode {
+            "create" => replies.push(Reply::json(
+                201,
+                &serde_json::to_vec(
+                    &json!({"id":"301","pageId":"101","status":"current","version":{"number":1}}),
+                )?,
+                &[],
+            )),
+            "reply" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(Reply::json(
+                    201,
+                    &serde_json::to_vec(&json!({"id":"302","pageId":"101","parentCommentId":"201","status":"current","version":{"number":1}}))?,
+                    &[],
+                ));
+            }
+            "update" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(reply(
+                    json!({"id":"201","pageId":"101","status":"current","version":{"number":3}}),
+                )?);
+            }
+            "delete" => {
+                replies.push(reply(native_comment(2))?);
+                replies.push(Reply::json(204, b"", &[]));
+            }
+            "stale" => replies.push(reply(native_comment(3))?),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(&setup, command, input)?.execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        assert!(
+            jsonschema::validator_for(&craft_cli::confluence_pages::schema()?)?
+                .is_valid(&serde_json::to_value(&result.envelope)?),
+            "{mode}"
+        );
+        let requests = product.finish()?;
+        let writes: Vec<_> = requests.iter().filter(|r| r.method != "GET").collect();
+        match mode {
+            "stale" | "unscoped" => {
+                assert!(!result.envelope.ok, "{mode}");
+                assert_eq!(data["receipt"]["request_state"], "not_sent", "{mode}");
+                assert!(writes.is_empty(), "{mode}");
+                if mode == "stale" {
+                    assert_eq!(
+                        result.envelope.error.ok_or("err")?.code,
+                        ErrorCode::VersionConflict
+                    );
+                }
+            }
+            _ => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                let resource = &data["receipt"]["confirmed_resources"][0];
+                assert_eq!(resource["resource_type"], "comment");
+                assert_eq!(writes.len(), 1, "{mode}");
+                let sent = writes[0];
+                let body_sent: Value = if sent.body.is_empty() {
+                    Value::Null
+                } else {
+                    serde_json::from_slice(&sent.body)?
+                };
+                match mode {
+                    "create" => {
+                        assert_eq!(sent.method, "POST");
+                        assert_eq!(body_sent["pageId"], "101");
+                        assert!(body_sent.get("parentCommentId").is_none());
+                        assert_eq!(resource["id"], "301");
+                    }
+                    "reply" => {
+                        assert_eq!(body_sent["parentCommentId"], "201");
+                        assert!(body_sent.get("pageId").is_none());
+                    }
+                    "update" => {
+                        assert_eq!(sent.method, "PUT");
+                        assert!(sent.target.ends_with("/footer-comments/201"));
+                        assert_eq!(body_sent["version"]["number"], 3);
+                        assert_eq!(data["version"], 3);
+                    }
+                    _ => {
+                        assert_eq!(sent.method, "DELETE");
+                        assert!(sent.target.ends_with("/footer-comments/201"));
+                    }
+                }
+            }
         }
         drop(locked);
         setup.no_secrets()?;

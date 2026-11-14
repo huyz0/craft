@@ -86,6 +86,15 @@ impl ProviderModule for CloudCommands {
                 "confluence.page.trash" => {
                     register!(crate::confluence_pages::command::PageTrashArgs)
                 }
+                "confluence.comment.create" => {
+                    register!(crate::confluence_pages::command::CommentCreateArgs)
+                }
+                "confluence.comment.update" => {
+                    register!(crate::confluence_pages::command::CommentUpdateArgs)
+                }
+                "confluence.comment.delete" => {
+                    register!(crate::confluence_pages::command::CommentDeleteArgs)
+                }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {

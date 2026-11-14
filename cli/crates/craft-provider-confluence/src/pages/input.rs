@@ -189,6 +189,9 @@ pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftEr
         PAGE_CREATE => parse::<PageCreateInput>(&request.input)?.validate(),
         PAGE_UPDATE => parse::<PageUpdateInput>(&request.input)?.validate(),
         PAGE_TRASH => parse::<PageTrashInput>(&request.input)?.validate(),
+        COMMENT_CREATE => parse::<CommentCreateInput>(&request.input)?.validate(),
+        COMMENT_UPDATE => parse::<CommentUpdateInput>(&request.input)?.validate(),
+        COMMENT_DELETE => parse::<CommentDeleteInput>(&request.input)?.validate(),
         _ => Err(invalid("/command", "unknown_confluence_page_write")),
     }
 }

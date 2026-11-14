@@ -21,19 +21,29 @@ pub struct PageWriteData {
 }
 pub struct ConfluencePages;
 pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
-    let mut path: Vec<_> = ["wiki", "api", "v2", "pages"]
+    use PageWriteKind as K;
+    let collection = if kind.resource_type() == "page" {
+        "pages"
+    } else {
+        "footer-comments"
+    };
+    let mut path: Vec<_> = ["wiki", "api", "v2", collection]
         .into_iter()
         .map(|p| RouteSegment::Literal(p.into()))
         .collect();
-    if kind != PageWriteKind::Create {
-        path.push(RouteSegment::Parameter("id".into()));
+    match kind {
+        K::Create | K::CommentCreate => {}
+        K::Update | K::Trash => path.push(RouteSegment::Parameter("id".into())),
+        K::CommentUpdate | K::CommentDelete => {
+            path.push(RouteSegment::Parameter("comment-id".into()))
+        }
     }
     NativeRoute {
         id: kind.route().into(),
         method: match kind {
-            PageWriteKind::Create => HttpMethod::Post,
-            PageWriteKind::Update => HttpMethod::Put,
-            PageWriteKind::Trash => HttpMethod::Delete,
+            K::Create | K::CommentCreate => HttpMethod::Post,
+            K::Update | K::CommentUpdate => HttpMethod::Put,
+            K::Trash | K::CommentDelete => HttpMethod::Delete,
         },
         path,
         query_parameters: if kind == PageWriteKind::Create {
@@ -56,53 +66,71 @@ impl ProviderModule for ConfluencePages {
         let digest = canonical_digest(
             &json!({"id":"101","space_id":"100","title":"Plan draft","version":1,"body":body}),
         )?;
-        for kind in [
-            PageWriteKind::Create,
-            PageWriteKind::Update,
-            PageWriteKind::Trash,
-        ] {
+        let comment_revision = json!({"version":1,"digest":digest,"representation":"storage"});
+        let comment_body = json!({"representation":"storage","value":"<p>Looks good to me.</p>"});
+        for kind in PageWriteKind::ALL {
             let command = kind.command();
             let revision = json!({"version":1,"digest":digest,"representation":"storage"});
-            let (effect, input_schema, example, scopes) = match kind {
+            let effect = kind.effect();
+            let (input_schema, example, scopes) = match kind {
                 PageWriteKind::Create => (
-                    EffectClass::Write,
                     schema_for::<PageCreateInput>()?,
                     json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":body}),
                     "write:page:confluence",
                 ),
                 PageWriteKind::Update => (
-                    EffectClass::Write,
                     schema_for::<PageUpdateInput>()?,
                     json!({"id":"101","space_id":"100","expected":revision,"editor_draft_policy":"native_reconciliation_may_overwrite","title":"Reviewed plan"}),
                     "write:page:confluence",
                 ),
                 PageWriteKind::Trash => (
-                    EffectClass::Trash,
                     schema_for::<PageTrashInput>()?,
                     json!({"id":"101","space_id":"100","expected":revision}),
                     "delete:page:confluence",
+                ),
+                PageWriteKind::CommentCreate => (
+                    schema_for::<CommentCreateInput>()?,
+                    json!({"space_id":"100","page_id":"101","body":comment_body}),
+                    "write:comment:confluence",
+                ),
+                PageWriteKind::CommentUpdate => (
+                    schema_for::<CommentUpdateInput>()?,
+                    json!({"space_id":"100","page_id":"101","id":"201","expected":comment_revision,"body":comment_body}),
+                    "write:comment:confluence",
+                ),
+                PageWriteKind::CommentDelete => (
+                    schema_for::<CommentDeleteInput>()?,
+                    json!({"space_id":"100","page_id":"101","id":"201","expected":comment_revision}),
+                    "delete:comment:confluence",
                 ),
             };
             let descriptor = OperationDescriptor {
                 id:command.into(), provider:"confluence".into(), contract_version:SCHEMA_VERSION.into(), api_revision:"confluence-cloud-v2".into(),
                 description:match kind {
                     PageWriteKind::Trash => "Move a reviewed current page to the space trash through verified context and a journaled host; never purges.",
+                    PageWriteKind::CommentCreate => "Add a footer comment or reply to a current page in an allowed space; comment text is not approval.",
+                    PageWriteKind::CommentUpdate => "Replace the body of a reviewed footer comment revision; edits never establish approval.",
+                    PageWriteKind::CommentDelete => "Permanently delete a reviewed footer comment revision; Confluence offers no trash for comments.",
                     _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
                 }.into(),
                 effect,
                 input_schema,
                 response_schema:response_schema::<PageWriteData>()?,
                 example,
-                response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if kind == PageWriteKind::Update { 2 } else { 1 }}))),
+                response_example:json!(Envelope::success(command,"example".into(),json!({"target":target,"space_id":"100","page_id":"101","version":if matches!(kind, PageWriteKind::Update | PageWriteKind::CommentUpdate) { 2 } else { 1 }}))),
                 projection:None, scope_alternatives:vec![vec![scopes.into()]],
                 permissions:vec![match kind {
                     PageWriteKind::Trash => "Native Confluence space/content visibility and page delete permission.",
+                    PageWriteKind::CommentCreate => "View the page and add comments in its space.",
+                    PageWriteKind::CommentUpdate | PageWriteKind::CommentDelete => "View the page; edit or delete own comments, or space administration for others' comments.",
                     _ => "Native Confluence space/content visibility and page creation or editing permissions.",
                 }.into()],
                 tenant_conditions:vec![match kind {
                     PageWriteKind::Create => "Exact site/space/grant/actor and fresh qualified current evidence.",
                     PageWriteKind::Update => "Exact site/space/grant/actor and fresh qualified current evidence; explicit reviewed revision. Updates require the explicit native_reconciliation_may_overwrite editor-draft policy: publication can overwrite divergent unpublished editor drafts and draft preservation is never verified.",
                     PageWriteKind::Trash => "Exact site/space/grant/actor and a fresh current page matching the reviewed revision. Trash is recoverable by space administrators; purge is not offered.",
+                    PageWriteKind::CommentCreate => "Exact site/space/grant/actor; the page must be current in that space and a reply parent must be a current comment on the same page.",
+                    PageWriteKind::CommentUpdate | PageWriteKind::CommentDelete => "Exact site/space/grant/actor; the page must be current in that space and the comment must match the reviewed revision.",
                 }.into()],
                 routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
@@ -113,6 +141,12 @@ impl ProviderModule for ConfluencePages {
                     .register_typed_handler::<PageUpdateInput>(descriptor, Arc::new(Handler))?,
                 PageWriteKind::Trash => registry
                     .register_typed_handler::<PageTrashInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::CommentCreate => registry
+                    .register_typed_handler::<CommentCreateInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::CommentUpdate => registry
+                    .register_typed_handler::<CommentUpdateInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::CommentDelete => registry
+                    .register_typed_handler::<CommentDeleteInput>(descriptor, Arc::new(Handler))?,
             }
         }
         Ok(())

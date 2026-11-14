@@ -371,3 +371,113 @@ fn trash_rechecks_revision_and_sends_one_delete_without_purge() -> TestResult {
     assert!(prepare_update(&op, &page()).is_err());
     Ok(())
 }
+
+fn native_comment(id: &str, version: u64) -> NativeResponse {
+    response(
+        200,
+        json!({"id":id,"pageId":"101","status":"current","version":{"number":version,"authorId":"reviewer-one","createdAt":"2026-11-10T00:00:00.000Z"},"body":{"storage":{"representation":"storage","value":"<p>Looks good</p>"}}}),
+    )
+}
+fn comment_revision(version: u64) -> Result<Value, Box<dyn std::error::Error>> {
+    Ok(json!(
+        craft_provider_confluence::comments::observe_revision(
+            &native_comment("201", version).body,
+            "201",
+            "101",
+            "storage"
+        )?
+    ))
+}
+
+#[test]
+fn comment_writes_bind_page_space_parent_and_reviewed_revision() -> TestResult {
+    let body = json!({"representation":"storage","value":"<p>Agreed</p>"});
+    let create = prepare(
+        COMMENT_CREATE,
+        json!({"space_id":"100","page_id":"101","body":body}),
+    )?;
+    let write = prepare_comment_create(&create, &page(), None)?;
+    assert_eq!(write.call().route, COMMENT_CREATE_ROUTE);
+    assert_eq!(write.call().body, Some(json!({"pageId":"101","body":body})));
+    let created = write.interpret(&response(
+        201,
+        json!({"id":"301","pageId":"101","status":"current","version":{"number":1}}),
+    ));
+    assert_eq!(created.state, SubmissionState::Confirmed);
+    assert_eq!(created.resources[0].resource_type, "comment");
+    assert_eq!(created.resources[0].id, "301");
+    let foreign = write.interpret(&response(
+        201,
+        json!({"id":"301","pageId":"999","status":"current","version":{"number":1}}),
+    ));
+    assert_eq!(foreign.state, SubmissionState::Unknown);
+    assert!(foreign.resources.is_empty());
+    let mut other_space = page();
+    other_space.body["spaceId"] = json!("200");
+    assert!(prepare_comment_create(&create, &other_space, None).is_err());
+
+    let reply = prepare(
+        COMMENT_CREATE,
+        json!({"space_id":"100","page_id":"101","parent_comment_id":"201","body":body}),
+    )?;
+    assert!(prepare_comment_create(&reply, &page(), None).is_err());
+    let write = prepare_comment_create(&reply, &page(), Some(&native_comment("201", 2)))?;
+    assert_eq!(
+        write.call().body,
+        Some(json!({"parentCommentId":"201","body":body}))
+    );
+    let mut elsewhere = native_comment("201", 2);
+    elsewhere.body["pageId"] = json!("102");
+    assert!(prepare_comment_create(&reply, &page(), Some(&elsewhere)).is_err());
+
+    let update = prepare(
+        COMMENT_UPDATE,
+        json!({"space_id":"100","page_id":"101","id":"201","expected":comment_revision(2)?,"body":body}),
+    )?;
+    let write = prepare_comment_update(&update, &page(), &native_comment("201", 2))?;
+    assert_eq!(
+        write.call().body,
+        Some(json!({"version":{"number":3},"body":body}))
+    );
+    assert_eq!(
+        write
+            .interpret(&response(
+                200,
+                json!({"id":"201","pageId":"101","status":"current","version":{"number":3}})
+            ))
+            .state,
+        SubmissionState::Confirmed
+    );
+    assert_eq!(
+        write.interpret(&response(409, json!({}))).state,
+        SubmissionState::Failed
+    );
+    assert!(prepare_comment_update(&update, &page(), &native_comment("201", 3)).is_err());
+
+    let delete = prepare(
+        COMMENT_DELETE,
+        json!({"space_id":"100","page_id":"101","id":"201","expected":comment_revision(2)?}),
+    )?;
+    assert_eq!(
+        delete.effect(),
+        craft_core::contracts::EffectClass::Permanent
+    );
+    let write = prepare_comment_delete(&delete, &page(), &native_comment("201", 2))?;
+    assert!(write.call().body.is_none());
+    let deleted = write.interpret(&response(204, Value::Null));
+    assert_eq!(deleted.state, SubmissionState::Confirmed);
+    assert_eq!(deleted.resources[0].resource_type, "comment");
+    assert_eq!(
+        write.interpret(&response(200, json!({}))).state,
+        SubmissionState::Unknown
+    );
+    assert!(prepare_comment_delete(&delete, &page(), &native_comment("201", 3)).is_err());
+    for bad in [
+        json!({"space_id":"100","page_id":"0101","body":body}),
+        json!({"space_id":"100","page_id":"101","parent_comment_id":null,"body":body,"extra":1}),
+        json!({"space_id":"100","page_id":"101","body":{"representation":"storage","value":" "}}),
+    ] {
+        assert!(prepare(COMMENT_CREATE, bad).is_err());
+    }
+    Ok(())
+}

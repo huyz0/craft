@@ -74,6 +74,9 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "confluence.page.create"
                 | "confluence.page.update"
                 | "confluence.page.trash"
+                | "confluence.comment.create"
+                | "confluence.comment.update"
+                | "confluence.comment.delete"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -140,6 +143,9 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.page.create"
             | "confluence.page.update"
             | "confluence.page.trash"
+            | "confluence.comment.create"
+            | "confluence.comment.update"
+            | "confluence.comment.delete"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -367,6 +373,9 @@ pub enum ConfluenceCommentAction {
     List(Box<crate::confluence_reads::command::ConfluenceCommentListArgs>),
     Replies(Box<crate::confluence_reads::command::ConfluenceCommentRepliesArgs>),
     Get(Box<crate::confluence_reads::command::ConfluenceCommentGetArgs>),
+    Create(Box<crate::confluence_pages::command::CommentCreateArgs>),
+    Update(Box<crate::confluence_pages::command::CommentUpdateArgs>),
+    Delete(Box<crate::confluence_pages::command::CommentDeleteArgs>),
 }
 
 #[derive(Subcommand)]
