@@ -115,6 +115,9 @@ impl ProviderModule for CloudCommands {
                 "confluence.attachment.trash" => {
                     register!(crate::confluence_pages::command::AttachmentTrashArgs)
                 }
+                "confluence.space.create" => {
+                    register!(crate::confluence_pages::command::SpaceCreateArgs)
+                }
                 "jira.comment.get" => register!(crate::issue_comments::command::CommentGetArgs),
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {

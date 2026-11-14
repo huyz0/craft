@@ -31,7 +31,7 @@ impl PreparedPageWrite {
         let deletion = matches!(self.kind, K::Trash | K::CommentDelete | K::AttachmentTrash);
         let success = match self.kind {
             K::Trash | K::CommentDelete | K::AttachmentTrash => 204,
-            K::CommentCreate => 201,
+            K::CommentCreate | K::SpaceCreate => 201,
             _ => 200,
         };
         if deletion && response.status == 204 {
@@ -48,7 +48,7 @@ impl PreparedPageWrite {
         }
         if response.status != success || deletion {
             let refusal = match self.kind {
-                K::Create => matches!(response.status, 400 | 401 | 404 | 413),
+                K::Create | K::SpaceCreate => matches!(response.status, 400 | 401 | 404 | 413),
                 K::Update | K::CommentUpdate => matches!(response.status, 400 | 401 | 404 | 409),
                 K::Trash | K::CommentCreate | K::CommentDelete | K::AttachmentTrash => {
                     matches!(response.status, 400 | 401 | 404)
@@ -83,6 +83,9 @@ impl PreparedPageWrite {
         let raw = &response.body;
         if matches!(self.kind, K::CommentCreate | K::CommentUpdate) {
             return self.interpret_comment(raw, result);
+        }
+        if self.kind == K::SpaceCreate {
+            return self.interpret_space(raw, result);
         }
         if matches!(self.kind, K::ContentStateSet | K::ContentStateClear) {
             // The page identity is the compiled target; only the badge outcome needs evidence.
@@ -168,6 +171,40 @@ impl PreparedPageWrite {
         {
             result.state = SubmissionState::Confirmed;
             result.version = Some(self.version);
+        } else {
+            result.error = Some(failure(
+                ErrorCode::WriteOutcomeUnknown,
+                RequestState::SentUnknown,
+            ));
+        }
+        result
+    }
+}
+impl PreparedPageWrite {
+    /// A created space is confirmed by a numeric ID with the requested key and name.
+    fn interpret_space(
+        &self,
+        raw: &Value,
+        mut result: PageWriteObservation,
+    ) -> PageWriteObservation {
+        let id = raw
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| numeric(id));
+        let key_matches = raw.get("key").and_then(Value::as_str) == self.parent_id.as_deref();
+        if let Some(id) = id
+            && key_matches
+        {
+            result.resources.push(ResourceRef {
+                resource_type: "space".into(),
+                id: id.into(),
+                ..self.site.clone()
+            });
+        }
+        if !result.resources.is_empty()
+            && raw.get("name").and_then(Value::as_str) == Some(&self.title)
+        {
+            result.state = SubmissionState::Confirmed;
         } else {
             result.error = Some(failure(
                 ErrorCode::WriteOutcomeUnknown,

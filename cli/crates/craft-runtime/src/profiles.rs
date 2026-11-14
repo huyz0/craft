@@ -20,7 +20,7 @@ use rusqlite::{
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 const APPLICATION_ID: i64 = 0x4352_4654;
-const SCHEMA_VERSION: i64 = 12;
+const SCHEMA_VERSION: i64 = 13;
 const MAX_PAYLOAD_BYTES: usize = 65_536;
 const MAX_PROFILES: i64 = 1_000;
 const NATIVE_PAGE_SIZE: usize = 101;
@@ -487,6 +487,15 @@ impl ProfileStore {
                 .execute(crate::review_policy::TABLE, [])
                 .map_err(|_| invalid_state())?;
             transaction
+                .pragma_update(None, "user_version", 12)
+                .map_err(state_error)?;
+            version = 12;
+        }
+        if version == 12 {
+            transaction
+                .execute(crate::confluence_admin_policy::TABLE, [])
+                .map_err(|_| invalid_state())?;
+            transaction
                 .pragma_update(None, "user_version", SCHEMA_VERSION)
                 .map_err(state_error)?;
         }
@@ -588,6 +597,11 @@ impl ProfileStore {
         let write_schema: String = transaction.query_row("SELECT sql FROM sqlite_schema WHERE type='table' AND name='confluence_write_policies'", [], |row| row.get(0)).map_err(|_| invalid_state())?;
         let write_triggers: i64 = transaction.query_row("SELECT count(*) FROM sqlite_schema WHERE type='trigger' AND tbl_name='confluence_write_policies'", [], |row| row.get(0)).map_err(|_| invalid_state())?;
         if write_schema != crate::confluence_write_policy::TABLE || write_triggers != 0 {
+            return Err(invalid_state());
+        }
+        let admin_schema: String = transaction.query_row("SELECT sql FROM sqlite_schema WHERE type='table' AND name='confluence_admin_policies'", [], |row| row.get(0)).map_err(|_| invalid_state())?;
+        let admin_triggers: i64 = transaction.query_row("SELECT count(*) FROM sqlite_schema WHERE type='trigger' AND tbl_name='confluence_admin_policies'", [], |row| row.get(0)).map_err(|_| invalid_state())?;
+        if admin_schema != crate::confluence_admin_policy::TABLE || admin_triggers != 0 {
             return Err(invalid_state());
         }
         let review_schema: String = transaction

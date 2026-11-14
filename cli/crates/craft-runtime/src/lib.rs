@@ -8,6 +8,7 @@ pub mod synthetic_acceptance;
 
 pub mod artifacts;
 pub mod auth;
+pub mod confluence_admin_policy;
 pub mod confluence_read_policy;
 pub mod confluence_write_policy;
 pub mod control;

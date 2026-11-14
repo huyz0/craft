@@ -13,10 +13,11 @@ struct SetCli {
 fn target(kind: PolicyKind) -> ResourceRef {
     let confluence = matches!(
         kind,
-        PolicyKind::ConfluenceRead | PolicyKind::ConfluenceWrite
+        PolicyKind::ConfluenceRead | PolicyKind::ConfluenceWrite | PolicyKind::ConfluenceAdmin
     );
     let resource = match kind {
         PolicyKind::ConfluenceRead
+        | PolicyKind::ConfluenceAdmin
         | PolicyKind::JiraRead
         | PolicyKind::JiraProjectRead
         | PolicyKind::JiraFieldRead => "site",
@@ -41,6 +42,7 @@ fn args(kind: PolicyKind) -> PolicySetArgs {
         operations: vec![
             match kind {
                 PolicyKind::ConfluenceRead => "confluence.page.get",
+                PolicyKind::ConfluenceAdmin => "confluence.space.create",
                 PolicyKind::ConfluenceWrite => "confluence.page.create",
                 PolicyKind::JiraCreate | PolicyKind::JiraRecovery => "jira.issue.create",
                 PolicyKind::JiraRead => "jira.issue.get",

@@ -47,6 +47,7 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
     let collection = match kind.resource_type() {
         "page" => "pages",
         "attachment" => "attachments",
+        "space" => "spaces",
         _ => "footer-comments",
     };
     let mut path: Vec<_> = ["wiki", "api", "v2", collection]
@@ -54,7 +55,7 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
         .map(|p| RouteSegment::Literal(p.into()))
         .collect();
     match kind {
-        K::Create | K::CommentCreate => {}
+        K::Create | K::CommentCreate | K::SpaceCreate => {}
         K::Update | K::Trash | K::AttachmentTrash => {
             path.push(RouteSegment::Parameter("id".into()))
         }
@@ -67,7 +68,7 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
     NativeRoute {
         id: kind.route().into(),
         method: match kind {
-            K::Create | K::CommentCreate => HttpMethod::Post,
+            K::Create | K::CommentCreate | K::SpaceCreate => HttpMethod::Post,
             K::Update | K::CommentUpdate => HttpMethod::Put,
             K::Trash | K::CommentDelete | K::ContentStateClear | K::AttachmentTrash => {
                 HttpMethod::Delete
@@ -142,6 +143,11 @@ impl ProviderModule for ConfluencePages {
                     json!({"space_id":"100","page_id":"101"}),
                     "write:confluence-content",
                 ),
+                PageWriteKind::SpaceCreate => (
+                    schema_for::<SpaceCreateInput>()?,
+                    json!({"key":"CRAFT","name":"Craft plans","visibility":"default_roles"}),
+                    "write:space:confluence",
+                ),
                 PageWriteKind::AttachmentTrash => (
                     schema_for::<AttachmentTrashInput>()?,
                     json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":1,"file_id":"0b6f6a1c-file"}}),
@@ -166,6 +172,7 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::ContentStateSet => "Set the published page's content-state badge to a state the space offers; a badge is not approval or lifecycle.",
                     PageWriteKind::ContentStateClear => "Remove the published page's content-state badge; this never changes review or ticket authority.",
                     PageWriteKind::AttachmentTrash => "Move a reviewed current page attachment to the trash; never purges.",
+                    PageWriteKind::SpaceCreate => "Create a space with an absent key and explicit visibility through the v2 route; no legacy fallback.",
                     _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
                 }.into(),
                 effect,
@@ -180,6 +187,7 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::CommentUpdate | PageWriteKind::CommentDelete => "View the page; edit or delete own comments, or space administration for others' comments.",
                     PageWriteKind::ContentStateSet | PageWriteKind::ContentStateClear => "Edit the page; space settings must allow the selected suggested or custom state.",
                     PageWriteKind::AttachmentTrash => "View the page and delete attachments in its space.",
+                    PageWriteKind::SpaceCreate => "Global Create space permission; the v2 route needs role-based access control on the site.",
                     _ => "Native Confluence space/content visibility and page creation or editing permissions.",
                 }.into()],
                 tenant_conditions:vec![match kind {
@@ -191,6 +199,7 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::ContentStateSet => "Exact site/space/grant/actor; the page must be current in that space and the state ID must be offered now. Always targets status=current.",
                     PageWriteKind::ContentStateClear => "Exact site/space/grant/actor; the page must be current in that space. Always targets status=current.",
                     PageWriteKind::AttachmentTrash => "Exact site/space/grant/actor; the attachment must be current on that page with the reviewed version and file ID.",
+                    PageWriteKind::SpaceCreate => "Exact site/grant/actor under a site-level Confluence administration allowance; a fresh exact-key lookup must be empty.",
                 }.into()],
                 routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
@@ -222,6 +231,8 @@ impl ProviderModule for ConfluencePages {
                         descriptor,
                         Arc::new(Handler),
                     )?,
+                PageWriteKind::SpaceCreate => registry
+                    .register_typed_handler::<SpaceCreateInput>(descriptor, Arc::new(Handler))?,
             }
         }
         Ok(())

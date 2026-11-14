@@ -8,6 +8,9 @@ use craft_core::contracts::{AuthMode, Envelope};
 use craft_core::presence::InputField;
 use craft_core::profiles::validate_profile_name;
 use craft_core::registry::schema_for;
+use craft_runtime::confluence_admin_policy::{
+    ConfluenceAdminOperation as AdminOperation, ConfluenceAdminPolicyRecord,
+};
 use craft_runtime::confluence_write_policy::{
     ConfluenceWriteOperation as Operation, ConfluenceWritePolicyRecord,
 };
@@ -233,6 +236,32 @@ pub struct AttachmentTrashArgs {
     #[arg(long, value_parser = attachment_revision, default_value = "{\"version\":0,\"file_id\":\"\"}")]
     pub expected: pages::AttachmentRevision,
 }
+fn visibility(text: &str) -> Result<pages::SpaceVisibility, String> {
+    serde_json::from_value(Value::String(text.into()))
+        .map_err(|_| "expected_default_roles_or_private".into())
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpaceCreateArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub key: String,
+    #[arg(long, default_value = "")]
+    pub name: String,
+    /// `default_roles` or `private`; there is no default.
+    #[arg(long, value_parser = visibility)]
+    #[schemars(required)]
+    pub visibility: Option<pages::SpaceVisibility>,
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
@@ -243,6 +272,7 @@ pub enum PageWriteArgs {
     ContentStateSet(ContentStateSetArgs),
     ContentStateClear(ContentStateClearArgs),
     AttachmentTrash(AttachmentTrashArgs),
+    SpaceCreate(SpaceCreateArgs),
 }
 /// Maps a saved space allowance to the host write it permits.
 fn kind_of(operation: Operation) -> PageWriteKind {
@@ -272,8 +302,15 @@ fn encoded(value: &impl Serialize) -> Result<Value, CraftError> {
         .map_err(|_| CraftError::field("/input", "invalid_page_write_arguments"))
 }
 impl PageWriteArgs {
-    pub fn operation(&self) -> Operation {
+    pub fn kind(&self) -> PageWriteKind {
         match self {
+            Self::SpaceCreate(_) => PageWriteKind::SpaceCreate,
+            other => kind_of(other.operation().unwrap_or(Operation::Create)),
+        }
+    }
+    /// The per-space allowance this write needs; space creation is site-level instead.
+    pub fn operation(&self) -> Option<Operation> {
+        Some(match self {
             Self::Create(_) => Operation::Create,
             Self::Update(_) => Operation::Update,
             Self::Trash(_) => Operation::Trash,
@@ -283,7 +320,8 @@ impl PageWriteArgs {
             Self::ContentStateSet(_) => Operation::ContentStateSet,
             Self::ContentStateClear(_) => Operation::ContentStateClear,
             Self::AttachmentTrash(_) => Operation::AttachmentTrash,
-        }
+            Self::SpaceCreate(_) => return None,
+        })
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
         match command {
@@ -296,6 +334,7 @@ impl PageWriteArgs {
             CONTENT_STATE_SET => Ok(Self::ContentStateSet(decode(&value)?)),
             CONTENT_STATE_CLEAR => Ok(Self::ContentStateClear(decode(&value)?)),
             ATTACHMENT_TRASH => Ok(Self::AttachmentTrash(decode(&value)?)),
+            SPACE_CREATE => Ok(Self::SpaceCreate(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -310,6 +349,7 @@ impl PageWriteArgs {
             Self::ContentStateSet(v) => encoded(v),
             Self::ContentStateClear(v) => encoded(v),
             Self::AttachmentTrash(v) => encoded(v),
+            Self::SpaceCreate(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
@@ -323,6 +363,7 @@ impl PageWriteArgs {
             Self::ContentStateSet(v) => v.cloud_id.as_deref(),
             Self::ContentStateClear(v) => v.cloud_id.as_deref(),
             Self::AttachmentTrash(v) => v.cloud_id.as_deref(),
+            Self::SpaceCreate(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
@@ -336,6 +377,7 @@ impl PageWriteArgs {
             Self::ContentStateSet(v) => v.space_id.as_deref(),
             Self::ContentStateClear(v) => v.space_id.as_deref(),
             Self::AttachmentTrash(v) => v.space_id.as_deref(),
+            Self::SpaceCreate(_) => Some(""),
         }
     }
     fn operation_id(&self) -> &str {
@@ -349,6 +391,7 @@ impl PageWriteArgs {
             Self::ContentStateSet(v) => &v.operation_id,
             Self::ContentStateClear(v) => &v.operation_id,
             Self::AttachmentTrash(v) => &v.operation_id,
+            Self::SpaceCreate(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
@@ -362,6 +405,7 @@ impl PageWriteArgs {
             Self::ContentStateSet(v) => v.apply,
             Self::ContentStateClear(v) => v.apply,
             Self::AttachmentTrash(v) => v.apply,
+            Self::SpaceCreate(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -426,6 +470,14 @@ impl PageWriteArgs {
                 id: v.id.clone(),
                 expected: v.expected.clone(),
             }),
+            Self::SpaceCreate(v) => encoded(&pages::SpaceCreateInput {
+                key: v.key.clone(),
+                name: v.name.clone(),
+                visibility: v.visibility.ok_or_else(|| {
+                    CraftError::field("/visibility", "expected_default_roles_or_private")
+                })?,
+                description: v.description.clone(),
+            }),
         }
     }
     fn request(
@@ -436,7 +488,7 @@ impl PageWriteArgs {
         bytes: usize,
     ) -> Result<CanonicalRequest, CraftError> {
         Ok(CanonicalRequest {
-            command: self.operation().command().into(),
+            command: self.kind().command().into(),
             target,
             input: self.input(space)?,
             selection: Selection {
@@ -505,6 +557,9 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             PageWriteArgs::AttachmentTrash(v) => Self::Attachment {
                 action: crate::args::ConfluenceAttachmentAction::Trash(Box::new(v)),
             },
+            PageWriteArgs::SpaceCreate(v) => Self::Space {
+                action: crate::args::ConfluenceSpaceAction::Create(Box::new(v)),
+            },
         }
     }
 }
@@ -542,6 +597,9 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Attachment {
                 action: crate::args::ConfluenceAttachmentAction::Trash(v),
             } => Ok(Self::AttachmentTrash(*v)),
+            A::Space {
+                action: crate::args::ConfluenceSpaceAction::Create(v),
+            } => Ok(Self::SpaceCreate(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -560,6 +618,7 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             CONTENT_STATE_SET,
             CONTENT_STATE_CLEAR,
             ATTACHMENT_TRASH,
+            SPACE_CREATE,
         ],
     )
 }
@@ -577,6 +636,7 @@ pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
             CONTENT_STATE_SET,
             CONTENT_STATE_CLEAR,
             ATTACHMENT_TRASH,
+            SPACE_CREATE,
         ],
     )
 }
@@ -608,20 +668,21 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
         let version = match kind {
             PageWriteKind::Update | PageWriteKind::CommentUpdate => Value::from(2),
             PageWriteKind::Create | PageWriteKind::CommentCreate => Value::from(1),
+            PageWriteKind::SpaceCreate => Value::Null,
             _ => Value::Null,
         };
         let status = match kind {
             PageWriteKind::Trash
             | PageWriteKind::CommentDelete
             | PageWriteKind::AttachmentTrash => 204,
-            PageWriteKind::CommentCreate => 201,
+            PageWriteKind::CommentCreate | PageWriteKind::SpaceCreate => 201,
             _ => 200,
         };
         d.response_example = json!(Envelope::success(
             command,
             "example".into(),
             json!({
-                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", _ => "201"}}],"job":null},
+                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", "space" => "100", _ => "201"}}],"job":null},
                 "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
@@ -658,18 +719,26 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
                 d.input_schema = schema_for::<ContentStateClearArgs>()?;
                 registry.register_typed::<ContentStateClearArgs>(d)?;
             }
-            _ => {
+            ATTACHMENT_TRASH => {
                 d.input_schema = schema_for::<AttachmentTrashArgs>()?;
                 registry.register_typed::<AttachmentTrashArgs>(d)?;
+            }
+            _ => {
+                d.input_schema = schema_for::<SpaceCreateArgs>()?;
+                registry.register_typed::<SpaceCreateArgs>(d)?;
             }
         }
     }
     Ok(())
 }
+/// Saved authority captured before execution and rechecked around every read and the send.
+enum Authority {
+    Space(ConfluenceWritePolicyRecord, Operation),
+    Site(ConfluenceAdminPolicyRecord),
+}
 pub struct PreparedInvocation {
     host: PreparedPagePublication,
-    policy: ConfluenceWritePolicyRecord,
-    operation: Operation,
+    authority: Authority,
 }
 impl PreparedInvocation {
     pub fn prepare(
@@ -699,6 +768,33 @@ impl PreparedInvocation {
             site(&profile.tenant_ref()?.tenant)
         };
         profile.validate_target("site", &site)?;
+        let Some(operation) = args.operation() else {
+            let policy = store
+                .confluence_admin_policy(&name, control)?
+                .ok_or_else(denied)?;
+            if policy.target != site {
+                return Err(denied());
+            }
+            store.verify_confluence_admin_policy(&policy, AdminOperation::SpaceCreate, control)?;
+            let host = PreparedPagePublication::prepare(
+                args.request(site.clone(), "", fields, options.max_bytes)?,
+                args.operation_id(),
+                args.apply(),
+                options.request_id,
+                PageWritePolicy {
+                    target: site,
+                    space_id: String::new(),
+                    grant: policy.grant.clone(),
+                    expected_actor: policy.expected_actor.clone(),
+                    enabled: policy.enabled,
+                    allowed: vec![PageWriteKind::SpaceCreate],
+                },
+            )?;
+            return Ok(Self {
+                host,
+                authority: Authority::Site(policy),
+            });
+        };
         let explicit_space = args.space().map(|id| ResourceRef {
             resource_type: "space".into(),
             id: id.into(),
@@ -709,7 +805,6 @@ impl PreparedInvocation {
         if space.tenant_ref() != site.tenant_ref() {
             return Err(denied());
         }
-        let operation = args.operation();
         let policy = store
             .confluence_write_policy(&name, &space.id, control)?
             .ok_or_else(denied)?;
@@ -733,12 +828,14 @@ impl PreparedInvocation {
         )?;
         Ok(Self {
             host,
-            policy,
-            operation,
+            authority: Authority::Space(policy, operation),
         })
     }
     pub fn grant(&self) -> &GrantRef {
-        &self.policy.grant
+        match &self.authority {
+            Authority::Space(policy, _) => &policy.grant,
+            Authority::Site(policy) => &policy.grant,
+        }
     }
     pub fn binding(&self) -> &craft_core::storage::OperationBinding {
         self.host.binding()
@@ -753,9 +850,19 @@ impl PreparedInvocation {
         control: InvocationControl,
     ) -> CommandResult {
         let check = control.clone();
+        let authority = self.authority;
         self.host
             .execute_cached_with_policy_check(client, locked, journal, tls, control, || {
-                store.verify_confluence_write_policy(&self.policy, self.operation, &check)
+                match &authority {
+                    Authority::Space(policy, operation) => {
+                        store.verify_confluence_write_policy(policy, *operation, &check)
+                    }
+                    Authority::Site(policy) => store.verify_confluence_admin_policy(
+                        policy,
+                        AdminOperation::SpaceCreate,
+                        &check,
+                    ),
+                }
             })
     }
 }
@@ -765,7 +872,7 @@ pub fn execute(
     options: &InvocationOptions<'_>,
     control: &InvocationControl,
 ) -> CommandResult {
-    let command = args.operation().command();
+    let command = args.kind().command();
     let result = (|| {
         args.validate(fields, options)?;
         let root = resolve_state_root(options.state_root, |k| std::env::var_os(k))?;

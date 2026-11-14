@@ -514,3 +514,55 @@ fn attachment_trash_compiles_one_delete_bound_to_version_and_file() -> TestResul
     }
     Ok(())
 }
+
+#[test]
+fn space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name() -> TestResult {
+    let input =
+        json!({"key":"CRAFT1","name":"Craft plans","visibility":"private","description":"Plans"});
+    let op = prepare(SPACE_CREATE, input)?;
+    let empty = response(200, json!({"results":[],"_links":{}}));
+    let write = prepare_space_create(&op, &empty)?;
+    assert_eq!(
+        write.call().body,
+        Some(
+            json!({"name":"Craft plans","key":"CRAFT1","createPrivateSpace":true,"description":{"value":"Plans","representation":"plain"}})
+        )
+    );
+    let done = write.interpret(&response(
+        201,
+        json!({"id":"300","key":"CRAFT1","name":"Craft plans"}),
+    ));
+    assert_eq!(done.state, SubmissionState::Confirmed);
+    assert_eq!(done.resources[0].resource_type, "space");
+    let renamed = write.interpret(&response(
+        201,
+        json!({"id":"300","key":"CRAFT1","name":"Other"}),
+    ));
+    assert_eq!(renamed.state, SubmissionState::Unknown);
+    assert_eq!(renamed.resources.len(), 1);
+    let other_key = write.interpret(&response(
+        201,
+        json!({"id":"300","key":"OTHER","name":"Craft plans"}),
+    ));
+    assert!(other_key.resources.is_empty());
+    assert_eq!(
+        write.interpret(&response(400, json!({}))).state,
+        SubmissionState::Failed
+    );
+    assert_eq!(
+        write.interpret(&response(200, json!({}))).state,
+        SubmissionState::Unknown
+    );
+    let taken = response(200, json!({"results":[{"id":"9","key":"CRAFT1"}]}));
+    assert!(prepare_space_create(&op, &taken).is_err());
+    assert!(prepare_space_create(&op, &response(500, json!({}))).is_err());
+    for bad in [
+        json!({"key":"CRAFT-1","name":"x","visibility":"private"}),
+        json!({"key":"CRAFT1","name":"x"}),
+        json!({"key":"CRAFT1","name":"x","visibility":"public"}),
+        json!({"key":"CRAFT1","name":" ","visibility":"private"}),
+    ] {
+        assert!(prepare(SPACE_CREATE, bad).is_err());
+    }
+    Ok(())
+}

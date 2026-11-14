@@ -1,4 +1,7 @@
 use super::*;
+use craft_runtime::confluence_admin_policy::{
+    ConfluenceAdminOperation, ConfluenceAdminPolicyUpdate,
+};
 use craft_runtime::confluence_read_policy::{ConfluenceReadOperation, ConfluenceReadPolicyUpdate};
 use craft_runtime::confluence_write_policy::{
     ConfluenceWriteOperation, ConfluenceWritePolicyUpdate,
@@ -44,6 +47,9 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
     match kind {
         PolicyKind::ConfluenceRead => {
             operations::<ConfluenceReadOperation>(values)?;
+        }
+        PolicyKind::ConfluenceAdmin => {
+            operations::<ConfluenceAdminOperation>(values)?;
         }
         PolicyKind::ConfluenceWrite => {
             operations::<ConfluenceWriteOperation>(values)?;
@@ -104,6 +110,10 @@ pub(super) fn get(
     match kind {
         PolicyKind::ConfluenceRead => store
             .confluence_read_policy(name, control)?
+            .map(|r| snapshot(&r, kind))
+            .transpose(),
+        PolicyKind::ConfluenceAdmin => store
+            .confluence_admin_policy(name, control)?
             .map(|r| snapshot(&r, kind))
             .transpose(),
         PolicyKind::ConfluenceWrite => store
@@ -220,6 +230,22 @@ pub(super) fn set(
             let r = store.set_confluence_read_policy(
                 name,
                 ConfluenceReadPolicyUpdate {
+                    target,
+                    expected_actor,
+                    enabled,
+                    expected_revision,
+                    operations: operations(&args.operations)?,
+                },
+                args.apply,
+                control,
+                |r| before(snapshot(r, kind)?),
+            )?;
+            snapshot(&r, kind)
+        }
+        PolicyKind::ConfluenceAdmin => {
+            let r = store.set_confluence_admin_policy(
+                name,
+                ConfluenceAdminPolicyUpdate {
                     target,
                     expected_actor,
                     enabled,
