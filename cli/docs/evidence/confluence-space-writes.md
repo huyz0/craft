@@ -27,6 +27,8 @@ The full Confluence host binary passed 58 cases before these additions with `--t
 
 After merging main (Jira attachment upload/delete) into this work, `tools/verify.py` selected the full scope. Tooling, contracts, provider routes, skill checks, format and both Clippy modes passed. Under machine load, three `craft-runtime` profile-listing tests and 25 runtime library tests hit their 5-second invocation deadlines, and one long ticket-application host case did the same. Rerun with lower parallelism once the load dropped, all of them passed: runtime library 152 passed with `--test-threads=2`, profiles 11 passed in 1.9 s, and the host case passed on its own. The rest of the workspace tests passed, the Confluence host passed 63 of 64 with `--test-threads=4` (the remaining case passed on its own), the eight Jira hosts passed all 162 cases, and synthetic-acceptance isolation passed.
 
+After space create and the foundation merge, `tools/verify.py` passed tooling, contracts, dependencies, both Clippy modes and workspace tests. The dependency check first failed only because Git had checked out `Cargo.lock` and two manifests with CRLF endings; the LF content matched the inventory. Under default parallelism, 13 review-verification host cases hit their invocation deadline. With `--test-threads=4`, all nine composed hosts passed (Confluence 65, Jira 162), the runtime library passed 162 with `--test-threads=2`, and synthetic-acceptance isolation passed.
+
 ## Live test site
 
 Through the production host with the CraftTest service profile, in the onboarding space, on `craft-test` pages that cleanup trashed and purged:
