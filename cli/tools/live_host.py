@@ -335,10 +335,13 @@ def lifecycle(state_root, project, issue_type, actor):
                         "outward_issue_id": second}
             linked = step("jira.link.create", write("jira.link.create", {
                 "operation_id": f"craft-test-{stamp}-link", "project_id": project, **relation, "apply": True}))
-            link = (linked.get("data") or {}).get("link_id")
+            # Jira's create response carries no link ID, so the link is found from the issue's links.
+            listed = step("jira.link.list", run(state_root, "jira-test", "jira.link.list", {"issue_id": first, "limit": 20}))
+            rows = (listed.get("data") or {}).get("items") or []
+            link = next((r.get("id") for r in rows if second in json.dumps(r)), None)
+            report.append(f"  link create relation_confirmed={(linked.get('data') or {}).get('relation_confirmed')} listed={link}")
             if link:
                 step("jira.link.get", run(state_root, "jira-test", "jira.link.get", {"link_id": link}))
-                step("jira.link.list", run(state_root, "jira-test", "jira.link.list", {"issue_id": first, "limit": 20}))
                 step("jira.link.delete", write("jira.link.delete", {
                     "operation_id": f"craft-test-{stamp}-link-delete", "project_id": project, "link_id": link,
                     "expected": relation, "apply": True}))

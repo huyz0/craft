@@ -34,7 +34,7 @@ Composed host over owned TLS, `cargo test -p craft-cli --test jira_issue_reads_h
 
 ## Live checks
 
-Not yet run; see the section added when the site owner approves the run.
+Run on **14 November 2026** after the site owner's written approval, through the built executable with the `CraftTest` service account (`tools/live_host.py lifecycle`). On a fresh `craft-test` issue: upload of a 36-byte text file was acknowledged with filename and size verified; list showed exactly the uploaded ID; get reported 36 bytes and `text/plain`; download produced bytes whose SHA-256 equalled the uploaded snapshot digest; delete with own intent and the observed `metadata_revision` returned 204 and confirmed; a follow-up list was empty; the issue was then deleted. Two runs passed identically. No mock divergence was found: the live context reads (issue with `project,attachment`, attachment metadata, my-permissions) and the 204 response matched the fixtures' shapes.
 
 ## Limits
 

@@ -16,32 +16,44 @@ Columns: **Fixture** names the composed-host suite under `crates/craft-cli/tests
 | `jira.metadata.edit` | read | jira_issue_context_host | pass | pass |
 | `jira.transition.list` | read | jira_issue_context_host | pass | pass |
 | `jira.permission.check` | read | jira_permissions_host | pass | pass |
-| `jira.comment.get` | read | jira_issue_reads_host/comments | pass | see lifecycle |
+| `jira.comment.get` | read | jira_issue_reads_host/comments | pass | pass |
 | `jira.comment.list` | read | jira_issue_reads_host/comments | pass | pass |
-| `jira.link.get` | read | jira_create_host/link_reads | pass | see lifecycle |
+| `jira.link.get` | read | jira_create_host/link_reads | pass | pass |
 | `jira.link.list` | read | jira_create_host/link_reads | pass | pass |
 | `jira.link.types` | read | jira_create_host/link_reads | pass | pass |
-| `jira.attachment.get` | read | jira_issue_reads_host/attachments | pass | see lifecycle |
+| `jira.attachment.get` | read | jira_issue_reads_host/attachments | pass | pass |
 | `jira.attachment.list` | read | jira_issue_reads_host/attachments | pass | pass |
 | `jira.attachment.settings` | read | jira_issue_reads_host/attachments | pass | pass |
-| `jira.attachment.download` | read | jira_issue_reads_host/downloads | not run | see lifecycle |
+| `jira.attachment.download` | read | jira_issue_reads_host/downloads | not run | pass |
 | `jira.issue.create` | write | jira_create_host | not run | pass after fix |
 | `jira.issue.update` | write | jira_issue_mutation_host | confirmed | pass |
 | `jira.transition.apply` | write | jira_issue_mutation_host | not run | pass |
-| `jira.issue.assign` | write | jira_issue_mutation_host/actions | confirmed | see lifecycle |
-| `jira.issue.unassign` | write | jira_issue_mutation_host/actions | confirmed | see lifecycle |
+| `jira.issue.assign` | write | jira_issue_mutation_host/actions | confirmed | pass |
+| `jira.issue.unassign` | write | jira_issue_mutation_host/actions | confirmed | pass |
 | `jira.issue.delete` | permanent | jira_issue_mutation_host | confirmed | pass |
-| `jira.comment.create` | write | jira_create_host/comment_writes | confirmed | see lifecycle |
-| `jira.comment.update` | write | jira_create_host/comment_writes | confirmed | see lifecycle |
-| `jira.comment.delete` | permanent | jira_create_host/comment_writes | confirmed | see lifecycle |
-| `jira.link.create` | write | jira_create_host/links, link_lifecycle | confirmed | see lifecycle |
-| `jira.link.delete` | permanent | jira_create_host/link_lifecycle | confirmed | see lifecycle |
+| `jira.comment.create` | write | jira_create_host/comment_writes | confirmed | pass |
+| `jira.comment.update` | write | jira_create_host/comment_writes | confirmed | pass |
+| `jira.comment.delete` | permanent | jira_create_host/comment_writes | confirmed | pass |
+| `jira.link.create` | write | jira_create_host/links, link_lifecycle | confirmed | pass |
+| `jira.link.delete` | permanent | jira_create_host/link_lifecycle | confirmed | pass |
 | `jira.link.reconcile` | read | jira_create_host/link_lifecycle | not run | not run |
-| `jira.attachment.upload` | write | jira_issue_reads_host/uploads | not run | see lifecycle |
-| `jira.attachment.delete` | permanent | jira_issue_reads_host/deletes | not run | see lifecycle |
+| `jira.attachment.upload` | write | jira_issue_reads_host/uploads | not run | pass |
+| `jira.attachment.delete` | permanent | jira_issue_reads_host/deletes | not run | pass |
 | `operation.reconcile` | read | jira_issue_mutation_host/recovery, jira_create_host/recovery | not run | not run |
 
 Every write's fixture suite covers, at minimum: refusal before any request for missing apply, profile, policy or output budget; policy and scope rechecks around the claim; one journaled send with no automatic retry; a lost or unqualified response recorded as `sent_unknown`; and a rerun of the same operation ID refusing without another send. Response envelopes are validated against the published response schema in the host suites. The latest local results for this source: `cargo test --workspace` passed with no failures; the eight Jira composed hosts passed (77, 9, 7, 15, 30, 6, 8 and 10 cases); runtime synthetic-acceptance passed 152 (3 native opt-ins ignored); both Clippy modes, `cargo fmt --check`, `tools/contracts.py check`, `tools/plan.py check`, `tools/providers.py check` and `tools/runtime_skill.py check` passed. The Confluence composed host was not rerun; Windows Application Control still blocks it (see `STATE.md`).
+
+## Host lifecycle run
+
+Run on **14 November 2026** after the site owner approved it in writing in the project thread. `python tools/live_host.py lifecycle --project <id> --issue-type <id>` created two `craft-test lifecycle` issues and one `craft-test attachments` issue through the built executable, then:
+
+- comment create, get, update (own) and delete (own) on the first issue: all confirmed;
+- link types, link create (Blocks, first to second), link list, link get and link delete: all confirmed. Jira's create response carries no link ID, so the host reports `relation_confirmed` and the ID comes from the following list;
+- assign the second issue to the service account and unassign it: both confirmed;
+- upload a 36-byte text file, list, get, download and delete it: upload acknowledged with filename and size verified, the snapshot digest matched the source, get reported the same size and media type, the downloaded bytes had the uploaded SHA-256, delete confirmed and the follow-up list was empty;
+- all three issues deleted. A JQL search for `craft-test` in the project afterwards returned nothing.
+
+The first attempt's link step stopped after create because the script expected a link ID in the create response; the fix was in the script, not the CLI. No provider divergence was found.
 
 ## Effective actor and permissions
 
