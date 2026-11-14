@@ -277,7 +277,7 @@ fn invoke(context: &mut dyn OperationContext, call: &NativeCall) -> Result<Value
             if status == 404 {
                 "Issue is absent or not visible; this response does not establish absence."
             } else {
-                "Issue read failed; no automatic retry was performed."
+                "Issue read failed; no further automatic retry is made."
             },
         );
         error.details.write_state = RequestState::Failed;

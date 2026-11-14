@@ -282,7 +282,7 @@ fn unknown_edit_investigation_is_read_only_and_preserves_concurrent_and_cache_ev
                 }
                 replies.push(match mode {
                     "404" => Reply::json(404, b"private-provider-text", &[]),
-                    "rate" => Reply::json(429, b"private-provider-text", &[("Retry-After", "7")]),
+                    "rate" => Reply::json(429, b"private-provider-text", &[("Retry-After", "60")]),
                     _ => reply(observed)?,
                 });
             }

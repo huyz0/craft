@@ -302,7 +302,7 @@ fn read(
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::RemoteUnavailable,
             },
-            "Link metadata could not be qualified; no automatic retry was performed.",
+            "Link metadata could not be qualified; no further automatic retry is made.",
         ));
     }
     if serde_json::to_vec(&response.body)

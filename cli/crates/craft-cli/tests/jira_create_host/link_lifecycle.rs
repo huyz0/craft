@@ -243,7 +243,7 @@ fn recovery_case(mode: &str) -> TestResult {
         if mode != "not_observed" {
             replies.push(match mode {
                 "absent" => Reply::json(404, b"{}", &[]),
-                "rate" => Reply::json(429, b"{}", &[("Retry-After", "7")]),
+                "rate" => Reply::json(429, b"{}", &[("Retry-After", "60")]),
                 "changed" => {
                     let mut row = link("90000");
                     row["type"]["outward"] = json!("changed");

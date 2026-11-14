@@ -133,7 +133,7 @@ impl<'a> PreparedHttpDownload<'a> {
             expected_digest,
         })
     }
-    /// One exchange and at most one finish. A storage failure never triggers another GET.
+    /// Bounded pre-body attempts and at most one finish. A storage failure never triggers another GET.
     pub fn receive(
         self,
         store: &dyn ArtifactStore,
@@ -153,7 +153,7 @@ impl<'a> PreparedHttpDownload<'a> {
             self.context.control.check()?;
             check()?;
             let digest=self.context.runtime.block_on(async {
-                let transfer=stream(&self.context.client,self.request,self.spec.max_bytes,writer.as_mut(),&self.context.control,&check,&mut outcome);
+                let transfer=stream(&self.context.client,self.request,self.context.retry,self.spec.max_bytes,writer.as_mut(),&self.context.control,&check,&mut outcome);
                 tokio::pin!(transfer);
                 loop {tokio::select! {
                     biased;
@@ -205,14 +205,16 @@ impl<'a> PreparedHttpDownload<'a> {
             error.retryable=false;
             // This exchange is read-only; local publication uncertainty has its own field.
             error.details.write_state=RequestState::NotSent;
-            error.next_action="Retain the artifact identity and local publication state; no automatic transfer retry was performed.".into();error
+            error.next_action="Retain the artifact identity and local publication state; a safe read is retried only before streaming begins, and no transfer was repeated after that.".into();error
         });
         outcome
     }
 }
+#[allow(clippy::too_many_arguments)]
 async fn stream(
     client: &Client,
     request: Request,
+    retry: Option<ReadRetry>,
     maximum: u64,
     writer: &mut dyn ArtifactWriter,
     control: &InvocationControl,
@@ -221,7 +223,7 @@ async fn stream(
 ) -> Result<String, CraftError> {
     control.check()?;
     check()?;
-    let mut response = client.execute(request).await.map_err(network_error)?;
+    let mut response = send_before_body(client, request, retry, control, check).await?;
     let status = response.status().as_u16();
     outcome.http_status = Some(status);
     outcome.provider_request_id = ["atl-traceid", "x-arequestid", "x-request-id"]
@@ -369,4 +371,42 @@ async fn stream(
     control.check()?;
     check()?;
     Ok(digest_text(digest))
+}
+
+/// Repeats a safe binary read only before the artifact writer has received any byte: on a
+/// retryable status or a connection dropped after the request was written. The caller's deadline and
+/// local checks still bound every wait and attempt.
+async fn send_before_body(
+    client: &Client,
+    request: Request,
+    retry: Option<ReadRetry>,
+    control: &InvocationControl,
+    check: &dyn Fn() -> Result<(), CraftError>,
+) -> Result<reqwest::Response, CraftError> {
+    let Some(policy) = retry else {
+        return client.execute(request).await.map_err(network_error);
+    };
+    let mut sent = 0u8;
+    loop {
+        control.check()?;
+        check()?;
+        let attempt = request.try_clone().ok_or_else(internal)?;
+        sent = sent.saturating_add(1);
+        let (advice, outcome) = match client.execute(attempt).await {
+            Ok(response) if ReadRetry::retryable_status(response.status().as_u16()) => (
+                retry_after(response.headers().get(RETRY_AFTER)),
+                Ok(response),
+            ),
+            Ok(response) => return Ok(response),
+            Err(error) if error.is_timeout() || error.is_connect() => {
+                return Err(network_error(error));
+            }
+            Err(error) => (None, Err(network_error(error))),
+        };
+        let Some(wait) = policy.wait(sent, advice, control) else {
+            return outcome;
+        };
+        drop(outcome);
+        tokio::time::sleep(wait).await;
+    }
 }

@@ -129,7 +129,7 @@ pub fn read_types(
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::RemoteUnavailable,
             },
-            "Jira link-type read failed; no automatic retry was performed.",
+            "Jira link-type read failed; no further automatic retry is made.",
         ));
     }
     if serde_json::to_vec(&response.body)

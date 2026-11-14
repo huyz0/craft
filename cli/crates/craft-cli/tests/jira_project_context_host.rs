@@ -816,6 +816,10 @@ fn scope_actor_http_and_response_failures_preserve_independent_cache_evidence() 
                 _ => reply(json!({"id":"other","key":"ED"}))?,
             });
         }
+        if mode == "disconnect" {
+            // A dropped connection is a retryable safe-read failure: three bounded attempts.
+            replies.extend([Reply::Disconnect, Reply::Disconnect]);
+        }
         let product = TlsServer::start(Reply::Sequence(replies))?;
         let clock = Arc::new(ManualClock::new(1000));
         let fixture = setup.fixture(&issuer, &product, clock.clone())?;
@@ -868,10 +872,10 @@ fn scope_actor_http_and_response_failures_preserve_independent_cache_evidence() 
         }
         assert_eq!(
             product.finish()?.len(),
-            if matches!(mode, "scope" | "actor") {
-                2
-            } else {
-                3
+            match mode {
+                "scope" | "actor" => 2,
+                "disconnect" => 5,
+                _ => 3,
             }
         );
         assert_eq!(issuer.finish()?.len(), 2);

@@ -68,4 +68,10 @@ impl InvocationControl {
     pub fn check(&self) -> Result<(), CraftError> {
         self.remaining().map(|_| ())
     }
+
+    /// Wall time from the invocation's own clock, used to interpret absolute provider advice.
+    /// Deadlines stay monotonic; wall time never extends them.
+    pub fn unix_millis(&self) -> u64 {
+        self.clock.unix_millis()
+    }
 }

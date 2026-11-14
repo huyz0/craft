@@ -335,7 +335,7 @@ pub fn read_context(
                 429 => ErrorCode::RateLimited,
                 _ => ErrorCode::RemoteUnavailable,
             },
-            "Permission read failed; no permission or resource absence was inferred and no automatic retry was performed.",
+            "Permission read failed; no permission or resource absence was inferred and no further automatic retry is made.",
         );
         error.details.write_state = craft_core::contracts::RequestState::Failed;
         return Err(error);

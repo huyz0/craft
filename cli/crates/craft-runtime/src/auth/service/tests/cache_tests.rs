@@ -524,3 +524,65 @@ fn provisioning_preflight_runs_after_proof_and_refuses_writes_or_stale_activatio
     }
     Ok(())
 }
+
+#[test]
+fn rejected_cached_token_is_reacquired_once_and_a_second_rejection_is_final()
+-> Result<(), Box<dyn std::error::Error>> {
+    let ok: &[u8] = br#"{"accountId":"actor-one","active":true,"type":"known"}"#;
+    for second_rejected in [false, true] {
+        let fixture = Fixture::new()?;
+        let token = serde_json::to_vec(&valid())?;
+        let issuer = TlsServer::start(Reply::Sequence(vec![
+            Reply::json(200, &token, &[]),
+            Reply::json(200, &token, &[]),
+        ]))?;
+        let mut replies = vec![
+            Reply::json(200, ok, &[]),
+            Reply::json(200, ok, &[]),
+            Reply::json(401, b"", &[]),
+        ];
+        if second_rejected {
+            replies.push(Reply::json(401, b"", &[]));
+        } else {
+            replies.extend([Reply::json(200, ok, &[]), Reply::json(200, ok, &[])]);
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let clock = Arc::new(ManualClock::new(1_000));
+        let mut client = client(&issuer, clock, CancellationToken::default(), 10_000)?;
+        trust(&mut client, &[&issuer, &product])?;
+        api(&mut client, &product)?;
+        let locked = fixture.lock(&grant())?;
+        let original = client
+            .provision_grant(
+                &locked,
+                credentials()?,
+                &[tenant("jira"), tenant("confluence")],
+                Some("actor-one"),
+            )?
+            .generation
+            .version;
+        let opened = client.open_service_session(&locked, &tenant("jira"));
+        if second_rejected {
+            let failure = opened.err().ok_or("Expected a final rejection")?;
+            assert_eq!(failure.error.code, ErrorCode::AuthRequired);
+            assert!(failure.credential_update.is_none());
+            assert_eq!(locked.read()?.version, original);
+            no_leaks(&failure)?;
+            assert_eq!(product.finish()?.len(), 4);
+        } else {
+            let session = opened?;
+            let update = session.cache_update.ok_or("Expected one activation")?;
+            assert_ne!(update.version, original);
+            assert_eq!(locked.read()?.version, update.version);
+            assert_eq!(session.identity.actor(), "actor-one");
+            // Both provisioned products are verified with the new token before activation.
+            assert_eq!(product.finish()?.len(), 5);
+        }
+        assert_eq!(
+            issuer.finish()?.len(),
+            2,
+            "second_rejected={second_rejected}"
+        );
+    }
+    Ok(())
+}

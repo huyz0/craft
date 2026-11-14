@@ -749,7 +749,8 @@ fn policy_revocation_bad_scope_and_native_refusal_preserve_renewal_without_retur
                     raw["body"]["storage"]["value"] = json!("x".repeat(10000));
                 }
                 replies.push(if mode == "rate" {
-                    Reply::json(429, b"private-sentinel", &[("Retry-After", "7")])
+                    // Advice above the 30 s retry cap is returned rather than waited on.
+                    Reply::json(429, b"private-sentinel", &[("Retry-After", "60")])
                 } else {
                     reply(raw)?
                 });

@@ -14,6 +14,7 @@ use super::*;
 use crate::control::SystemClock;
 
 mod repeated_queries;
+mod retries;
 
 #[test]
 fn empty_created_response_preserves_status_without_relaxing_json_entity_checks()
@@ -724,7 +725,6 @@ fn malformed_oversized_and_chunked_bodies_are_rejected_without_remote_text()
         Reply::json(200, large.as_bytes(), &[]),
         Reply::Raw(chunked.into_bytes()),
         Reply::Raw(b"HTTP/1.1 200 Fixture\r\nContent-Type: text/html\r\nContent-Length: 16\r\nConnection: close\r\n\r\nprivate-sentinel".to_vec()),
-        Reply::Disconnect,
     ] {
         let server = TlsServer::start(reply)?;
         let mut host = context(&server, TlsPolicy::AdditionalCaBundle(server.root()), control(2_000)?)?;

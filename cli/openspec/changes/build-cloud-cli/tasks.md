@@ -342,7 +342,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Depends on:** broker-protocol, fixture-testkit, dependency-baseline
 
-**Build:** Build a separately configured Rust service with organization auth, transaction TTL/single redemption, server-side app-secret access, callback checks, redacted telemetry and token-handoff cleanup. Deployment remains separately authorized.
+**Build:** Build a separately configured Rust service with organization auth, transaction TTL/single redemption, server-side app-secret access, callback checks, redacted telemetry and token-handoff cleanup. Add the broker origin to the CLI's trusted host allowlist under the existing typed-route and credential-attachment rules. Deployment remains separately authorized.
 
 **Verify:** Service integration tests cover concurrent redemption, invalid state/proof, expiry, logging/proxy redaction and interrupted handoff.
 
@@ -416,7 +416,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Depends on:** operation-registry, profile-resolution, fixture-testkit
 
-**Build:** Implement allowlisted provider/broker host templates, typed route components, TLS/enterprise CA policy and auth attachment through host-owned ports. Normalize next links within provider/tenant context.
+**Build:** Implement allowlisted provider host templates, typed route components, TLS/enterprise CA policy and auth attachment through host-owned ports. Normalize next links within provider/tenant context. Broker origins join the same allowlist when `broker-service` defines them; until then no broker origin exists to route to.
 
 **Verify:** Test query/fragment/encoded-ID abuse, cross-host redirects, malicious next links and wrong cloud IDs; inspect credential headers and URL logs.
 
@@ -426,7 +426,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### retry-deadlines
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Bound retries, rate limits and cancellation by operation semantics.
 
@@ -440,7 +440,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Write retries require declared safe semantics; deadlines bound the whole invocation rather than resetting on each packet.
 
-**Evidence:** none
+**Evidence:** docs/evidence/retry-deadlines.md
 
 ### artifact-store
 

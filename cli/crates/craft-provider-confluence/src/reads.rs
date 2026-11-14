@@ -26,7 +26,7 @@ fn invoke(context: &mut dyn OperationContext, call: &NativeCall) -> Result<Value
             if status == 404 {
                 "Confluence resource is absent or not visible; absence was not established."
             } else {
-                "Confluence read failed; no automatic retry was performed."
+                "Confluence read failed; no further automatic retry is made."
             },
         ));
     }
