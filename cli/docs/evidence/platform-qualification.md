@@ -34,6 +34,10 @@ Windows: 1,178 tests passed, none failed, twelve opt-ins ignored. Linux: every s
 
 Two Linux-only setup mistakes in the first container attempt were not product defects and are recorded so they are not mistaken for passes: a read-only source mount (tests write fixtures under `cli/target`), and a copy that kept the Windows mount's 0777 directory modes, which the private-state checks correctly refused.
 
+## Rerun with `operation list` and `operation preview`
+
+After the two new commands, the Windows full gate passed 1,182 tests (13 opt-ins ignored) and the Linux run passed 1,397 tests (12 ignored), with Clippy clean in both feature modes and all three native opt-ins passing against the real Secret Service. On Linux every suite now runs with four test threads; at default parallelism the container's fsync load pushes profile-selection cases past their 5 s deadlines. The first Windows run caught a discovery test that counts public commands; it now lists both new commands.
+
 ## Not covered
 
 macOS: the Keychain adapter compiles only on macOS and was neither built nor run here. Windows unavailable logon sessions, OS restart and power loss, and other Linux Secret Service providers (KWallet, KeePassXC) are not exercised.
