@@ -52,5 +52,22 @@ fn live_cleanup_craft_test_items() -> Result<(), Box<dyn std::error::Error>> {
         )?;
         eprintln!("page {id} -> {} {}", trash.status, purge.status);
     }
+    // Pages the CLI already moved to the trash no longer appear in CQL search; purge them too.
+    let trashed = live.get("/wiki/api/v2/pages?status=trashed&limit=250")?;
+    for page in trashed.body["results"].as_array().into_iter().flatten() {
+        let title = page["title"].as_str().unwrap_or_default();
+        let Some(id) = page["id"].as_str() else {
+            continue;
+        };
+        if !title.starts_with("craft-test") {
+            continue;
+        }
+        let purge = live.raw(
+            HttpMethod::Delete,
+            &format!("/wiki/api/v2/pages/{id}?purge=true"),
+            Body::None,
+        )?;
+        eprintln!("trashed page {id} -> {}", purge.status);
+    }
     Ok(())
 }

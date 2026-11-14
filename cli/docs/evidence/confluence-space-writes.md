@@ -35,6 +35,13 @@ Through the production host with the CraftTest service profile, in the onboardin
 | --- | --- |
 | `confluence.page.update` (title and storage body, explicit policy) | confirmed version 1 to 2; receipt shows the policy and `editor_draft_preservation_verified: false` |
 | `confluence.page.update` with the stale revision | `VERSION_CONFLICT`, nothing sent |
-| `confluence.content-state.get` | pass (`read:content-details:confluence`) |
+| `confluence.content-state.get`, `available` | pass; the onboarding space offers four suggested states and no custom states |
+| `confluence.content-state.set`, `clear` | confirmed in three of four runs. The first run returned 200 but stayed `sent_unknown`: the response did not show the selected badge, and a follow-up get showed it set. This did not recur |
+| `confluence.comment.create` (top-level and reply), `update`, `delete` | confirmed; deleting with the pre-edit revision was refused `VERSION_CONFLICT` before any send |
+| `confluence.attachment.list`, `get` | pass on a `craft-test.txt` fixture uploaded with the account token (`tests/live_fixture.rs`) |
+| `confluence.attachment.trash` | a wrong file ID was refused `VERSION_CONFLICT`; the matching revision confirmed and the attachment left the current list |
+| `confluence.page.trash` | confirmed after re-reading the revision; a revision taken before a badge change was refused, because setting a badge publishes a new page version |
 
-Not yet live: page trash, comment writes, badge set/clear/available and attachment reads/trash. They need a credential with `delete:page`, `write:comment`, `delete:comment`, `write:content`, `read:attachment` and `delete:attachment` (all `:confluence`). `tools/live_host.py page --space <id> --comments --badges --attachments --trash` runs them once that credential is provisioned. Editor-draft interaction with another person's open draft is not live-tested.
+These ran with CraftTest credential `craft-granular-4` (the earlier ten scopes plus `delete:page`, `read/write/delete:attachment`, `write/delete:comment`, `write:content` and `write:space`, all `:confluence`). `tests/live_cleanup.rs` now also purges `craft-test` pages that the CLI already moved to the trash. After cleanup, no `craft-test` pages remain current or trashed.
+
+Editor-draft interaction with another person's open draft is not live-tested. Space create and attachment upload are not implemented.
