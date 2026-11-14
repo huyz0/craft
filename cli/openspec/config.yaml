@@ -1,0 +1,17 @@
+schema: spec-driven
+context: |
+  Craft is a Rust agent-facing cloud CLI in cli/, initially Jira and Confluence.
+  From the cli/ project root, read AGENTS.md and the selected task, not all background documents.
+  The runtime is not implemented. Preserve explicit proposed versus observed status.
+  Planning labels stay in planning records, never code, comments, tests or product output.
+  Comments explain actual behavior, design intent, invariants or non-obvious tradeoffs.
+  Apply docs/coding-standard.md from the project root; comments are not progress notes or restatements of obvious code.
+rules:
+  proposal:
+    - State the user outcome, scope, authority and non-goals.
+  specs:
+    - Use named requirements with observable WHEN/THEN scenarios, including failure behavior.
+  design:
+    - Define Rust module boundaries, extension contracts and recovery semantics.
+  tasks:
+    - Give each task a goal, spec reference, dependencies, outputs and observable completion evidence.

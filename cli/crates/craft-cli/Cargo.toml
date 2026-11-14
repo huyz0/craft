@@ -1,0 +1,70 @@
+[package]
+name = "craft-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+synthetic-acceptance = ["craft-runtime/synthetic-acceptance"]
+
+[[test]]
+name = "jira_create_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_project_list_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_issue_reads_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_project_context_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_field_reads_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_issue_context_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_permissions_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "jira_issue_mutation_host"
+required-features = ["synthetic-acceptance"]
+
+[[test]]
+name = "confluence_context_host"
+required-features = ["synthetic-acceptance"]
+
+[[bin]]
+name = "craft"
+path = "src/main.rs"
+
+[dependencies]
+craft-core = { path = "../craft-core" }
+craft-runtime = { path = "../craft-runtime" }
+craft-platform = { path = "../craft-platform" }
+craft-workflows = { path = "../craft-workflows" }
+craft-provider-jira = { path = "../craft-provider-jira" }
+craft-provider-confluence = { path = "../craft-provider-confluence" }
+clap.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+schemars.workspace = true
+
+[dev-dependencies]
+craft-test-support = { path = "../craft-test-support" }
+jsonschema.workspace = true
+rustls.workspace = true
+rcgen.workspace = true
+
+[lints]
+workspace = true

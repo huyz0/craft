@@ -1,0 +1,30 @@
+# Jira field discovery acceptance
+
+Date: **10 November 2026**, Australia/Sydney. Internal provider/host qualification on Windows, Rust 1.99.1. No live tenant or public cloud operation was enabled.
+
+## Scope
+
+The [contract](../jira-field-reads.md) covers separate field list/search views, selected inert metadata, typed filters, exact site-link normalization and service/cursor/output composition. Source: provider `fields/`, CLI `field_reads.rs`, runtime `transport/{mod,routing}.rs`. Acceptance lives in provider `tests/fields.rs`, CLI `tests/jira_field_reads_host.rs`, CLI preparation tests and runtime field-site tests. The capability scenarios and design were recorded before implementation.
+
+## Focused checks
+
+- Eight provider tests pass. They compare native paths/scopes/array/order declarations with the pinned API, validate generated response schemas for every selectable field, and exercise strict preparation, missing/null/selected metadata, inert configuration, derived expansions, advertised clamping/offsets, ambiguous/malformed pages, identity filters, duplicate records, capacity, selected type failures, errors and operation/field-plan binding.
+- One CLI preparation test passes for both views across target/grant/actor, input, fields, site and complete-recovery-budget refusals.
+- One runtime site-parser test passes. Exact array filters survive field-site links, requests retain the Cloud-ID gateway, and foreign paths/origins, malformed encoding, duplicate offsets, filter drift and altered declarations fail. The project-site parser still refuses field search.
+- Eight composed tests pass using actual service acquisition/cache verification, private state and owned TLS servers. They cover terminal-list buffering across reopen, multi-page search and repeated wire filters, selected expansions, current scope/actor/policy denial, cache renewal receipts, denied/malformed/disconnected/foreign-link responses, complete-item recovery, mismatched cursors before auth, request-observed deadlines without retry, and policy changes triggered by final clock/cursor work on native and buffered output. Public response schemas, exact request counts, bearer destinations, output bounds and default-projection sentinel scans are checked.
+
+Logs: `target/jira-fields-provider-focused.log` retains initial test compilation errors (missing direct test dependency, JSON ordering comparison and typed preconditions). They were corrected; `target/jira-fields-provider-corrected.log` and `target/jira-fields-focused.log` retain provider passes, including the later exact ID-filter guard. `target/jira-fields-composed-focused.log` retains the first five passes/two failures: the test scanner attempted to read a held credential lock. Releasing the owned guard before scanning fixed the fixture; `target/jira-fields-composed-corrected.log` records eight passes, also including the added deadline case. Initial focused Clippy found the preparation test module before production items; the module was moved without a lint suppression.
+
+The provider adds the already-pinned `jsonschema` as a dev dependency for independent response-schema checks. The CLI adds one explicit synthetic-only integration target and the full gate includes it. The lock and source inventory were refreshed after inspection: no package/version/source/checksum changed; only the provider's dev edge and the two manifest hashes changed. `target/jira-fields-dependency-review.json` records that review. Native persistence/schema and public contract snapshots are unchanged.
+
+## Workspace checkpoint
+
+`python tools/verify.py` passed in `target/jira-fields-gate.log`: **406 default passes**, **42 composed-host passes** and **123 feature-runtime passes**. This is **450 distinct passing Rust tests**, zero failures, and **571 reported passing executions**, with 121 repeated runtime executions. Five distinct opt-ins remained ignored (eight occurrences). Counts independently extracted from result lines and normalized suite/test identities are in `target/jira-fields-test-counts.json`. Formatting, both all-target Clippy modes, public parser/schema snapshots and negative controls, dependency/layer/provider checks, planning and synthetic-feature isolation passed. The corrected focused Clippy pass is also retained in `target/jira-fields-clippy-corrected.log`; incremental hard-link fallback warnings did not prevent compilation or lint checks.
+
+`cargo build --workspace --locked --offline --no-default-features` passed after fixture testing in `target/jira-fields-default-build.log`. Default development binary SHA-256: `ffb6031d43e7fc786aa353334a772d1d003d9d7da9c73c0501f92b34942fc084`. Public schema SHA-256 remains `16a4ccb1d0f054a6d862d4d55a9bb66334db42abb4d7015012d1bf0de8b2dc54`. Actual discovery in `target/jira-fields-discovery.json` shows twenty local operations, no cloud provider, and refused field schema/parser lookup. No package version/source/checksum changed; lock/inventory changes record the reviewed dev dependency. Native persistence/schema implementation and existing issue/project policy remain unchanged from the [previous checkpoint](repeated-query-transport.md). Native opt-ins were not rerun.
+
+Source/document hashes and final checks are recorded in `target/jira-fields-checkpoint-hashes.json` and `target/jira-fields-checkpoint-validation.json`. The broader Jira-context/auth tasks remain unchecked; this evidence qualifies internal field composition only.
+
+## Remaining qualification
+
+Field-specific persisted permissions, typed command candidates and public activation remain unfinished. Existing Jira issue/project authority was not widened; earlier [project-context](project-context-command.md) and [issue-read](issue-read-command.md) evidence retains its scope. No native-vault opt-in, live provider, other-platform acceptance, independent consequential review, distribution or deployment was exercised. Buffered catalog completion is not global completeness or context-specific issue-write authority. The full CLI goal and broader Jira-context task remain active.

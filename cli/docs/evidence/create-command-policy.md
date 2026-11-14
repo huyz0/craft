@@ -1,0 +1,29 @@
+# Candidate create dispatch and policy acceptance
+
+Date: **10 November 2026**, Australia/Sydney. Internal candidate APIs only. No public cloud command/provider, live tenant, real credential, policy-administration command, release or publication was enabled.
+
+## Changed behavior
+
+The [contract](../create-command-policy.md) covers the typed candidate action/descriptor, local preflight, single-read hint/profile selection, exact project resolution, persisted policy and dynamic checked host. Implementation is in `issue_create/command.rs`, its skipped action in `args.rs`, complete-result dispatch in `dispatch.rs`, runtime `create_policy.rs`, and schema-three migration in `profiles.rs`. The host now accepts a trusted policy callback before cached acquisition, before prepared reads and last in the claimed-send callback. Static trusted-host callers keep their existing APIs.
+
+Private policy administration requires apply, expected revision and preflight. Reads validate installation/profile/grant/target/actor/revision against actual configured state. Missing/disabled policy has no permissive default. The schema migration adds only the policy table; existing operation records and settings format remain intact. No package, manifest, dependency lock or public schema changed.
+
+## Observed verification
+
+Three new command tests passed in `target/create-command-focused-output.log`: scalar flags and JSON agree, null/omission/literal text remain distinct, list/map fields are explicitly structured-only, unknown/wrong-type input is refused, invalid/apply/output failures do not create state, request identity survives dispatch, and profile/project context requires an exact enabled policy. Public parser and catalog refuse the candidate.
+
+Five runtime policy tests cover apply/preflight refusal, reopen, stale CAS/revocation, two competing connection writers with exactly one revision winner, invalid target/actor/mode, corrupt/mismatched/unknown/duplicate rows and schema migration preserving journal/profile/settings/preferences. A foreign policy table during schema-one upgrade rolls back intermediate operation-table creation and preserves the old version. The initial corrupt-row fixture failed with SQLite disk I/O because its raw writer did not select the pinned store's persistent journal mode; matching that mode corrected it. The corrected four-test run is retained in `target/create-policy-corrected-output.log`; the later fifth contention test ran in the full gate.
+
+One new dispatch test proves complete partial receipts, credential-update evidence, warnings, write state and original request identity survive dispatch and output. A private handler seam tests dispatch without replacing the production create implementation or exposing authenticated transport injection.
+
+The composed target now has seven tests. Its new case uses actual typed `PreparedInvocation`, private policy, cached service access, metadata, SQLite claims and completion against owned TLS servers. Success performs one POST. Changing policy after preparation stops before identity/acquisition; revocation or revision change triggered after the committed send marker performs no POST, retains unknown journal state and reports the expected policy/version refusal. Output retains the original command request ID and known created issue. Its focused run passed in `target/create-command-composed-output.log`.
+
+The first Clippy run found one collapsible conditional, corrected without suppression. Full `python tools/verify.py` passed in `target/create-command-integrated-output.log`: **304 default test passes**, **seven composed-target passes**, and **116 feature-runtime passes**, with zero failures. This is **313 distinct passing Rust tests**, or 427 passing executions because 114 runtime tests repeat across feature groups. Five distinct opt-ins remain ignored (eight occurrences). Both Clippy modes, default public contract/ten controls, 99-command/112-variant provider inventory and 24 controls, formatting, dependency/layer checks and synthetic-feature isolation passed.
+
+The full gate also reran the updated legacy schema-one migration test and public subprocess/profile/operation inspection tests. Public discovery remains twenty local operations with no cloud provider. The Windows service-cache process opt-in passed separately after the schema upgrade in `target/create-command-native-cache-output.log`, using actual owned synthetic native-vault entries and TLS servers across restart, renewal contention and logout. Other native-vault/console/vendor-schema opt-ins, live/public cloud tests and other operating systems were not rerun. That runtime-cache acceptance does not make the new command's memory-vault integration a native-vault/public CLI acceptance.
+
+`cargo build --workspace --locked --offline --no-default-features` passed in `target/create-command-default-build-output.log`, restoring the default binary after feature testing. SHA-256: `5fafb31d0a0a2b09b0757e84e8832b99c68168c8442dc7ce76653df5ba37040f`. The rebuilt binary returns an empty provider list. Source/document/default-binary hashes and checks are in `target/create-command-checkpoint-hashes.json` and `target/create-command-checkpoint-validation.json`. The [preceding composed acceptance](composed-host-acceptance.md) supplies fixture isolation and earlier success/unknown-response coverage.
+
+## Limits
+
+This qualifies internal command/policy composition, not public create or complete CRUD/reconciliation. The policy is trusted local intent, not verified live eligibility, independent human review, immutable audit history, same-principal isolation or distributed fencing. A change after the last policy read cannot retract an in-flight request. Policy administration and public auth/write enablement remain subject to consequential review and actual sandbox/public acceptance. Keep the overall CLI delivery goal active.

@@ -1,0 +1,24 @@
+# Public Jira context and policy setup
+
+11 November 2026, Windows x86_64. Public activation adds eight existing verified read hosts: project list/get/statuses, field list/search, issue edit metadata, transition list and current-user permission checks. Public command count becomes 60. No issue mutations or transition execution are activated. This is local implementation qualification, not live tenant qualification.
+
+`args.rs` enables the five read groups and keeps transition apply explicitly skipped. `public_commands.rs` registers each exact typed adapter through `VerifiedHostRequired`; generic registry execution still refuses cloud execution. Existing dispatch, service scope checks, saved actor/grant/target policies, cursor controls and final policy rechecks are unchanged. Public subprocess cases check discovery, malformed inputs before private state and continued mutation non-exposure. Candidate parser assertions now match public read availability; the local-only registry remains isolated.
+
+`policies.rs` and `policies/records.rs` add explicit Jira project-list, exact-project context and field-read kinds using unchanged native setters. Site policies require a validated explicit continuation origin. Per-project context requires the existing site actor and whole-record revision, preserving listing and sibling allowances. Full site snapshots include optional origin/context entries; the outer context target is the requested project. The actual complete snapshot is reserved before commit, including sibling permissions. This avoids advertising reads that could only be configured through internal APIs.
+
+Observed development checks and corrections:
+
+- Initial restricted local-interface run: 22 passed, one failed because Windows denied hard-link creation. Native retry is required; the test was not weakened.
+- Contract exporter produced 60 operations. Snapshot and runtime-skill compatibility are updated together after reviewing unchanged skill guidance against the new discovery surface.
+- Six focused policy tests passed, including independent reviewer execution. The initial site-policy tests exposed an overstrict trailing-slash comparison; prevalidation now accepts the safe parsed origin and lets existing setters canonicalize it. Tests retain exact canonical stored-origin assertions.
+- Added actual policy-response/schema agreement, cross-kind/origin/revision refusals, sibling/listing preservation, actor mismatch and stale-CAS checks. Final impact-selected results are recorded after qualification.
+
+Authorized independent reviewer `/root/skill_review` found no concrete bypass or unintended mutation exposure in public routing. It confirmed existing typed dispatch and native policy/actor/grant/scope checks, capability unknown states, transition-apply non-exposure, and passed both focused public discovery/refusal tests. Its follow-up reviewed the new setters against unchanged native transaction/target/origin code and passed all six focused policy tests. No needed correctness fix was found. Unknown-commit adapter coverage uses a constructed failure, not an actual lost SQLite acknowledgment.
+
+Live inventory was rechecked read-only: browser signed in, service-account screen still empty, native Craft profiles empty. Automatic approval review refused entering account creation without specific authorization. A named non-admin CraftTest account request is pending. No service account, credential, page, issue or tenant policy was created or changed. The default private state path was inspected only through authorized native execution; credentials were not read.
+
+Remaining: live service credential/actor proof, effective read permissions, shared-plan/ticket end-to-end use, page update/editor behavior, operator-directed recovery, broader CRUD/admin/attachments, broker/distributed authority, platform and distribution qualification. The Jira context ledger task remains partial because its broader acceptance and dependencies are not complete.
+
+Final `python tools/verify.py` with native loopback/filesystem access passed all ten selected checks with zero reuse and no source drift: planning, contract check/selftests, runtime-skill check/selftests, formatting, CLI tests, both Clippy modes and all nine composed hosts. The normal binary was restored using `cargo build -p craft-cli --locked --offline`. A final offline smoke observed 60 public commands, Craft version 0.1.0/contract 1.0 and continued transition-apply non-exposure. Log: `target/jira-context-verification.log`; qualified tracked-source checkpoint: `target/jira-context-qualified-source-hashes.json`; build record: `target/jira-context-build.json`.
+
+Normal binary SHA-256: `40392c9f611c47ee8eedd548a8d497a7b7ab74aafb7575f973bb080a535b8e10`. Contract snapshot SHA-256: `e6354132b19a01ce34ff42abee956f91a902c162bda6eec157c65dfed3aadfff`. This is focused qualification; no fresh full workspace/native-vault/live-provider claim is made.

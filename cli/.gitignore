@@ -1,0 +1,6 @@
+target/
+__pycache__/
+.plan-check-*/
+
+# Live conformance harness local config (site URL); never commit
+.craft-live.json

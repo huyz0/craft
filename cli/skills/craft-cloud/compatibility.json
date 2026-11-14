@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "skill_version": "0.1.0",
+  "status": "development",
+  "binary_version": "0.1.0",
+  "contract_version": "1.0",
+  "contract_snapshot_sha256": "d34e2befd8f9136772fe17172e5e1865aa603c764689665d01c55c47203bf047",
+  "providers": [
+    "confluence",
+    "jira"
+  ],
+  "hosts": {
+    "codex": "unqualified",
+    "claude-code": "unqualified"
+  },
+  "live_provider_qualification": "not_established_by_skill_validation"
+}

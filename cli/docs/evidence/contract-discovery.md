@@ -1,0 +1,13 @@
+# Local contract discovery
+
+Observed on 9 November 2026, Windows x86_64 MSVC, Rust 1.99.1. The CLI exposes only seven implemented local operations: version, command search, schema inspection, input validation, provider listing, capability scaffolding and JSON help. No cloud operation is advertised.
+
+The registry owns typed request/response schemas, projection, effect, scope alternatives, permissions, tenant conditions, retry and reconciliation metadata. Discovery uses those descriptors rather than a parallel command inventory. Schemas provide compact, full, actual-JSON-pointer fragment and validated example views, with request/response direction. Full views bundle local references; compact and fragment views explicitly state incompleteness. Selected response schemas preserve envelope/error/control variants and mandatory item identity without requiring unselected item properties. All selectable paths remain discoverable even when the default projection omits them.
+
+Schema output includes contract/provider versions, API revision and the canonical digest for caching. Local provider version is the actual workspace release version; a missing provider manifest would remain unknown rather than borrow another provider's version. Strict typed-input decoder policy is part of the request schema/digest. Capability field selection exposes effect, OR-of-AND scopes, permissions, tenant conditions and typed recovery metadata while default output remains small. Local operations explicitly mark auth/policy/tenant as not applicable and live verification as unknown.
+
+The CLI interface suite now validates actual success and failure envelopes for all seven operations against their discovered full response schemas. It also checks flag/JSON parity, selected nested schemas against real projected output, validated examples, version metadata, genuine property fragments, missing/malformed pointers and pointer/example conflicts. Wrong input/field selections remain bounded local errors. All 14 CLI interface cases and all-target Clippy passed after the final discovery additions.
+
+Native provider registration, live custom-field metadata, credentials/policy, server-side field masks, opaque paging and runtime-skill/agent evaluations retain their separate acceptance tasks. This closes local discovery scaffolding, not those capabilities.
+
+Observed final development binary SHA-256: `09bdba78de05943a3e85e06789e7f22ef9a32f9009c6bb8be302c9d8416162a9`. A direct capability selection returned `read`, empty scope/permission/tenant declarations and `local_read`/`not_applicable` recovery metadata for the implemented local version operation.

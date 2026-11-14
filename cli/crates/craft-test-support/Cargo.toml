@@ -1,0 +1,20 @@
+[package]
+name = "craft-test-support"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+craft-core = { path = "../craft-core" }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[[test]]
+name = "process_harness"
+path = "tests/process_harness.rs"
+harness = false
+
+[lints]
+workspace = true

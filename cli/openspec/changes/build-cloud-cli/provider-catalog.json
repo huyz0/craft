@@ -1,0 +1,2373 @@
+{
+  "format_version": 1,
+  "catalog": "../../../../docs/plans/cloud-cli-command-catalog.md",
+  "commands": [
+    {
+      "command": "confluence.attachment.download",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Qualify signed redirect flow; never forward provider credentials or expose signed URLs to another host."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "downloadAttatchment",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.get",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getAttachmentById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.list",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageAttachments",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.purge",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "privileged",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Require already-trashed attachment, manage/content permission and permanent-effect acknowledgment."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteAttachment",
+          "effect": "permanent",
+          "fixed_query": {
+            "purge": true
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.replace",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Filename upsert and ID-based binary replacement are distinct; uncertain writes require reconciliation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "updateAttachmentData",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {
+            "X-Atlassian-Token": "nocheck"
+          },
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.trash",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteAttachment",
+          "effect": "trash",
+          "fixed_query": {
+            "purge": false
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.update",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Filename upsert and ID-based binary replacement are distinct; uncertain writes require reconciliation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "updateAttachmentProperties",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.upload",
+      "owner_task": "confluence-attachments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Filename upsert and ID-based binary replacement are distinct; uncertain writes require reconciliation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "createAttachment",
+          "effect": "write",
+          "fixed_query": {
+            "status": "current"
+          },
+          "fixed_body": {},
+          "required_headers": {
+            "X-Atlassian-Token": "nocheck"
+          },
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.attachment.upsert",
+      "owner_task": "confluence-attachments",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Filename upsert and ID-based binary replacement are distinct; uncertain writes require reconciliation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "createOrUpdateAttachments",
+          "effect": "write",
+          "fixed_query": {
+            "status": "current"
+          },
+          "fixed_body": {},
+          "required_headers": {
+            "X-Atlassian-Token": "nocheck"
+          },
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.create",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Footer is the core kind; versioned updates preserve human content."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createFooterComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createInlineComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Explicit inline kind; anchor/resolution schema qualification required."
+          ],
+          "tier": "extended",
+          "owner_task": "confluence-inline-comments"
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.delete",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Footer is the core kind; versioned updates preserve human content."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteFooterComment",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteInlineComment",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Explicit inline kind; anchor/resolution schema qualification required."
+          ],
+          "tier": "extended",
+          "owner_task": "confluence-inline-comments"
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.get",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Footer is the core kind; versioned updates preserve human content."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getFooterCommentById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getInlineCommentById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Explicit inline kind; anchor/resolution schema qualification required."
+          ],
+          "tier": "extended",
+          "owner_task": "confluence-inline-comments"
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.list",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageFooterComments",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageInlineComments",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Explicit inline kind."
+          ],
+          "tier": "extended",
+          "owner_task": "confluence-inline-comments"
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.update",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Footer is the core kind; versioned updates preserve human content."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "updateFooterComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "updateInlineComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Explicit inline kind; anchor/resolution schema qualification required."
+          ],
+          "tier": "extended",
+          "owner_task": "confluence-inline-comments"
+        }
+      ]
+    },
+    {
+      "command": "confluence.content-state.available",
+      "owner_task": "confluence-content-state",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Content badge is display data, not review approval; validate space settings."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "getAvailableContentStates",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.content-state.clear",
+      "owner_task": "confluence-content-state",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Content badge is display data, not review approval; validate space settings."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "removeContentState",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.content-state.get",
+      "owner_task": "confluence-content-state",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Content badge is display data, not review approval; validate space settings."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "getContentState",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.content-state.set",
+      "owner_task": "confluence-content-state",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Content badge is display data, not review approval; validate space settings."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "setContentState",
+          "effect": "write",
+          "fixed_query": {
+            "status": "current"
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.label.add",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Additive, without implicit replace-all."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "addLabelsToContent",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.label.list",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageLabels",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.label.remove",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "removeLabelFromContent",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.archive",
+      "owner_task": "confluence-archive",
+      "tier": "conditional",
+      "effect": "write",
+      "recovery": "async_job",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Experimental/tenant capability must be qualified; no restore promise."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "archivePages",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.copy",
+      "owner_task": "confluence-move-copy",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Resolve explicit source/destination and tree effects; async acceptance is not completion."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "copyPage",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.copy-tree",
+      "owner_task": "confluence-move-copy",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "async_job",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Resolve explicit source/destination and tree effects; async acceptance is not completion."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "copyPageHierarchy",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.create",
+      "owner_task": "confluence-pages",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Publish a normal page for review; validate explicit body representation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createPage",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {
+            "status": "current"
+          },
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.get",
+      "owner_task": "confluence-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.list",
+      "owner_task": "confluence-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPages",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPagesInSpace",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.move",
+      "owner_task": "confluence-move-copy",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Resolve explicit source/destination and tree effects; async acceptance is not completion."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "movePage",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.purge",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "privileged",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Require already-trashed page, manage/content permission and permanent-effect acknowledgment."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deletePage",
+          "effect": "permanent",
+          "fixed_query": {
+            "purge": true,
+            "draft": false
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.search",
+      "owner_task": "confluence-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "searchByCQL",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.trash",
+      "owner_task": "confluence-pages",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deletePage",
+          "effect": "trash",
+          "fixed_query": {
+            "purge": false,
+            "draft": false
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.update",
+      "owner_task": "confluence-pages",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Require expected version and preserve supported human edits; conflict must not force overwrite."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "updatePage",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {
+            "status": "current"
+          },
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.version-get",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Version metadata is not historical body retrieval."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageVersionDetails",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.page.version-list",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Version metadata is not historical body retrieval."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageVersions",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.property.create",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Non-secret metadata only; expected version on updates."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createPageProperty",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.property.delete",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Non-secret metadata only; expected version on updates."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deletePagePropertyById",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.property.get",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Non-secret metadata only; expected version on updates."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageContentPropertiesById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.property.list",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Non-secret metadata only; expected version on updates."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getPageContentProperties",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.property.update",
+      "owner_task": "confluence-versions-labels-properties",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Non-secret metadata only; expected version on updates."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "updatePagePropertyById",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.restriction.add",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "privileged",
+      "effect": "access_change",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Page restrictions and space permissions are distinct; replacement/clear may broaden access."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "addRestrictions",
+          "effect": "access_change",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.restriction.clear",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "privileged",
+      "effect": "access_change",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Page restrictions and space permissions are distinct; replacement/clear may broaden access."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "deleteRestrictions",
+          "effect": "access_change",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.restriction.get",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Page restrictions and space permissions are distinct; replacement/clear may broaden access."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "getRestrictions",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.restriction.replace",
+      "owner_task": "confluence-restrictions-purge",
+      "tier": "privileged",
+      "effect": "access_change",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Page restrictions and space permissions are distinct; replacement/clear may broaden access."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "updateRestrictions",
+          "effect": "access_change",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.space.create",
+      "owner_task": "confluence-spaces",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Resolve RBAC versus legacy before send; never retry an unknown create on the other API generation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createSpace",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Requires RBAC tenant."
+          ]
+        },
+        {
+          "spec": "confluence-v1",
+          "operation_id": "createSpace",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Requires explicitly selected and qualified legacy tenant adapter."
+          ]
+        }
+      ]
+    },
+    {
+      "command": "confluence.space.delete",
+      "owner_task": "confluence-space-admin",
+      "tier": "privileged",
+      "effect": "permanent",
+      "recovery": "async_job",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Permanent asynchronous deletion; require acknowledgment and retain task identity."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "deleteSpace",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.space.get",
+      "owner_task": "confluence-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getSpaceById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.space.list",
+      "owner_task": "confluence-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getSpaces",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.space.update",
+      "owner_task": "confluence-space-admin",
+      "tier": "privileged",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "updateSpace",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.delete",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "removeAttachment",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.download",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Bound binary transfer; use an explicit output destination and atomic artifact receipt."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getAttachmentContent",
+          "effect": "read",
+          "fixed_query": {
+            "redirect": false
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.get",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getAttachment",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.list",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getIssue",
+          "effect": "read",
+          "fixed_query": {
+            "fields": [
+              "attachment"
+            ]
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.settings",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getAttachmentMeta",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.attachment.upload",
+      "owner_task": "jira-attachments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Validate multipart file and live tenant size limit; reconcile uncertain upload by content identity."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "addAttachment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {
+            "X-Atlassian-Token": "no-check"
+          },
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.comment.create",
+      "owner_task": "jira-comments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Preserve ADF and visibility restrictions; do not replace unknown human fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "addComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.comment.delete",
+      "owner_task": "jira-comments",
+      "tier": "core",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Preserve ADF and visibility restrictions; do not replace unknown human fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteComment",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.comment.get",
+      "owner_task": "jira-comments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Preserve ADF and visibility restrictions; do not replace unknown human fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getComment",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.comment.list",
+      "owner_task": "jira-comments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Preserve ADF and visibility restrictions; do not replace unknown human fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getComments",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.comment.update",
+      "owner_task": "jira-comments",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Preserve ADF and visibility restrictions; do not replace unknown human fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "updateComment",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.component.create",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "createComponent",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.component.delete",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteComponent",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.component.get",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getComponent",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.component.list",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getProjectComponentsPaginated",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.component.update",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "updateComponent",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.field.list",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getFields",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.field.search",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getFieldsPaginated",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.assign",
+      "owner_task": "jira-issue-writes",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Use a resolved account ID or explicit permitted unassignment."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "assignIssue",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.create",
+      "owner_task": "jira-issue-writes",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Resolve actual project and issue type; validate current required/custom fields and subtask parent."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "createIssue",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.delete",
+      "owner_task": "jira-issue-writes",
+      "tier": "core",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Explicitly qualify child deletion; never enable deleteSubtasks implicitly."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteIssue",
+          "effect": "permanent",
+          "fixed_query": {
+            "deleteSubtasks": "false"
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.get",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getIssue",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.search",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Bound fields and page size; preserve nextPageToken and recent-write visibility semantics."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "searchAndReconsileIssuesUsingJql",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "searchAndReconsileIssuesUsingJqlPost",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.issue.update",
+      "owner_task": "jira-issue-writes",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Patch only requested fields; fields.status is forbidden."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "editIssue",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.link.create",
+      "owner_task": "jira-links",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Issue linking must be enabled; resolve link type and direction."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "linkIssues",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.link.delete",
+      "owner_task": "jira-links",
+      "tier": "core",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteIssueLink",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.link.list",
+      "owner_task": "jira-links",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getIssue",
+          "effect": "read",
+          "fixed_query": {
+            "fields": [
+              "issuelinks"
+            ]
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.metadata.create",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getCreateIssueMetaIssueTypes",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "getCreateIssueMetaIssueTypeId",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.metadata.edit",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getEditIssueMeta",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.permission.check",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getMyPermissions",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "getBulkPermissions",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.archive",
+      "owner_task": "jira-project-admin",
+      "tier": "privileged",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "archiveProject",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.create",
+      "owner_task": "jira-project-admin",
+      "tier": "privileged",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "createProject",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.delete",
+      "owner_task": "jira-project-admin",
+      "tier": "privileged",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Require explicit lifecycle selection; archived projects need a separately authorized restore."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteProject",
+          "effect": "trash",
+          "fixed_query": {
+            "enableUndo": true
+          },
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteProjectAsynchronously",
+          "effect": "unresolved",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Async submission is documented; exact undo/permanent semantics remain unqualified."
+          ],
+          "unavailable_reason": "lifecycle_unqualified"
+        }
+      ]
+    },
+    {
+      "command": "jira.project.get",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getProject",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.list",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "searchProjects",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.restore",
+      "owner_task": "jira-project-admin",
+      "tier": "privileged",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "restore",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.statuses",
+      "owner_task": "jira-context",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getAllStatuses",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.project.update",
+      "owner_task": "jira-project-admin",
+      "tier": "privileged",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "updateProject",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.remote-link.create",
+      "owner_task": "jira-remote-links",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Global-ID upsert is explicit; preserve remote link identity."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "createOrUpdateRemoteIssueLink",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.remote-link.delete",
+      "owner_task": "jira-remote-links",
+      "tier": "extended",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Global-ID upsert is explicit; preserve remote link identity."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteRemoteIssueLinkById",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.remote-link.list",
+      "owner_task": "jira-remote-links",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Global-ID upsert is explicit; preserve remote link identity."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getRemoteIssueLinks",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.remote-link.update",
+      "owner_task": "jira-remote-links",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Global-ID upsert is explicit; preserve remote link identity."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "updateRemoteIssueLink",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.transition.apply",
+      "owner_task": "jira-transitions",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Choose actual transition ID and validate required transition fields."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "doTransition",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.transition.list",
+      "owner_task": "jira-transitions",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getTransitions",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.version.create",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "correlation",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "createVersion",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.version.delete",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "permanent",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority.",
+        "Replacement mappings must be explicit and target the same project."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "deleteAndReplaceVersion",
+          "effect": "permanent",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.version.get",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getVersion",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.version.list",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "getProjectVersionsPaginated",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "jira.version.update",
+      "owner_task": "jira-release-metadata",
+      "tier": "extended",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [
+        "Project administration is separate from ordinary issue-worker authority."
+      ],
+      "variants": [
+        {
+          "spec": "jira-v3",
+          "operation_id": "updateVersion",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "operation.get",
+      "owner_task": "async-operations",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Resolve a persisted bound provider handle; bounded polling is not a new resource operation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "getTask",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "getTask",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Resolve a persisted Jira provider task handle; preserve exact task identity."
+          ]
+        }
+      ]
+    },
+    {
+      "command": "operation.wait",
+      "owner_task": "async-operations",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Resolve a persisted bound provider handle; bounded polling is not a new resource operation."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v1",
+          "operation_id": "getTask",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "jira-v3",
+          "operation_id": "getTask",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [
+            "Resolve a persisted Jira provider task handle; preserve exact task identity."
+          ]
+        }
+      ]
+    },
+    {
+      "command": "confluence.comment.replies",
+      "owner_task": "confluence-comments",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [
+        "Exact current parent-page association is verified before reading children."
+      ],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getFooterCommentChildren",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        },
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getFooterCommentById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    }
+  ],
+  "deferred": [
+    {
+      "surface": "bitbucket",
+      "owners": [
+        "bitbucket-auth-spike",
+        "bitbucket-pr-client"
+      ],
+      "reason": "Provider-specific auth, scope and endpoint qualification remains required."
+    },
+    {
+      "surface": "trello",
+      "owners": [
+        "trello-auth-spike",
+        "trello-card-client"
+      ],
+      "reason": "Provider-specific OAuth/endpoint compatibility remains unqualified."
+    },
+    {
+      "surface": "custom-field-user-group-workflow-permission-scheme-administration",
+      "owners": [],
+      "reason": "Explicitly deferred by the catalog; no resource command is declared."
+    },
+    {
+      "surface": "confluence-native-draft-discard-and-space-permissions",
+      "owners": [],
+      "reason": "Separate destructive/tenant semantics remain deferred."
+    },
+    {
+      "surface": "projects-assets-artifacts",
+      "owners": [],
+      "reason": "Research candidates; not part of the current Jira/Confluence resource command catalog."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "tokenizer": "tiktoken",
+  "version": "0.12.0",
+  "files": {
+    "cl100k_base": {
+      "references/lists.md": 337,
+      "references/plan-review.md": 409,
+      "references/recovery.md": 836,
+      "references/writes.md": 227,
+      "SKILL.md": 442
+    },
+    "o200k_base": {
+      "references/lists.md": 337,
+      "references/plan-review.md": 409,
+      "references/recovery.md": 827,
+      "references/writes.md": 228,
+      "SKILL.md": 441
+    }
+  },
+  "interpretation": "Text lengths only; no Claude tokenizer or task-efficiency claim",
+  "source_sha256": {
+    "skills/craft-cloud/compatibility.json": "e3b9e259367f2fdf8f2fae2b31829ad00d7ff2c44ef66264a0d9872549cc43e4",
+    "skills/craft-cloud/references/lists.md": "9145405de91552aa8e4639d31fd37e96078b7989349bfa52da6a44319644955b",
+    "skills/craft-cloud/references/plan-review.md": "42a01e3e051eac4398d78e80b4d63b4542908fc68186c5b6754df99c836d38ca",
+    "skills/craft-cloud/references/recovery.md": "6b1e36ecda90e739dad2f0dc2814a781c102fec934cb8744c42c833f81947210",
+    "skills/craft-cloud/references/writes.md": "a50780c40e7d16af2108ab7e7546b80f95e935d7d89314228951295bd340c88f",
+    "skills/craft-cloud/SKILL.md": "e6cae8e9de806dc57a794d06b1443758f367c3f8ed79152dada7bd30aeeec5d4"
+  }
+}

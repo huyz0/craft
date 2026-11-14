@@ -1,0 +1,33 @@
+# Confluence command and profile integration evidence
+
+Date: **10 November 2026**, Australia/Sydney. Baseline: [Confluence provider and host](confluence-context.md). This connects all five reads to typed command input, normal profile selection, separate persisted authority and complete dispatch. No public cloud activation, real credential provisioning, live tenant change, publication or deployment occurred.
+
+## Implementation
+
+The native-resource scenario and design were updated before implementation. `crates/craft-runtime/src/confluence_read_policy.rs` adds one closed five-operation profile record, independent of Jira/create/recovery policy. It follows existing apply/preflight/revision-CAS, exact installation/profile/grant/site/actor and disable-before-transfer semantics. Schema ten introduces an empty table atomically. Other policy, settings, journal and credential payload formats remain unchanged.
+
+`crates/craft-cli/src/confluence_reads/command.rs` adds shared strict get arguments, space/page list filters, literal CQL, native page size, bounded output limit and opaque cursor. Pure host preflight precedes state. The selected Confluence Cloud service profile resolves the exact site; private policy supplies actor/grant and explicit operation allowance. Execution rechecks the complete captured record through the existing host. Root action and nested space/page actions are defined but skipped publicly. Dispatch validates the candidate contract and retains the complete host result, warnings, request identity and recovery output policy.
+
+Existing historical migration fixtures now remove the new table when simulating old schemas and expect schema ten after upgrade. The provider-cursor migration case also upgrades schema nine, preserving settings/profiles, local and buffered provider cursors, create policy, journal and an existing recovery policy. The new read table remains empty.
+
+## Focused checks and retained failures
+
+- `target/confluence-command-policy-red.log`: missing policy module before implementation. `target/confluence-command-policy-first.log` retains an invalid test-helper method, corrected to use the actual state opener. Five policy tests pass in `target/confluence-command-policy-qualified.log`: explicit operation authority, apply/output preflight/CAS, captured changes, actor transfer, corrupt/foreign rows without repair, shared-grant Jira isolation, atomic migration/trigger refusal and competing revision writers.
+- `target/confluence-command-candidate-red.log`: missing command module before implementation. Initial flags/JSON tests pass in `target/confluence-command-candidate-first.log`. `target/confluence-command-candidate-qualified.log` retains the profile fixture's unsupported `site` default. The fixture now uses a legitimate Confluence `space` default; no production default rules were weakened. Six focused tests pass in `target/confluence-command-candidate-final.log`, including three candidate tests, the all-command dispatch case and two existing host unit tests. Invalid local requests leave the selected state root absent.
+- `target/confluence-command-migrations.log`: the selected runtime policy/profile/cursor suites pass, including schema-nine buffered continuation and recovery-record preservation.
+- `target/confluence-command-tls-compile.log`: the composed target compiles. `target/confluence-command-tls-first.log` records five passing owned TLS tests spanning twenty-five scenarios. The six exact route and two reopen/resume cases now exercise actual typed candidates and persisted profile policy. Seven additional cases cover excluded operations, revocation before auth, otherwise allowed revision changes, revocation after identity/read/final-clock checks and revoked buffered replay. The tests observe actual row changes and retained renewal receipts; no content or continuation escapes the refused calls. The previous ten refusal/routing/I/O cases remain covered. Resource requests remain GET-only.
+- `target/confluence-command-clippy-first.log`: feature-enabled workspace all-target Clippy passes without new suppressions. Existing incremental hard-link fallback warnings remain environmental output.
+
+## Delivery boundary
+
+Public auth/policy administration, parser/catalog activation, independent consequential review and live/other-platform qualification remain unfinished. This is an internal command integration, not a claim that the public CLI can now access Confluence. Remaining link-form qualification and page create/update/publication are still required for the plan-page workflow. The broad Confluence-context task and full CLI goal remain active.
+
+## Final qualification
+
+The single full `python tools/verify.py` gate passes in `target/confluence-command-gate.log`: 558 default, 77 composed-host and 123 feature-runtime passes. Normalized identities in `target/confluence-command-test-counts.json` establish **637 distinct passing tests**, zero failures and 758 passing executions, including 121 repeats. Five distinct opt-ins remained ignored (eight occurrences). Both Clippy modes, formatting, public contracts, provider/dependency/layer checks, planning and synthetic isolation passed. All 253 captured source/toolchain/tool digests remained unchanged through qualification.
+
+Because the SQLite schema changed, the Windows native service-cache restart/contention/logout opt-in was rerun and passed on schema ten in `target/confluence-command-native-cache.log`. It uses owned synthetic credentials and does not qualify live service access or other platforms. Other unchanged native opt-ins were not rerun.
+
+The default offline build passed in `target/confluence-command-default-build.log`. Binary SHA-256 is `9cd9baa70c235615a8dcc6a124511c6bc6e4befcd3d94bc9b7215f006a45d744`. Actual execution in `target/confluence-command-discovery.json` confirms twenty local operations, no cloud provider, and unavailable parser/schema lookups for all five Confluence commands. Public schema SHA-256 remains `16a4ccb1d0f054a6d862d4d55a9bb66334db42abb4d7015012d1bf0de8b2dc54`. Manifests, lock and dependency inventory are unchanged.
+
+Selected source/document/binary hashes and documentation checks are retained in `target/confluence-command-checkpoint-hashes.json` and `target/confluence-command-checkpoint-validation.json`. Existing payload formats remain unchanged, and new Confluence read records use format one. No independent consequential review or live/other-platform qualification occurred. The ledger remains sixteen of eighty-seven complete, and the full CLI goal remains active.

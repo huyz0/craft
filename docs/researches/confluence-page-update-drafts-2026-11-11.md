@@ -1,0 +1,11 @@
+# Confluence published updates and editor drafts
+
+Checked 11 November 2026 against the [official Confluence Cloud v2 page reference](https://developer.atlassian.com/cloud/confluence/rest/v2/api-group-page/#api-pages-id-put) and Craft's pinned Confluence v2 specification. Both describe publication as reconciling supplied content into the draft; sufficiently divergent content can overwrite that draft. The documented PUT exposes no conditional draft-preservation option. The GET draft selector retrieves a draft but does not establish a cross-user draft lock or atomic absence condition.
+
+The implication for Craft is separate published and editor state. Expected published version and the complete published-body fingerprint detect stale published content; neither establishes preservation of unpublished edits. A successful sandbox example cannot prove all future reconciliation or concurrency outcomes. Live editor testing is still useful evidence about the tested tenant and remains unrun here.
+
+Craft's update contract therefore requires explicit native reconciliation intent, keeps expected published version/digest and one durable send claim, and reports draft preservation as unverified in every prepared-host result. This acknowledgment grants no new profile/space permission and is not sent as an invented API field. Missing/null/unknown acknowledgment fails locally. There is no automatic conflict retry, draft discard, publication-from-draft or hidden force mode. Operators requiring draft preservation must coordinate editing outside this native operation.
+
+This revises the earlier design gate that withheld all public page updates pending live draft testing. The operation can expose documented native behavior honestly while retaining the separate live-testing gap. It does not satisfy the broader page-trash, editor-sandbox or release acceptance requirements.
+
+Activation status: proposed only. Automatic approval review rejected public activation because the user had not explicitly authorized the potential overwrite of another person's unpublished draft. A specific asynchronous authorization question is pending. No enabling code or tenant mutation was executed; do not treat this research/design as authorization or retry activation through another tool.

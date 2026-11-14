@@ -1,0 +1,307 @@
+use craft_core::contracts::{CanonicalRequest, ResourceRef, Selection};
+use craft_core::execution::{NativeResponse, PreparedOperation};
+use craft_core::registry::Registry;
+use craft_core::storage::SubmissionState;
+use craft_provider_confluence::pages::*;
+use serde_json::{Value, json};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+fn site() -> ResourceRef {
+    ResourceRef {
+        provider: "confluence".into(),
+        deployment: "cloud".into(),
+        tenant: "00000000-1111-2222-3333-444444444444".into(),
+        resource_type: "site".into(),
+        id: "00000000-1111-2222-3333-444444444444".into(),
+    }
+}
+fn response(status: u16, body: Value) -> NativeResponse {
+    NativeResponse {
+        status,
+        body,
+        request_id: None,
+        retry_after: None,
+        link_headers: None,
+    }
+}
+fn space() -> NativeResponse {
+    response(
+        200,
+        json!({"id":"100","status":"current","homepageId":"101"}),
+    )
+}
+fn page() -> NativeResponse {
+    response(
+        200,
+        json!({"id":"101","spaceId":"100","status":"current","title":"Shared plan 文字","version":{"number":4},"parentId":"99","ownerId":"human","body":{"storage":{"representation":"storage","value":"<p>Human &amp; agent</p>"}}}),
+    )
+}
+fn create_input() -> Value {
+    json!({"space_id":"100","title":"Plan draft","placement":{"kind":"root"},"body":{"representation":"storage","value":"<p>Review together</p>"}})
+}
+fn registry() -> Result<Registry, craft_core::error::CraftError> {
+    let mut r = Registry::default();
+    r.register_provider(&ConfluencePages)?;
+    Ok(r)
+}
+fn prepare(
+    command: &str,
+    input: Value,
+) -> Result<PreparedOperation, craft_core::error::CraftError> {
+    registry()?.prepare(CanonicalRequest {
+        command: command.into(),
+        target: site(),
+        input,
+        selection: Selection::default(),
+        preconditions: None,
+    })
+}
+fn update_input() -> Result<Value, craft_core::error::CraftError> {
+    let observed = observe_page(&page(), PageRepresentation::Storage)?;
+    Ok(
+        json!({"id":"101","space_id":"100","expected":observed.revision()?,"title":"Reviewed title"}),
+    )
+}
+
+#[test]
+fn create_places_a_normal_published_page_in_a_verified_space() -> TestResult {
+    let write = prepare_create(&prepare(PAGE_CREATE, create_input())?, &space(), None)?;
+    let call = write.call();
+    assert_eq!(call.route, CREATE_ROUTE);
+    assert_eq!(
+        call.query.get("root-level").map(String::as_str),
+        Some("true")
+    );
+    assert_eq!(
+        call.body,
+        Some(
+            json!({"spaceId":"100","status":"current","title":"Plan draft","body":{"representation":"storage","value":"<p>Review together</p>"}})
+        )
+    );
+    let mut input = create_input();
+    input["placement"] = json!({"kind":"homepage"});
+    assert!(prepare_create(&prepare(PAGE_CREATE, input.clone())?, &space(), None).is_err());
+    let parent = page();
+    let write = prepare_create(&prepare(PAGE_CREATE, input)?, &space(), Some(&parent))?;
+    assert_eq!(
+        write.call().body.as_ref().and_then(|v| v.get("parentId")),
+        Some(&json!("101"))
+    );
+    assert_eq!(write.call().query["root-level"], "false");
+    Ok(())
+}
+
+#[test]
+fn create_refuses_foreign_archived_or_changed_parent_evidence() -> TestResult {
+    let mut input = create_input();
+    input["placement"] = json!({"kind":"parent","id":"101"});
+    let op = prepare(PAGE_CREATE, input)?;
+    for (field, value) in [
+        ("spaceId", json!("200")),
+        ("id", json!("102")),
+        ("status", json!("draft")),
+    ] {
+        let mut parent = page();
+        parent.body[field] = value;
+        assert!(prepare_create(&op, &space(), Some(&parent)).is_err());
+    }
+    for (field, value) in [("id", json!("200")), ("status", json!("archived"))] {
+        let mut s = space();
+        s.body[field] = value;
+        assert!(prepare_create(&op, &s, Some(&page())).is_err());
+    }
+    assert!(prepare_create(&op, &space(), Some(&page())).is_ok());
+    Ok(())
+}
+
+#[test]
+fn update_preserves_omitted_rich_body_and_never_sends_owner_or_tree_changes() -> TestResult {
+    let write = prepare_update(&prepare(PAGE_UPDATE, update_input()?)?, &page())?;
+    assert_eq!(write.call().path_parameters["id"], "101");
+    assert!(write.call().query.is_empty());
+    assert_eq!(
+        write.call().body,
+        Some(
+            json!({"id":"101","status":"current","title":"Reviewed title","body":{"representation":"storage","value":"<p>Human &amp; agent</p>"},"version":{"number":5}})
+        )
+    );
+    let mut input = update_input()?;
+    input.as_object_mut().ok_or("object")?.remove("title");
+    input["body"] = json!({"representation":"atlas_doc_format","value":"{\"version\":1,\"type\":\"doc\",\"content\":[]}"});
+    let write = prepare_update(&prepare(PAGE_UPDATE, input)?, &page())?;
+    assert_eq!(
+        write.call().body.as_ref().ok_or("body")?["title"],
+        "Shared plan 文字"
+    );
+    assert_eq!(
+        write.call().body.as_ref().ok_or("body")?["body"]["representation"],
+        "atlas_doc_format"
+    );
+    Ok(())
+}
+
+#[test]
+fn updates_stop_on_version_body_title_identity_or_lifecycle_drift() -> TestResult {
+    let op = prepare(PAGE_UPDATE, update_input()?)?;
+    for (pointer, value) in [
+        ("/version/number", json!(5)),
+        ("/title", json!("Human edited")),
+        ("/body/storage/value", json!("<p>New human text</p>")),
+        ("/spaceId", json!("200")),
+        ("/id", json!("102")),
+        ("/status", json!("trashed")),
+    ] {
+        let mut current = page();
+        *current.body.pointer_mut(pointer).ok_or("pointer")? = value;
+        assert!(prepare_update(&op, &current).is_err(), "{pointer}");
+    }
+    let mut current = page();
+    current.body["subtype"] = json!("live");
+    assert!(prepare_update(&op, &current).is_err());
+    let mut input = update_input()?;
+    input["expected"]["version"] = json!(i32::MAX);
+    assert!(prepare(PAGE_UPDATE, input).is_err());
+    Ok(())
+}
+
+#[test]
+fn strict_inputs_reject_accidental_modes_nulls_noops_and_invalid_documents() -> TestResult {
+    for (field, value) in [
+        ("status", json!("draft")),
+        ("ownerId", json!("agent")),
+        ("private", json!(true)),
+        ("subtype", json!("live")),
+        ("space_id", json!("0100")),
+        ("title", json!("  ")),
+    ] {
+        let mut input = create_input();
+        input[field] = value;
+        assert!(prepare(PAGE_CREATE, input).is_err(), "{field}");
+    }
+    for placement in [
+        json!({"kind":"root","id":"101"}),
+        json!({"kind":"parent","id":"0"}),
+        json!({"kind":"parent"}),
+    ] {
+        let mut input = create_input();
+        input["placement"] = placement;
+        assert!(prepare(PAGE_CREATE, input).is_err());
+    }
+    for body in [
+        json!({"representation":"wiki","value":"text"}),
+        json!({"representation":"storage","value":""}),
+        json!({"representation":"atlas_doc_format","value":"{\"type\":\"doc\",\"version\":1,\"version\":2,\"content\":[]}"}),
+        json!({"representation":"atlas_doc_format","value":"{}"}),
+    ] {
+        let mut input = create_input();
+        input["body"] = body;
+        assert!(prepare(PAGE_CREATE, input).is_err());
+    }
+    for field in ["title", "body"] {
+        let mut input = update_input()?;
+        input[field] = Value::Null;
+        assert!(prepare(PAGE_UPDATE, input).is_err());
+    }
+    let mut input = update_input()?;
+    input.as_object_mut().ok_or("object")?.remove("title");
+    assert!(prepare(PAGE_UPDATE, input).is_err());
+    Ok(())
+}
+
+#[test]
+fn native_success_refusal_and_unknown_evidence_never_imply_retry() -> TestResult {
+    let write = prepare_create(&prepare(PAGE_CREATE, create_input())?, &space(), None)?;
+    let success = json!({"id":"102","spaceId":"100","status":"current","title":"Plan draft","version":{"number":1},"_links":{"base":"https://untrusted.invalid"}});
+    let observed = write.interpret(&response(200, success.clone()));
+    assert_eq!(observed.state, SubmissionState::Confirmed);
+    assert_eq!(observed.resources[0].id, "102");
+    assert!(observed.error.is_none());
+    for status in [201, 202, 204, 429, 500] {
+        assert_eq!(
+            write.interpret(&response(status, success.clone())).state,
+            SubmissionState::Unknown
+        );
+    }
+    for status in [400, 401, 404, 413] {
+        assert_eq!(
+            write
+                .interpret(&response(
+                    status,
+                    json!({"message":"sensitive provider text"})
+                ))
+                .state,
+            SubmissionState::Failed
+        );
+    }
+    let mut incomplete = success;
+    incomplete
+        .as_object_mut()
+        .ok_or("object")?
+        .remove("version");
+    let observed = write.interpret(&response(200, incomplete));
+    assert_eq!(observed.state, SubmissionState::Unknown);
+    assert_eq!(observed.resources[0].id, "102");
+    let update = prepare_update(&prepare(PAGE_UPDATE, update_input()?)?, &page())?;
+    let observed = update.interpret(&response(409, json!({})));
+    assert_eq!(observed.state, SubmissionState::Failed);
+    assert_eq!(
+        observed.error.ok_or("conflict")?.code,
+        craft_core::error::ErrorCode::VersionConflict
+    );
+    let mut updated = page();
+    updated.body["title"] = json!("Reviewed title");
+    updated.body["version"]["number"] = json!(5);
+    assert_eq!(update.interpret(&updated).state, SubmissionState::Confirmed);
+    updated.body["id"] = json!("999");
+    let wrong = update.interpret(&updated);
+    assert_eq!(wrong.state, SubmissionState::Unknown);
+    assert!(wrong.resources.is_empty());
+    Ok(())
+}
+
+#[test]
+fn write_contracts_match_the_pinned_native_inventory() -> TestResult {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../openspec/changes/build-cloud-cli/provider-operations.json");
+    let inventory: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    let r = registry()?;
+    for command in [PAGE_CREATE, PAGE_UPDATE] {
+        let d = r.descriptor(command)?;
+        r.validate(command, &d.example)?;
+        assert!(jsonschema::validator_for(&d.response_schema)?.is_valid(&d.response_example));
+        let native = inventory["commands"]
+            .as_array()
+            .ok_or("commands")?
+            .iter()
+            .find(|v| v["command"] == command)
+            .ok_or("command")?;
+        let route = &d.routes[0];
+        let variant = native["variants"]
+            .as_array()
+            .ok_or("variants")?
+            .iter()
+            .find(|v| {
+                v["route_shape"]["path"] == serde_json::to_value(&route.path).unwrap_or(Value::Null)
+            })
+            .ok_or("route")?;
+        assert_eq!(
+            variant["method"],
+            if command == PAGE_CREATE {
+                "POST"
+            } else {
+                "PUT"
+            }
+        );
+        let scope = variant["oauth_scope_alternatives"]
+            .as_array()
+            .ok_or("scopes")?
+            .iter()
+            .find(|v| v["state"] == "Current")
+            .ok_or("scope")?;
+        assert_eq!(
+            scope["scopes"],
+            serde_json::to_value(&d.scope_alternatives[0])?
+        );
+    }
+    Ok(())
+}

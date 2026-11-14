@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "sources": [
+    {
+      "id": "jira-v3",
+      "url": "https://dac-static.atlassian.com/cloud/jira/platform/swagger-v3.v3.json?_v=1.8516.153",
+      "path": "sources/jira-v3.json",
+      "bytes": 2511695,
+      "sha256": "486fcb9a32822a629631c651a467f25ac42ffa1eda6744544c7394dced08acf3",
+      "openapi": "3.0.1",
+      "version": "1001.0.0-SNAPSHOT-84e72788de39608da1f7138389f0e1e9993e9555",
+      "observed_on": "2026-11-10",
+      "api_mount": ""
+    },
+    {
+      "id": "confluence-v2",
+      "url": "https://dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json?_v=1.8516.153",
+      "path": "sources/confluence-v2.json",
+      "bytes": 735132,
+      "sha256": "40535e2a2c01547d53d824d68299098c9073e5bf7ed98a71634706759becfa31",
+      "openapi": "3.0.3",
+      "version": "2.0.0",
+      "observed_on": "2026-11-10",
+      "api_mount": "/wiki/api/v2"
+    },
+    {
+      "id": "confluence-v1",
+      "url": "https://dac-static.atlassian.com/cloud/confluence/swagger.v3.json?_v=1.8516.153",
+      "path": "sources/confluence-v1.json",
+      "bytes": 420370,
+      "sha256": "f80279e4beace901a20174044ff3dc1cf047ea9486c3dd6eff57e33e4161bf12",
+      "openapi": "3.0.1",
+      "version": "1.0.0",
+      "observed_on": "2026-11-10",
+      "api_mount": ""
+    }
+  ]
+}
