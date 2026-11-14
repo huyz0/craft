@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "lock_sha256": "261b54d8ba955508cac01b3ee328358bcea977a2a61ea8ab22cccaee9b4dc48f",
+  "lock_sha256": "d6a65a7cf87f4ddcdd2d1f35c6c3cc63a0adedf7fd85937719fecb388e6e6738",
   "packages": [
     {
       "name": "ahash",
@@ -1289,6 +1289,89 @@
         {
           "package": "thiserror",
           "version": "2.0.20",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "zeroize",
+          "version": "1.9.1",
+          "kinds": [
+            "normal"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "craft-live-conformance",
+      "version": "0.1.0",
+      "source": "workspace",
+      "checksum": null,
+      "manifest_sha256": "d567260158d0523791f73be56f0ca9f660700e8efe60c84d25199d9755b51c12",
+      "license": null,
+      "license_file": null,
+      "rust_version": "1.99.1",
+      "features": [],
+      "dependencies": [
+        {
+          "package": "craft-core",
+          "version": "0.1.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "craft-provider-confluence",
+          "version": "0.1.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "craft-provider-jira",
+          "version": "0.1.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "keyring-core",
+          "version": "1.0.1",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "reqwest",
+          "version": "0.13.4",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "serde_json",
+          "version": "1.0.151",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "tokio",
+          "version": "1.53.1",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "url",
+          "version": "2.5.8",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "windows-native-keyring-store",
+          "version": "1.1.0",
           "kinds": [
             "normal"
           ]

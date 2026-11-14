@@ -1,0 +1,24 @@
+[package]
+name = "craft-live-conformance"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Opt-in harness that runs provider read contracts against a real Atlassian Cloud site."
+
+[dependencies]
+craft-core = { path = "../craft-core" }
+craft-provider-jira = { path = "../craft-provider-jira" }
+craft-provider-confluence = { path = "../craft-provider-confluence" }
+serde_json.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+url.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+keyring-core.workspace = true
+windows-native-keyring-store.workspace = true
+
+[lints]
+workspace = true

@@ -412,6 +412,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-live-conformance"
+version = "0.1.0"
+dependencies = [
+ "craft-core",
+ "craft-provider-confluence",
+ "craft-provider-jira",
+ "keyring-core",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "url",
+ "windows-native-keyring-store",
+ "zeroize",
+]
+
+[[package]]
 name = "craft-platform"
 version = "0.1.0"
 dependencies = [
