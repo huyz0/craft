@@ -77,8 +77,27 @@ No provider divergence was found in the write paths. The only failures in the fi
 
 With this run, every read listed above has passed against live data at least once (29 reads), and 11 provider writes have confirmed live outcomes.
 
+## Production host with the service account
+
+Run on **14 November 2026** with the non-interactive production path: the site owner created the `CraftTest` service account and its OAuth client credential, then ran `craft auth provision` to verify the actor against both products and store the grant in Windows Credential Manager. `tools/live_host.py` drives the built `craft` executable with an explicit state root, local policies (`policy set`) and the provisioned profiles; it never handles secrets.
+
+| Area | Result |
+| --- | --- |
+| `auth provision` (OAuth client-credentials exchange, Jira and Confluence current-user proofs, native vault) | confirmed by the site owner's run; `auth status` shows the stored grant |
+| `policy set` for jira-read, jira-project-read, jira-project-context, jira-field-read, jira-create, jira-mutation, confluence-read | all confirmed |
+| Jira reads through the host (project list/get/statuses, field list/search, issue get/search, edit metadata, transitions, permission check, comment/attachment/link lists, attachment settings, link types) | 17 pass |
+| `confluence.page.search` | pass |
+| `confluence.space.list`, `confluence.page.list` | refused before sending: the credential reports classic Confluence scopes only, and the v2 space/page operations require `read:space:confluence`/`read:page:confluence` |
+| `jira.issue.create` -> `jira.transition.apply` -> `jira.issue.update` -> `jira.issue.delete` on a `craft-test host` issue | all confirmed after granting the service account the project Administrator role |
+
+Findings:
+
+4. **Create metadata issue type.** Live create metadata reports the system `issuetype` field with an empty `operations` list, because the type is fixed by the per-type route. The provider required a `set` operation, so every `jira.issue.create` failed validation. The issue type is now settable to its const value; fixture `live_shaped_issue_type_without_operations_still_compiles_create` mirrors the shape.
+5. **Project-context targets.** Project-context policies bind the exact target used at setup; invoking with the project key when the policy names the numeric ID is refused. This is documented behavior, recorded here because it is easy to trip over.
+6. **Delete permission.** In a team-managed project with open access, a service account without a project role can create, edit and transition but not delete. The CLI reported Jira's refusal as a confirmed failure with no retry, as designed. Leftover `craft-test` issues from refused deletes were removed with `tests/live_cleanup.rs`.
+
 ## Limits
 
-- Not exercised live: `jira.issue.create` (issues were created as raw fixtures), `jira.transition.apply`, `confluence.page.update` (still withheld pending authorization), attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
+- Not exercised live: `confluence.page.update` (still withheld pending authorization), attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
 - The production host, service-account OAuth, policy, journal and `api.atlassian.com` gateway routing were not exercised. Gateway-rewritten continuation links remain unobserved. Service-account eligibility is still pending in the [tenant inventory](tenant-auth-inventory.md).
 - One small site: one Jira project, two spaces, a handful of pages. Large-page, custom-field and permission-restricted behavior is not represented.
