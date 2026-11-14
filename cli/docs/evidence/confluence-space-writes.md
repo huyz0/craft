@@ -23,6 +23,10 @@ Composed host with mock TLS servers (`craft-cli --features synthetic-acceptance 
 
 The full Confluence host binary passed 58 cases before these additions with `--test-threads=4`; the earlier Application Control block on that executable did not recur. Under default parallelism some long review-verification cases hit their invocation deadline; with four threads all pass. Workspace Clippy (`-D warnings`, with `synthetic-acceptance`) and `local_interface` passed after each change. `tools/contracts.py write` regenerated `schemas/local-contracts.json`, which also absorbs the earlier `artifact.get`/`artifact.export` collection-enum drift.
 
+## Merged-tree verification
+
+After merging main (Jira attachment upload/delete) into this work, `tools/verify.py` selected the full scope. Tooling, contracts, provider routes, skill checks, format and both Clippy modes passed. Under machine load, three `craft-runtime` profile-listing tests and 25 runtime library tests hit their 5-second invocation deadlines, and one long ticket-application host case did the same. Rerun with lower parallelism once the load dropped, all of them passed: runtime library 152 passed with `--test-threads=2`, profiles 11 passed in 1.9 s, and the host case passed on its own. The rest of the workspace tests passed, the nine composed hosts passed 63 of 64 with `--test-threads=4` (the remaining case passed on its own), and synthetic-acceptance isolation passed.
+
 ## Live test site
 
 Through the production host with the CraftTest service profile, in the onboarding space, on `craft-test` pages that cleanup trashed and purged:
