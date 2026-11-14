@@ -85,6 +85,14 @@ impl SavedRequest {
             let mut registry = craft_core::registry::Registry::default();
             craft_provider_jira::attachment_upload::register(&mut registry)?;
             registry.prepare(self.original.clone())?
+        } else if matches!(
+            self.original.command.as_str(),
+            craft_provider_confluence::attachment_upload::UPLOAD
+                | craft_provider_confluence::attachment_upload::REPLACE
+        ) {
+            let mut registry = craft_core::registry::Registry::default();
+            craft_provider_confluence::attachment_upload::register(&mut registry)?;
+            registry.prepare(self.original.clone())?
         } else {
             crate::issue_mutation::host::prepare_original(self.original.clone())?
         };

@@ -1,9 +1,10 @@
-//! Single-file framing is sealed to the compiled Jira attachment protocol and a verified snapshot.
+//! Single-file framing is sealed to a compiled attachment protocol and a verified snapshot.
 use super::*;
 use crate::artifacts::ArtifactInput;
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::sync::{
@@ -12,14 +13,69 @@ use std::sync::{
 };
 use std::task::{Context, Poll};
 
-const COMMAND: &str = "jira.attachment.upload";
+/// One sealed single-file upload protocol: its command, provider, exact route shape, the input
+/// fields that must equal path parameters, and fixed form fields framed before the file part.
+struct Protocol {
+    command: &'static str,
+    provider: &'static str,
+    path: &'static [&'static str],
+    bindings: &'static [(&'static str, &'static str)],
+    fields: &'static [(&'static str, &'static str)],
+}
+const PROTOCOLS: [Protocol; 3] = [
+    Protocol {
+        command: "jira.attachment.upload",
+        provider: "jira",
+        path: &["rest", "api", "3", "issue", "{issueIdOrKey}", "attachments"],
+        bindings: &[("issue_id", "issueIdOrKey")],
+        fields: &[],
+    },
+    // Confluence requires `minorEdit`; `true` suppresses notifications for agent uploads.
+    Protocol {
+        command: "confluence.attachment.upload",
+        provider: "confluence",
+        path: &[
+            "wiki",
+            "rest",
+            "api",
+            "content",
+            "{id}",
+            "child",
+            "attachment",
+        ],
+        bindings: &[("page_id", "id")],
+        fields: &[("minorEdit", "true")],
+    },
+    Protocol {
+        command: "confluence.attachment.replace",
+        provider: "confluence",
+        path: &[
+            "wiki",
+            "rest",
+            "api",
+            "content",
+            "{id}",
+            "child",
+            "attachment",
+            "{attachmentId}",
+            "data",
+        ],
+        bindings: &[("page_id", "id"), ("attachment_id", "attachmentId")],
+        fields: &[("minorEdit", "true")],
+    },
+];
+fn protocol(operation: &PreparedOperation) -> Option<&'static Protocol> {
+    PROTOCOLS
+        .iter()
+        .find(|p| p.command == operation.request().command)
+}
 pub struct MultipartFile {
     pub input: ArtifactInput,
     pub filename: String,
     pub media_type: String,
 }
 pub(super) fn requires_multipart(operation: &PreparedOperation) -> bool {
-    operation.request().command == COMMAND
+    protocol(operation).is_some()
 }
 pub(super) struct UploadState {
     complete: AtomicBool,
@@ -87,13 +143,33 @@ pub(super) fn seal(
 ) -> Result<Parts, CraftError> {
     use craft_core::execution::RouteSegment;
     let route = context.route(call)?;
-    if !requires_multipart(operation) || operation.request().target.provider!="jira" || !matches!(operation.effect(),EffectClass::Write)
-        || !matches!(route.method,HttpMethod::Post) || route.path.len()!=6 || call.body.is_some()
-        || !call.query.is_empty() || !call.repeated_query.is_empty()
-        || !route.query_parameters.is_empty() || !route.continuation_parameters.is_empty() || !route.repeated_query_parameters.is_empty()
-        || ["rest","api","3","issue"].iter().enumerate().any(|(index,expected)|!matches!(&route.path[index],RouteSegment::Literal(v) if v==expected))
-        || !matches!(&route.path[4],RouteSegment::Parameter(v) if v=="issueIdOrKey")
-        || !matches!(&route.path[5],RouteSegment::Literal(v) if v=="attachments") {
+    let protocol = protocol(operation).ok_or_else(denied)?;
+    let shape_matches = route.path.len() == protocol.path.len()
+        && route
+            .path
+            .iter()
+            .zip(protocol.path)
+            .all(|(segment, expected)| {
+                match (
+                    segment,
+                    expected.strip_prefix('{').and_then(|v| v.strip_suffix('}')),
+                ) {
+                    (RouteSegment::Parameter(v), Some(name)) => v == name,
+                    (RouteSegment::Literal(v), None) => v == expected,
+                    _ => false,
+                }
+            });
+    if operation.request().target.provider != protocol.provider
+        || !matches!(operation.effect(), EffectClass::Write)
+        || !matches!(route.method, HttpMethod::Post)
+        || !shape_matches
+        || call.body.is_some()
+        || !call.query.is_empty()
+        || !call.repeated_query.is_empty()
+        || !route.query_parameters.is_empty()
+        || !route.continuation_parameters.is_empty()
+        || !route.repeated_query_parameters.is_empty()
+    {
         return Err(denied());
     }
     metadata(&file)?;
@@ -110,13 +186,16 @@ pub(super) fn seal(
         || input["size_bytes"].as_u64() != Some(receipt.bytes)
         || input["filename"].as_str() != Some(file.filename.as_str())
         || input["media_type"].as_str() != Some(file.media_type.as_str())
-        || input["issue_id"].as_str().is_none()
-        || input["issue_id"].as_str()
-            != call.path_parameters.get("issueIdOrKey").map(String::as_str)
+        || protocol.bindings.iter().any(|(field, parameter)| {
+            input[*field].as_str().is_none()
+                || input[*field].as_str()
+                    != call.path_parameters.get(*parameter).map(String::as_str)
+        })
+        || call.path_parameters.len() != protocol.bindings.len()
     {
         return Err(CraftError::new(
             ErrorCode::PolicyDenied,
-            "Multipart snapshot or issue route differs from its prepared operation input.",
+            "Multipart snapshot or target route differs from its prepared operation input.",
         ));
     }
 
@@ -127,13 +206,25 @@ pub(super) fn seal(
         ));
     }
     let mut manifest = json!({"encoding":"multipart/form-data","field":"file","filename":file.filename,"media_type":file.media_type,"artifact":{"name":receipt.name,"digest":receipt.digest,"bytes":receipt.bytes,"source":receipt.source},"required_headers":{"X-Atlassian-Token":"no-check"}});
+    if !protocol.fields.is_empty() {
+        manifest["fields"] = json!(protocol.fields.iter().copied().collect::<BTreeMap<_, _>>());
+    }
     let boundary = format!(
         "craft_{}",
         &craft_core::input::canonical_digest(&manifest)?[7..]
     );
     let quoted = file.filename.replace('"', "\\\"");
+    let fields: String = protocol
+        .fields
+        .iter()
+        .map(|(name, value)| {
+            format!(
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+            )
+        })
+        .collect();
     let prefix = Bytes::from(format!(
-        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{quoted}\"\r\nContent-Type: {}\r\n\r\n",
+        "{fields}--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{quoted}\"\r\nContent-Type: {}\r\n\r\n",
         file.media_type
     ));
     let suffix = Bytes::from(format!("\r\n--{boundary}--\r\n"));

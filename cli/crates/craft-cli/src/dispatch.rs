@@ -307,6 +307,26 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::args::PolicyAction::Set(_) => crate::args::PolicyAction::Set(decode(input)?),
             },
         },
+        Action::Confluence {
+            action:
+                crate::args::ConfluenceAction::Attachment {
+                    action: crate::args::ConfluenceAttachmentAction::Upload(_),
+                },
+        } => Action::Confluence {
+            action: crate::args::ConfluenceAction::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Upload(decode(input)?),
+            },
+        },
+        Action::Confluence {
+            action:
+                crate::args::ConfluenceAction::Attachment {
+                    action: crate::args::ConfluenceAttachmentAction::Replace(_),
+                },
+        } => Action::Confluence {
+            action: crate::args::ConfluenceAction::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Replace(decode(input)?),
+            },
+        },
         Action::Confluence { action }
             if craft_provider_confluence::pages::PageWriteKind::from_command(
                 crate::confluence_reads::command::action_command(&action),
@@ -1134,6 +1154,21 @@ pub fn execute(
                 crate::policies::execute(args, fields, options, control)
             },
         );
+    }
+    if let Action::Confluence {
+        action:
+            crate::args::ConfluenceAction::Attachment {
+                action:
+                    crate::args::ConfluenceAttachmentAction::Upload(v)
+                    | crate::args::ConfluenceAttachmentAction::Replace(v),
+            },
+    } = action
+    {
+        let command = v.command();
+        registry.descriptor(command)?;
+        return Ok(crate::confluence_attachment_upload::command::execute(
+            *v, fields, options, control,
+        ));
     }
     if craft_provider_confluence::pages::PageWriteKind::from_command(command_id(&action)).is_some()
     {

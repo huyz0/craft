@@ -77,7 +77,8 @@ def policies(state_root, site, cloud, actor, project, space):
          ["confluence.page.create", "confluence.page.update", "confluence.page.trash",
           "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
           "confluence.content-state.set", "confluence.content-state.clear",
-          "confluence.attachment.trash"], None),
+          "confluence.attachment.trash", "confluence.attachment.upload",
+          "confluence.attachment.replace"], None),
         ("cf-test", "confluence-admin", ref("confluence", cloud, "site", cloud),
          ["confluence.space.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
@@ -457,6 +458,32 @@ def page_lifecycle(state_root, space):
                 "page_id": page}))
         else:
             report.append("confluence.content-state.set => SKIP space offers no states")
+    if "--uploads" in sys.argv:
+        source = CAPTURES / "upload-source"
+        source.mkdir(parents=True, exist_ok=True)
+        (source / "craft-test.txt").write_bytes(b"craft-test upload one\n")
+        common = {"apply": True, "space_id": space, "page_id": page, "file_root": str(source.resolve()),
+                  "file": "craft-test.txt", "filename": "craft-test.txt", "media_type": "text/plain"}
+        uploaded = step("confluence.attachment.upload", craft(state_root, [
+            "--profile", "cf-test", "--max-bytes", "8388608", "confluence", "attachment", "upload"],
+            {**common, "operation_id": f"craft-test-{stamp}-upload", "artifact_name": f"craft-test-{stamp}-one.txt"}))
+        attachment = (uploaded.get("data") or {}).get("attachment_id")
+        report.append(f"upload desired_fields_verified={(uploaded.get('data') or {}).get('desired_fields_verified')}")
+        again = craft(state_root, ["--profile", "cf-test", "--max-bytes", "8388608", "confluence", "attachment", "upload"],
+                      {**common, "operation_id": f"craft-test-{stamp}-upload-again", "artifact_name": f"craft-test-{stamp}-again.txt"})
+        report.append(f"confluence.attachment.upload same filename => {(again.get('error') or {}).get('code')}")
+        if attachment:
+            got = run(state_root, "cf-test", "confluence.attachment.get", {"id": attachment, "page_id": page})
+            item = (got.get("data") or {}).get("item") or {}
+            (source / "craft-test.txt").write_bytes(b"craft-test upload two, longer\n")
+            replaced = step("confluence.attachment.replace", craft(state_root, [
+                "--profile", "cf-test", "--max-bytes", "8388608", "confluence", "attachment", "replace"],
+                {**common, "operation_id": f"craft-test-{stamp}-replace", "artifact_name": f"craft-test-{stamp}-two.txt",
+                 "attachment_id": attachment, "expected": {"version": item.get("version"), "file_id": item.get("file_id")}}))
+            data = replaced.get("data") or {}
+            report.append(f"replace version={data.get('version')} desired_fields_verified={data.get('desired_fields_verified')}")
+            after = run(state_root, "cf-test", "confluence.attachment.get", {"id": attachment, "page_id": page})
+            report.append(f"after replace: {json.dumps(((after.get('data') or {}).get('item') or {}))[:300]}")
     if "--attachments" in sys.argv:
         step("confluence.attachment.list", run(state_root, "cf-test", "confluence.attachment.list",
                                                {"page_id": page, "page_size": 25}))
@@ -498,6 +525,7 @@ def main():
     parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
     parser.add_argument("--badges", action="store_true", help="also set and clear a content-state badge")
     parser.add_argument("--attachments", action="store_true", help="also list the page's attachments")
+    parser.add_argument("--uploads", action="store_true", help="also upload, refuse a duplicate filename and replace by ID")
     args = parser.parse_args()
     site, cloud, actor = config()
     if not actor:

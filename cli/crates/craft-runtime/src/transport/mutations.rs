@@ -73,7 +73,8 @@ impl<'a> PreparedHttpMutation<'a> {
         })
     }
 
-    /// Seals the single-file Jira protocol; scope/principal/permission proof remains with the host.
+    /// Seals a compiled single-file upload protocol; scope/principal/permission proof remains with
+    /// the host.
     pub fn prepare_jira_upload(
         registry: &'a Registry,
         operation: &'a PreparedOperation,

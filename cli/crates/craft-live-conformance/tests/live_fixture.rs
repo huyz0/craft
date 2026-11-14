@@ -30,3 +30,34 @@ fn live_confluence_attachment_fixture() -> Result<(), Box<dyn std::error::Error>
     println!("attachment {} -> {id}", out.status);
     Ok(())
 }
+
+/// Reports how attachment download routes answer without following redirects, so the CLI
+/// design can rely on observed behavior rather than documentation alone.
+#[test]
+#[ignore = "reads the live test site; opt in with CRAFT_LIVE=1, CRAFT_LIVE_PAGE and CRAFT_LIVE_ATTACHMENT"]
+fn live_confluence_download_probe() -> Result<(), Box<dyn std::error::Error>> {
+    let page = std::env::var("CRAFT_LIVE_PAGE")?;
+    let attachment = std::env::var("CRAFT_LIVE_ATTACHMENT")?;
+    let live = Live::connect()?;
+    for path in [
+        format!("/wiki/rest/api/content/{page}/child/attachment/{attachment}/download"),
+        format!("/wiki/api/v2/attachments/{attachment}"),
+    ] {
+        let out = live.get(&path)?;
+        let link = out.body["downloadLink"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        println!(
+            "probe {} -> {} downloadLink={}",
+            path,
+            out.status,
+            !link.is_empty()
+        );
+        if !link.is_empty() {
+            let direct = live.get(&format!("/wiki{link}"))?;
+            println!("probe downloadLink -> {}", direct.status);
+        }
+    }
+    Ok(())
+}

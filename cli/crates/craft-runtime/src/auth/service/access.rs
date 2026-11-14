@@ -206,6 +206,18 @@ impl VerifiedServiceAccess {
             file,
         )
     }
+    /// Seals any compiled single-file upload protocol (Jira issue or Confluence page files).
+    pub fn prepare_upload<'a>(
+        &self,
+        registry: &'a Registry,
+        operation: &'a PreparedOperation,
+        tls: TlsPolicy,
+        control: InvocationControl,
+        call: &NativeCall,
+        file: crate::transport::MultipartFile,
+    ) -> Result<PreparedHttpMutation<'a>, CraftError> {
+        self.prepare_jira_upload(registry, operation, tls, control, call, file)
+    }
     pub fn prepare_download<'a>(
         &self,
         registry: &'a Registry,
