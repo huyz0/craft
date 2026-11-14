@@ -143,11 +143,17 @@ impl Live {
             .enable_all()
             .build()
             .map_err(|e| e.to_string())?;
+        // reqwest needs a reactor in scope while the client is constructed.
+        let guard = runtime.enter();
         let client = reqwest::Client::builder()
+            .https_only(true)
             .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .no_proxy()
             .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| e.to_string())?;
+        drop(guard);
         let mut live = Self {
             config,
             runtime,
@@ -179,7 +185,7 @@ impl Live {
 
     fn get_raw(&self, path: &str, auth: bool) -> Result<Exchange, String> {
         let url = self.config.site.join(path).map_err(|e| e.to_string())?;
-        self.send(HttpMethod::Get, url, None, auth)
+        self.send(HttpMethod::Get, url, None, auth, true)
             .map_err(|e| format!("GET {path}: {}", e.message))
     }
 
@@ -189,6 +195,7 @@ impl Live {
         url: Url,
         body: Option<&Value>,
         auth: bool,
+        read_effect: bool,
     ) -> Result<Exchange, CraftError> {
         let (verb, m) = match method {
             HttpMethod::Get => ("GET", reqwest::Method::GET),
@@ -197,7 +204,9 @@ impl Live {
             HttpMethod::Patch => ("PATCH", reqwest::Method::PATCH),
             HttpMethod::Delete => ("DELETE", reqwest::Method::DELETE),
         };
-        if verb != "GET" && !self.allow_writes {
+        // Some reads are POSTs (Jira's JQL search). They are permitted only when the
+        // descriptor itself declares a read effect.
+        if verb != "GET" && !self.allow_writes && !read_effect {
             return Err(failed("write routes are disabled for this live run"));
         }
         let path = match url.query() {
@@ -216,12 +225,12 @@ impl Live {
         }
         let response = self
             .runtime
-            .block_on(request.send())
+            .block_on(async move { request.send().await })
             .map_err(|e| failed(&format!("transport: {e}")))?;
         let status = response.status().as_u16();
         let bytes = self
             .runtime
-            .block_on(response.bytes())
+            .block_on(async move { response.bytes().await })
             .map_err(|e| failed(&format!("body: {e}")))?;
         if bytes.len() > MAX_RESPONSE_BYTES {
             return Err(failed("response too large"));
@@ -256,6 +265,8 @@ impl Live {
         self.run_in(&registry, command, target, input)
     }
 
+    /// Runs the registry's generic handler. Most read handlers refuse this path
+    /// and require their production host; use [`Live::run_with`] for those.
     pub fn run_in(
         &self,
         registry: &Registry,
@@ -263,8 +274,30 @@ impl Live {
         target: ResourceRef,
         input: Value,
     ) -> Outcome {
-        let routes = match registry.descriptor(command) {
-            Ok(descriptor) => descriptor.routes.clone(),
+        self.run_with(registry, command, target, input, |prepared, context| {
+            registry.execute(prepared, context)
+        })
+    }
+
+    /// Prepares the request through the registry (so input validation is the
+    /// real one) and then calls the provider's own read entry point, the same
+    /// function the production host calls, with a live context.
+    pub fn run_with<F>(
+        &self,
+        registry: &Registry,
+        command: &str,
+        target: ResourceRef,
+        input: Value,
+        read: F,
+    ) -> Outcome
+    where
+        F: FnOnce(&PreparedOperation, &mut dyn OperationContext) -> Result<Value, CraftError>,
+    {
+        let (routes, read_effect) = match registry.descriptor(command) {
+            Ok(descriptor) => (
+                descriptor.routes.clone(),
+                matches!(descriptor.effect, craft_core::contracts::EffectClass::Read),
+            ),
             Err(error) => return Outcome::setup(command, error),
         };
         let prepared = registry.prepare(CanonicalRequest {
@@ -281,9 +314,10 @@ impl Live {
         let mut context = LiveContext {
             live: self,
             routes,
+            read_effect,
             exchanges: Vec::new(),
         };
-        let result = registry.execute(&prepared, &mut context);
+        let result = read(&prepared, &mut context);
         let outcome = Outcome {
             command: command.into(),
             result: result.map_err(|e| format!("{:?}: {}", e.code, e.message)),
@@ -315,6 +349,7 @@ fn failed(message: &str) -> CraftError {
 struct LiveContext<'a> {
     live: &'a Live,
     routes: Vec<NativeRoute>,
+    read_effect: bool,
     exchanges: Vec<Exchange>,
 }
 
@@ -363,9 +398,13 @@ impl OperationContext for LiveContext<'_> {
                 }
             }
         }
-        let exchange = self
-            .live
-            .send(route.method, url, call.body.as_ref(), true)?;
+        let exchange = self.live.send(
+            route.method,
+            url,
+            call.body.as_ref(),
+            true,
+            self.read_effect,
+        )?;
         let response = NativeResponse {
             status: exchange.status,
             body: exchange.body.clone(),
@@ -517,4 +556,55 @@ pub fn shape(value: &Value) -> BTreeMap<String, &'static str> {
     let mut out = BTreeMap::new();
     walk(value, String::new(), &mut out);
     out
+}
+
+/// Serves recorded response bodies in order, so a provider can be re-run against
+/// captured live data offline (for example after a parser fix, or to isolate the
+/// record a parser rejects).
+pub struct ReplayContext {
+    pub bodies: std::collections::VecDeque<(u16, Value)>,
+}
+
+impl OperationContext for ReplayContext {
+    fn checkpoint(&self) -> Result<(), CraftError> {
+        Ok(())
+    }
+    fn invoke(&mut self, _call: &NativeCall) -> Result<NativeResponse, CraftError> {
+        let (status, body) = self
+            .bodies
+            .pop_front()
+            .ok_or_else(|| failed("replay ran out of recorded responses"))?;
+        Ok(NativeResponse {
+            status,
+            body,
+            request_id: None,
+            retry_after: None,
+            link_headers: Some(Vec::new()),
+        })
+    }
+}
+
+/// Prepares a request against a synthetic tenant for offline replay.
+pub fn prepare_offline(
+    registry: &Registry,
+    command: &str,
+    provider: &str,
+    resource_type: &str,
+    id: Option<&str>,
+    input: Value,
+) -> Result<PreparedOperation, CraftError> {
+    const TENANT: &str = "00000000-1111-2222-3333-444444444444";
+    registry.prepare(CanonicalRequest {
+        command: command.into(),
+        target: ResourceRef {
+            provider: provider.into(),
+            deployment: "cloud".into(),
+            tenant: TENANT.into(),
+            resource_type: resource_type.into(),
+            id: id.unwrap_or(TENANT).into(),
+        },
+        input,
+        selection: Selection::default(),
+        preconditions: None,
+    })
 }

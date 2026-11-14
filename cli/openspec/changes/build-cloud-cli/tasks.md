@@ -824,7 +824,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Every advertised Core Jira operation has route/behavior/recovery evidence; absent live access does not become a production-support claim.
 
-**Evidence:** none
+**Evidence:** docs/evidence/live-read-conformance.md
 
 ## Confluence core client
 
@@ -970,7 +970,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** The provider advertises only implemented capabilities and distinguishes fixture qualification from actual tenant/platform qualification.
 
-**Evidence:** none
+**Evidence:** docs/evidence/live-read-conformance.md
 
 ## Reviewed plan workflow
 

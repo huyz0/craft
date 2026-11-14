@@ -12,6 +12,9 @@
 
 use std::sync::Arc;
 
+use craft_core::error::{CraftError, ErrorCode};
+use craft_core::execution::{OperationContext, PreparedOperation};
+use craft_core::pagination::{NativePage, NativePosition};
 use craft_core::registry::{ProviderModule, Registry};
 use craft_live_conformance::{Live, Outcome, capture_dir};
 use craft_provider_confluence as confluence;
@@ -166,6 +169,131 @@ fn url_encode(value: &str) -> String {
     url::form_urlencoded::byte_serialize(value.as_bytes()).collect()
 }
 
+fn principal(live_actor: &str) -> jira::create_metadata::MetadataPrincipal {
+    jira::create_metadata::MetadataPrincipal {
+        grant: craft_core::contracts::GrantRef {
+            id: "gr_00000000000000000000000000000000".into(),
+        },
+        actor: live_actor.into(),
+    }
+}
+
+thread_local! {
+    static ACTOR: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+fn actor() -> String {
+    ACTOR.with(|a| a.borrow().clone())
+}
+
+/// Reads up to two pages so continuation handling is exercised when the site has
+/// enough data, and reports counts rather than values.
+fn pages(
+    mut next: impl FnMut(Option<&NativePosition>) -> Result<NativePage, CraftError>,
+) -> Result<Value, CraftError> {
+    let first = next(None)?;
+    let mut summary =
+        json!({"page1_items": first.items.len(), "page1_has_next": first.next.is_some()});
+    if let Some(position) = &first.next {
+        let second = next(Some(position))?;
+        summary["page2_items"] = json!(second.items.len());
+    }
+    Ok(summary)
+}
+
+/// Calls the provider's own read entry point for each command, mirroring the hosts.
+fn read(
+    command: &str,
+    op: &PreparedOperation,
+    ctx: &mut dyn OperationContext,
+) -> Result<Value, CraftError> {
+    let fields = &op.request().selection.fields;
+    let clock = FixedClock;
+    match command {
+        "jira.project.list" => pages(|p| jira::projects::read_page(op, ctx, p)),
+        "jira.field.list" | "jira.field.search" => {
+            let plan = jira::fields::FieldPlan::compile(command, fields)?;
+            pages(|p| jira::fields::read_page(op, ctx, &plan, p))
+        }
+        "jira.project.get" => {
+            let plan = jira::project_context::FieldPlan::compile(command, fields)?;
+            jira::project_context::read_get(op, ctx, &plan)
+                .map(|(v, _)| json!({"keys": v.as_object().map(|o| o.len())}))
+        }
+        "jira.project.statuses" => {
+            let plan = jira::project_context::FieldPlan::compile(command, fields)?;
+            pages(|p| jira::project_context::read_statuses(op, ctx, &plan, p))
+        }
+        "jira.issue.get" => {
+            let plan = jira::issue_reads::FieldPlan::compile(command, fields)?;
+            jira::issue_reads::read_get(op, ctx, &plan)
+                .map(|(v, _)| json!({"keys": v.as_object().map(|o| o.len())}))
+        }
+        "jira.issue.search" => {
+            let plan = jira::issue_reads::FieldPlan::compile(command, fields)?;
+            pages(|p| jira::issue_reads::read_search_page(op, ctx, &plan, p))
+        }
+        "jira.metadata.edit" | "jira.transition.list" => {
+            let plan = jira::issue_context::FieldPlan::compile(command, fields)?;
+            jira::issue_context::read_context(op, ctx, &plan, None, &principal(&actor()), &clock)
+                .map(|_| json!({"ok": true}))
+        }
+        "jira.permission.check" => {
+            let plan = jira::permissions::FieldPlan::compile(fields)?;
+            jira::permissions::read_context(op, ctx, &plan, None, &principal(&actor()), &clock)
+                .map(|_| json!({"ok": true}))
+        }
+        "jira.metadata.assignee" => jira::create_metadata::read_assignable(
+            op,
+            ctx,
+            principal(&actor()),
+            Arc::new(FixedClock),
+        )
+        .map(|_| json!({"ok": true})),
+        "jira.metadata.create" => {
+            jira::create_metadata::read_context(op, ctx, principal(&actor()), Arc::new(FixedClock))
+                .map(|_| json!({"ok": true}))
+        }
+        "jira.operation.inspect" => {
+            let batch = jira::reconciliation::inspect(op, ctx, &clock);
+            match batch.error {
+                Some(error) => Err(error),
+                None => serde_json::to_value(&batch.observations)
+                    .map_err(|_| CraftError::new(ErrorCode::Internal, "encode")),
+            }
+        }
+        "jira.comment.list" | "jira.comment.get" => {
+            pages(|p| jira::comments::read_page(op, ctx, p))
+        }
+        "jira.attachment.list" | "jira.attachment.get" | "jira.attachment.settings" => {
+            pages(|p| jira::attachments::read_page(op, ctx, p))
+        }
+        "jira.link.list" | "jira.link.get" => {
+            pages(|p| jira::issue_links::reads::read_page(op, ctx, p))
+        }
+        "jira.link.types" => jira::issue_links::read_types(op, ctx)
+            .and_then(|t| {
+                serde_json::to_value(&t).map_err(|_| CraftError::new(ErrorCode::Internal, "encode"))
+            })
+            .map(|v| json!({"keys": v.as_object().map(|o| o.len())})),
+        "confluence.space.get" | "confluence.page.get" => {
+            confluence::read_get(op, ctx).map(|v| json!({"keys": v.as_object().map(|o| o.len())}))
+        }
+        "confluence.comment.get" => confluence::comments::read_get(op, ctx)
+            .map(|v| json!({"keys": v.as_object().map(|o| o.len())})),
+        "confluence.space.list" | "confluence.page.list" | "confluence.page.search" => {
+            pages(|p| confluence::read_page(op, ctx, p))
+        }
+        "confluence.comment.list" | "confluence.comment.replies" => {
+            pages(|p| confluence::comments::paging::read_page(op, ctx, p))
+        }
+        _ => Err(CraftError::new(
+            ErrorCode::Internal,
+            "no reader mapped for this command",
+        )),
+    }
+}
+
 enum Case {
     Ran(Outcome),
     Skipped(&'static str, &'static str),
@@ -176,6 +304,8 @@ enum Case {
 fn live_read_conformance() -> TestResult {
     let live = Live::connect()?;
     let d = discover(&live);
+    let account = d.account_id.clone().unwrap_or_default();
+    ACTOR.with(|a| *a.borrow_mut() = account);
     eprintln!(
         "discovered: project={} issue={} comment={} attachment={} link={} space={} page={} footer_comment={} reply_parent={}",
         d.project_key.is_some(),
@@ -208,7 +338,13 @@ fn live_read_conformance() -> TestResult {
 
     let mut cases: Vec<Case> = Vec::new();
     let mut run = |registry: &Registry, command: &str, target, input: Value| {
-        cases.push(Case::Ran(live.run_in(registry, command, target, input)));
+        cases.push(Case::Ran(live.run_with(
+            registry,
+            command,
+            target,
+            input,
+            |op, ctx| read(command, op, ctx),
+        )));
     };
 
     run(
@@ -247,7 +383,7 @@ fn live_read_conformance() -> TestResult {
                 run(
                     &metadata,
                     "jira.metadata.assignee",
-                    project.clone(),
+                    live.target("jira", "project", id),
                     json!({"account_id": account}),
                 );
             }

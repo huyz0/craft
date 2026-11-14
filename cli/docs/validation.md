@@ -58,6 +58,10 @@ The HTTP recorder tests require ephemeral loopback socket access. The current re
 
 Use sentinel credentials and capture argv/stdout/stderr/diagnostics/journal/artifacts across errors and redirects. No real credential may appear in a fixture. Make absent test tools/credentials visible. No pass by removing tests, broadening credentials, shrinking the required platform matrix or relabeling unrun tests. Tests should check meaningful outcomes, not mirror implementation structure or inflate coverage.
 
+## Live read conformance
+
+`craft-live-conformance` runs provider read entry points against a real site with an account API token. It is opt-in (`#[ignore]` plus `CRAFT_LIVE=1`), never part of `verify.py` or `--full`, and keeps tenant data in untracked `target/live-captures/`. A live pass qualifies provider parsing of real responses only; it is not host, service-auth, permission or write qualification. Fixed divergences need a deterministic fixture mirroring the observed shape. See [usage](live-conformance.md) and [evidence](evidence/live-read-conformance.md).
+
 ## Evidence records and task closure
 
 For completed implementation work, add a semantic Markdown record under `docs/evidence/`. It must contain:

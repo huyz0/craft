@@ -322,6 +322,29 @@ fn field_search_uses_repeated_filters_derived_expansions_and_advertised_clamped_
     assert_eq!(ctx.calls[1].repeated_query, ctx.calls[0].repeated_query);
     Ok(())
 }
+/// Live field search omits `nextPage` and `self` on non-final pages and returns some
+/// system fields (issue key, parent, thumbnail) without a schema. This mirrors that
+/// response shape as observed on a real site.
+#[test]
+fn live_shaped_field_search_advances_by_returned_records_and_tolerates_schemaless_fields()
+-> TestResult {
+    let op = operation(SEARCH, json!({"page_size":2}), &["name", "schema.type"])?;
+    let schemaless = json!({"id":"issuekey","name":"Key","description":"Key","typeDisplayName":"Key","isOptionsCountOverLimit":false});
+    let body = json!({"maxResults":2,"startAt":0,"total":90,"isLast":false,"values":[field("customfield_1"), schemaless]});
+    let mut ctx = context(body);
+    let page = fields::read_page(&op, &mut ctx, &plan(&op)?, None)?;
+    assert_eq!(page.next.as_ref().ok_or("Missing next")?.0["startAt"], "2");
+    assert_eq!(page.items[1]["id"], "issuekey");
+    assert_eq!(page.items[1]["fields_not_returned"], json!(["schema.type"]));
+    ctx.body = json!({"maxResults":2,"startAt":2,"total":90,"isLast":false,"values":[field("customfield_2")]});
+    let second = fields::read_page(&op, &mut ctx, &plan(&op)?, page.next.as_ref())?;
+    assert_eq!(ctx.calls[1].query["startAt"], "2");
+    assert_eq!(
+        second.next.as_ref().ok_or("Missing next")?.0["startAt"],
+        "3"
+    );
+    Ok(())
+}
 #[test]
 fn ambiguous_or_malformed_field_pages_never_guess_completeness() -> TestResult {
     let op = operation(SEARCH, json!({}), &[])?;
@@ -330,7 +353,7 @@ fn ambiguous_or_malformed_field_pages_never_guess_completeness() -> TestResult {
         "missing_start",
         "missing_max",
         "null_last",
-        "false_without_link",
+        "false_without_records",
         "true_with_link",
         "bad_total",
         "bad_values",
@@ -353,7 +376,10 @@ fn ambiguous_or_malformed_field_pages_never_guess_completeness() -> TestResult {
                 body.as_object_mut().ok_or("Object")?.remove("maxResults");
             }
             "null_last" => body["isLast"] = Value::Null,
-            "false_without_link" => body["isLast"] = json!(false),
+            "false_without_records" => {
+                body["isLast"] = json!(false);
+                body["values"] = json!([]);
+            }
             "true_with_link" => body["nextPage"] = json!("?startAt=2"),
             "bad_total" => body["total"] = json!(-1),
             "bad_values" => body["values"] = json!({}),

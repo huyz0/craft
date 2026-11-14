@@ -117,10 +117,29 @@ pub(super) fn read(
                 .ok_or_else(malformed)
         })
         .transpose()?;
-    if (last == Some(true) && link.is_some()) || (last != Some(true) && link.is_none()) {
+    if (last == Some(true) && link.is_some()) || (last.is_none() && link.is_none()) {
         return Err(malformed());
     }
-    let next = if let Some(link) = link {
+    let next = if last == Some(false) && link.is_none() {
+        // Live field search omits `nextPage` (and `self`) on non-final pages, unlike
+        // Jira's other offset-paged endpoints. An explicit `isLast: false` is the
+        // only continuation signal, so advance by the records actually returned.
+        // An empty non-final page cannot advance and is refused as stalled.
+        if values.is_empty() {
+            return Err(CraftError::new(
+                ErrorCode::PaginationStalled,
+                "Field search reported more results but returned none.",
+            ));
+        }
+        let next = start
+            .checked_add(values.len() as u64)
+            .filter(|next| *next <= i64::MAX as u64)
+            .ok_or_else(malformed)?;
+        Some(NativePosition(BTreeMap::from([(
+            "startAt".into(),
+            next.to_string(),
+        )])))
+    } else if let Some(link) = link {
         let mut link_call = call.clone();
         link_call
             .query

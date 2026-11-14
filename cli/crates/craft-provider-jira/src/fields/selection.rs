@@ -121,12 +121,17 @@ impl FieldPlan {
                     .filter(|value| value.as_str().is_some_and(|name| !name.is_empty()))
                     .ok_or_else(malformed)?,
             )?;
-            Shape::Text(256).check(
-                raw.get("schema")
-                    .and_then(|schema| schema.get("type"))
-                    .filter(|value| value.as_str().is_some_and(|kind| !kind.is_empty()))
-                    .ok_or_else(malformed)?,
-            )?;
+            // Some system fields (for example the issue key, parent and thumbnail)
+            // come back from live search with no schema at all. Absence is reported
+            // through `fields_not_returned`; a schema that is present must be typed.
+            if let Some(schema) = raw.get("schema") {
+                Shape::Text(256).check(
+                    schema
+                        .get("type")
+                        .filter(|value| value.as_str().is_some_and(|kind| !kind.is_empty()))
+                        .ok_or_else(malformed)?,
+                )?;
+            }
         }
         let nodes = if self.command == LIST {
             LIST_NODES

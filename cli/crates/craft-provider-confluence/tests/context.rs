@@ -452,3 +452,24 @@ fn search_clamps_native_limit_without_changing_bound_filters_and_requires_advanc
     assert_eq!(c.calls[0].query["limit"], "100");
     Ok(())
 }
+/// A new site's default space has type `onboarding`, alongside a personal space,
+/// with null description/icon and only `_links.base` at the top level. This is the
+/// shape a real site returned for the space list.
+#[test]
+fn live_shaped_space_list_accepts_onboarding_and_personal_spaces() -> TestResult {
+    let op = prepare(SPACE_LIST, json!({"page_size":25}), &["name", "space_type"])?;
+    let personal = json!({"id":"98315","key":"~712020abcdef","name":"Example Person","type":"personal","status":"current","authorId":"712020:abc","createdAt":"2026-11-01T00:00:00.000Z","homepageId":"98400","spaceOwnerId":"712020:abc","currentActiveAlias":"~712020abcdef","description":null,"icon":null,"_links":{"webui":"/spaces/~712020abcdef"}});
+    let mut onboarding = personal.clone();
+    onboarding["id"] = json!("98316");
+    onboarding["key"] = json!("SD");
+    onboarding["currentActiveAlias"] = json!("SD");
+    onboarding["type"] = json!("onboarding");
+    let mut c = context(
+        json!({"results":[personal, onboarding],"_links":{"base":"https://untrusted.invalid/wiki"}}),
+    );
+    let p = read_page(&op, &mut c, None)?;
+    assert_eq!(p.items.len(), 2);
+    assert_eq!(p.items[1]["space_type"], "onboarding");
+    assert!(p.next.is_none());
+    Ok(())
+}

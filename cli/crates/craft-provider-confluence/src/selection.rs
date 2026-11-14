@@ -143,7 +143,12 @@ impl FieldPlan {
                         ),
                         "space_type" => matches!(
                             value,
-                            "global" | "personal" | "collaboration" | "knowledge_base"
+                            // "onboarding" is the type of the space new sites are created with.
+                            "global"
+                                | "personal"
+                                | "collaboration"
+                                | "knowledge_base"
+                                | "onboarding"
                         ),
                         _ => text(value, 4096),
                     };
