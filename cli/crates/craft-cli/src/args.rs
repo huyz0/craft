@@ -53,6 +53,8 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "jira.attachment.list"
                 | "jira.attachment.settings"
                 | "jira.attachment.download"
+                | "jira.attachment.upload"
+                | "jira.attachment.delete"
                 | "jira.comment.create"
                 | "jira.comment.update"
                 | "jira.comment.delete"
@@ -133,6 +135,8 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "jira.attachment.list"
             | "jira.attachment.settings"
             | "jira.attachment.download"
+            | "jira.attachment.upload"
+            | "jira.attachment.delete"
             | "jira.comment.create"
             | "jira.comment.update"
             | "jira.comment.delete"
@@ -346,6 +350,8 @@ pub enum JiraCommentAction {
 }
 #[derive(Subcommand)]
 pub enum JiraAttachmentAction {
+    Upload(Box<crate::attachment_upload::command::UploadArgs>),
+    Delete(Box<crate::attachment_delete::command::AttachmentDeleteArgs>),
     Download(crate::attachment_download::command::AttachmentDownloadArgs),
     Get(crate::attachment_reads::command::AttachmentGetArgs),
     List(crate::attachment_reads::command::AttachmentListArgs),

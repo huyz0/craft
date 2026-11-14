@@ -46,6 +46,8 @@ impl ProviderModule for CloudCommands {
                 crate::issue_comments::command::register(&mut candidates)?;
                 crate::attachment_reads::command::register(&mut candidates)?;
                 crate::attachment_download::command::register(&mut candidates)?;
+                crate::attachment_upload::command::register(&mut candidates)?;
+                crate::attachment_delete::command::register(&mut candidates)?;
                 crate::comment_writes::command::register(&mut candidates)?;
                 crate::issue_links::recovery::register(&mut candidates)?;
             }
@@ -117,6 +119,12 @@ impl ProviderModule for CloudCommands {
                 "jira.comment.list" => register!(crate::issue_comments::command::CommentListArgs),
                 "jira.attachment.download" => {
                     register!(crate::attachment_download::command::AttachmentDownloadArgs)
+                }
+                "jira.attachment.upload" => {
+                    register!(crate::attachment_upload::command::UploadArgs)
+                }
+                "jira.attachment.delete" => {
+                    register!(crate::attachment_delete::command::AttachmentDeleteArgs)
                 }
                 "jira.attachment.get" => {
                     register!(crate::attachment_reads::command::AttachmentGetArgs)

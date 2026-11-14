@@ -1,5 +1,6 @@
 //! Native Jira contracts and pure response interpretation. No credential or transport access.
 
+pub mod attachment_delete;
 pub mod attachment_download;
 pub mod attachment_upload;
 pub mod attachments;

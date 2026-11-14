@@ -102,6 +102,6 @@ Findings:
 
 ## Limits
 
-- Not exercised live: editor-draft interaction with another person's open draft, attachment upload/download/delete through the CLI, ticket application and review flows, reconciliation of an unknown outcome.
+- Not exercised live: editor-draft interaction with another person's open draft, ticket application and review flows, reconciliation of an unknown outcome. Comment, link, assignment and attachment upload/download/delete writes through the host passed in the [lifecycle run](jira-conformance.md#host-lifecycle-run).
 - The production host, service-account OAuth, policy, journal and `api.atlassian.com` gateway routing were not exercised. Gateway-rewritten continuation links remain unobserved. Service-account eligibility is still pending in the [tenant inventory](tenant-auth-inventory.md).
 - One small site: one Jira project, two spaces, a handful of pages. Large-page, custom-field and permission-restricted behavior is not represented.

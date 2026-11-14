@@ -39,12 +39,17 @@ pub enum IssueMutationOperation {
     CommentDeleteAny,
     #[serde(rename = "jira.attachment.upload")]
     AttachmentUpload,
+    #[serde(rename = "jira.attachment.delete-own")]
+    AttachmentDeleteOwn,
+    #[serde(rename = "jira.attachment.delete-any")]
+    AttachmentDeleteAny,
 }
 impl IssueMutationOperation {
     /// Native command identity; ordinary and cascading deletion retain distinct policy values.
     pub fn command(self) -> &'static str {
         match self {
             Self::AttachmentUpload => "jira.attachment.upload",
+            Self::AttachmentDeleteOwn | Self::AttachmentDeleteAny => "jira.attachment.delete",
             Self::Edit => "jira.issue.update",
             Self::Transition => "jira.transition.apply",
             Self::Assign => "jira.issue.assign",
@@ -112,7 +117,7 @@ fn validate(
         ));
     }
     if operations.is_empty()
-        || operations.len() > 14
+        || operations.len() > 16
         || operations.windows(2).any(|pair| pair[0] >= pair[1])
     {
         return Err(CraftError::field(
@@ -125,7 +130,15 @@ fn validate(
 impl IssueMutationPolicyRecord {
     fn validate(&self, store: &ProfileStore, profile: &Profile) -> Result<(), CraftError> {
         // Recognizing a new operation name must not make it valid in a legacy payload.
-        if !matches!(self.format, 1..=6)
+        if !matches!(self.format, 1..=7)
+            || (self.format < 7
+                && self.operations.iter().any(|op| {
+                    matches!(
+                        op,
+                        IssueMutationOperation::AttachmentDeleteOwn
+                            | IssueMutationOperation::AttachmentDeleteAny
+                    )
+                }))
             || (self.format < 6
                 && self
                     .operations
@@ -255,7 +268,15 @@ impl ProfileStore {
             }
         }
         let record = IssueMutationPolicyRecord {
-            format: if update
+            format: if update.operations.iter().any(|op| {
+                matches!(
+                    op,
+                    IssueMutationOperation::AttachmentDeleteOwn
+                        | IssueMutationOperation::AttachmentDeleteAny
+                )
+            }) {
+                7
+            } else if update
                 .operations
                 .contains(&IssueMutationOperation::AttachmentUpload)
             {

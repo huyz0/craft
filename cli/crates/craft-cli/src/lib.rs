@@ -1,6 +1,7 @@
 //! CLI composition shared by the executable and deterministic development contract export.
 
 pub mod args;
+pub mod attachment_delete;
 pub mod attachment_download;
 pub mod attachment_reads;
 pub mod auth;

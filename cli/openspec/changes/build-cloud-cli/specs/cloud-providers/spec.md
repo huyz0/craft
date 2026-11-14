@@ -315,3 +315,13 @@ Bitbucket and Trello SHALL use their own researched routes, auth strategies, sco
 - **THEN** issue-project reads bracket stable enabled attachment settings and issue-scoped BROWSE_PROJECTS/CREATE_ATTACHMENTS decisions; missing/changed/denied evidence or a size above the native limit refuses preparation before a send claim.
 - **AND** a sealed preparation binds the full snapshot input, operation and principal with dual-clock freshness. The multipart encoder independently matches its actual snapshot, issue route and framing metadata to that operation before claiming.
 - **AND** only the documented HTTP 200 attachment array supplies acknowledgment evidence. Known bounded IDs survive malformed or unexpected optional metadata, unexpected multiple records remain visible, and no response claims a remotely verified byte digest or permission to replay an uncertain upload.
+
+#### Scenario: Public Jira attachment upload
+- **WHEN** an explicit service profile runs `jira.attachment.upload` with apply, a complete-receipt output budget and a project mutation allowance naming upload
+- **THEN** the workspace or snapshot source is captured as an immutable digest-bound artifact and saved request before the prepared context, and one journaled multipart POST is attempted at most once.
+- **AND** older policy formats grant no upload authority, a repeated operation ID never sends a second upload, and a filename match never proves an uncertain upload.
+
+#### Scenario: Explicit Jira attachment deletion
+- **WHEN** an explicit service profile deletes a numeric attachment on a numeric issue with apply, an expected metadata revision and own or any intent under the matching project mutation allowance
+- **THEN** issue reads confirm the target project and that the issue lists the attachment, metadata reads bracket issue-scoped BROWSE_PROJECTS and DELETE_OWN/DELETE_ALL_ATTACHMENTS decisions, and a changed fingerprint, foreign project, unlisted attachment, another uploader under own intent or insufficient permission refuses before a claim.
+- **AND** one journaled `DELETE /rest/api/3/attachment/{id}` is attempted at most once; only 204 confirms, 403/404 record refusal, and any other status or a lost response stays uncertain without replay. No conditional native delete is claimed, and no binary update route exists.

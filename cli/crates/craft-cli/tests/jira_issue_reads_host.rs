@@ -4,6 +4,8 @@
 mod attachments;
 #[path = "jira_issue_reads_host/comments.rs"]
 mod comments;
+#[path = "jira_issue_reads_host/deletes.rs"]
+mod deletes;
 #[path = "jira_issue_reads_host/downloads.rs"]
 mod downloads;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]

@@ -20,7 +20,9 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
     let unique: std::collections::BTreeSet<_> = values.iter().collect();
     if values.is_empty()
         || values.len()
-            > if matches!(kind, PolicyKind::JiraRead | PolicyKind::JiraMutation) {
+            > if kind == PolicyKind::JiraMutation {
+                16
+            } else if kind == PolicyKind::JiraRead {
                 14
             } else if matches!(
                 kind,
