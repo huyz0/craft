@@ -96,6 +96,15 @@ HTTP and job polling SHALL obey total deadlines, cancellation, provider rate adv
 - **WHEN** an accepted job remains pending when the caller's budget ends
 - **THEN** the result remains pending with a durable handle rather than claiming completion or launching another job.
 
+#### Scenario: Waiting on a recorded job
+- **WHEN** `operation wait` selects a local operation whose step recorded an accepted or running provider job handle
+- **THEN** the selected service profile must hold the record's exact tenant, grant and actor, and only the provider's compiled task-status GET is sent; no submission route is reachable.
+- **AND** each changed native status is appended to the journal as a monotonic job transition without changing the submission state, and the result reports job state, native status, progress, stop reason (`terminal`, `wait_elapsed`, `rate_limited`, `cancelled`, `not_visible`, `not_pollable` or `error`), any Retry-After advice and `replay_authorized: false`.
+
+#### Scenario: Nothing to poll
+- **WHEN** the record is missing, its submission started or became unknown without a job handle, or its job is already terminal
+- **THEN** the command returns the local evidence before any profile, credential or network access, keeps reconciliation required where the submission is uncertain, and never submits a job.
+
 ### Requirement: Shared mutation authority
 Cross-machine claims/deduplication SHALL use an explicitly configured trusted mutation/lease authority. Standalone mode SHALL declare advisory or single-writer consistency.
 

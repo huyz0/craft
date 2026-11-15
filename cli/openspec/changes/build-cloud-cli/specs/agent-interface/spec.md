@@ -82,6 +82,10 @@ List/search traversal SHALL use opaque bound cursors, preserve fetched remainder
 - **WHEN** buffered records remain or a native page is short or empty but nonterminal
 - **THEN** buffered replay performs no resource fetch, each other invocation performs at most one native page fetch, continuation reflects provider metadata rather than item count, and output records identify their original observation and live consistency.
 
+#### Scenario: Shared paging contract
+- **WHEN** a provider list adapter is added or changed
+- **THEN** it runs the shared paging conformance suite in its own native style (token, offset or next link), proving lossless traversal, mid-page resumption, oversized-item recovery, replay, mismatch and stall refusals with at most one native fetch per invocation, and it never reports snapshot consistency for a live collection.
+
 ### Requirement: Portable artifact I/O
 Nested inputs and large outputs SHALL use bounded file/stdin/artifact paths with digest/provenance and safe OS-aware file handling. Binary output SHALL not corrupt JSON stdout.
 
@@ -130,3 +134,12 @@ Nested inputs and large outputs SHALL use bounded file/stdin/artifact paths with
 - **THEN** snapshot size and expected digest are verified before claim acquisition, the same opened file is streamed again in bounded chunks with exact multipart length, fixed file field and X-Atlassian-Token header, and compiled routing attaches credentials only to the declared Jira content destination.
 - **AND** the send claim binds framing, filename, media type and exact snapshot identity. Equivalent preparations preserve framing identity; no successful response from an incomplete or corrupt source becomes qualified upload evidence. Bounded native response evidence is retained independently when source completion is unqualified.
 - **AND** cancellation, deadlines, disconnects, redirect responses and response-persistence failures preserve the original claimed uncertainty without retries. Ordinary JSON mutation preparation cannot execute a multipart-only operation.
+
+#### Scenario: Bounded scan into artifacts
+- **WHEN** an agent starts or resumes a scan of a scannable list command with item, page, byte and time caps
+- **THEN** records are written to immutable private segments and an immutable checkpoint with digests, never to stdout, and the result is `complete` only after terminal provider metadata; caps, 429, cancellation and failures return `budget_reached`, `rate_limited` (with Retry-After), `cancelled` or `error` with a resumable checkpoint.
+- **AND** a repeated native position or a run of empty nonterminal pages stops with `PAGINATION_STALLED`, a changed binding refuses resume before any fetch, and repeated IDs are counted rather than hidden.
+
+#### Scenario: Exporting a scan
+- **WHEN** an agent exports a scan checkpoint with its observed digest to a selected output root and relative file
+- **THEN** verified segments are concatenated into one create-new JSON Lines file, a non-complete scan requires explicit partial selection and its receipt keeps `complete: false`.
