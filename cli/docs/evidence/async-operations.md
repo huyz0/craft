@@ -36,9 +36,11 @@ Host cases and what they pin down:
 
 No public command submits an asynchronous job yet, so no lost-submission case can reach a provider: the only path is the local `not_pollable` result above. Confluence archive, page-tree copy and space deletion must record their handles through `SendClaim::record_outcome` when their tasks activate them.
 
+Gate on the final source: `python tools/verify.py` passed planning, skill, contract, provider and dependency checks, formatting, both Clippy modes and `cargo test --workspace` (814 tests). Its composed-host stage then failed 16 Confluence review-verification cases at default parallelism, the known deadline pressure recorded in STATE.md; `confluence_context_host` passed all 69 with `--test-threads=4`, and the other eight host suites, the runtime synthetic-acceptance library tests and `tools/synthetic-acceptance.py` all passed.
+
 ## Live
 
-Recorded in the live section added after the read-only probe run.
+On 15 November 2026 the CraftTest service profile ran `operation wait` against the test site with handles seeded only into the local `cli/target/live-state` journal by the opt-in `seed_live_job_handle_for_a_read_only_wait_probe` test (no site write). Jira task `1`: one status GET under `read:jira-work` with the verified service actor, HTTP 404, `stop_reason: not_visible`, recorded state left `accepted`. This confirms the route, gateway, scope and actor path; it does not observe a running or finished task. Confluence long task: `PERMISSION_DENIED` with zero polls, because credential `craft-granular-4` has neither long-task scope.
 
 ## Not covered
 

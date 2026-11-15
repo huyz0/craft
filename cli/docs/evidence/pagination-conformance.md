@@ -6,7 +6,7 @@ Date: **15 November 2026**, Australia/Sydney. Windows x86_64 MSVC, pinned Rust 1
 
 - `crates/craft-test-support/src/paging.rs` provides synthetic native list services in the three provider styles (opaque token, numeric offset, next link with an opaque cursor) with scripted faults: rate limit, cancellation, failure, empty nonterminal page, repeated position, insertion and deletion between pages. The service serves the dataset as it is at fetch time, so live changes produce real duplicates and gaps.
 - `crates/craft-test-support/src/paging/contract.rs` is the reusable contract. A subject supplies a page source over a dataset, its binding and a changed binding, expected IDs and an identity function; the runtime supplies the real cursor engine (`ProfileStore::provider_page`) through the `Pager` trait. The contract observes only emitted IDs, page metadata and native fetch counts.
-- `crates/craft-runtime/tests/paging_conformance.rs` runs the contract against the three synthetic styles and five real adapters. Each real adapter reads simulated native wire responses through its own `read_page`, and continuation links are normalized the way the host does: only the link's query values for the same route. The same subjects then run through the scan driver.
+- `crates/craft-runtime/tests/paging_conformance.rs` runs the contract against the three synthetic styles and six real adapters. Each real adapter reads simulated native wire responses through its own `read_page`, and continuation links are normalized the way the host does: only the link's query values for the same route. The same subjects then run through the scan driver.
 
 | Subject | Style | Adapter |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ Date: **15 November 2026**, Australia/Sydney. Windows x86_64 MSVC, pinned Rust 1
 | Jira comment list | offset with `total` | `comments::read_page` |
 | Confluence page list | relative `_links.next` with a cursor | `read_page` for `confluence.page.list` |
 | Confluence space list | relative `_links.next` with a cursor | `read_page` for `confluence.space.list` |
+| Confluence page search | relative `_links.next` with a cursor, `next=true` and a provider `limit` | `read_page` for `confluence.page.search` |
 
 ## Cases
 
@@ -34,12 +35,18 @@ A separate case shows a rate-limited Confluence page fetch publishes no successo
 
 | Check | Result |
 | --- | --- |
-| `cargo test -p craft-runtime --test paging_conformance` | 2 passed: eight subjects, all three styles, every case above, plus scan completion per subject |
+| `cargo test -p craft-runtime --test paging_conformance` | 2 passed: nine subjects, all three styles, every case above, plus scan completion per subject |
 
 Envelope response schemas are validated by the host tests that wrap these adapters (`jira_issue_reads_host`, `jira_project_list_host`, `confluence_context_host`), not by this suite.
 
+Gate on the final source: `python tools/verify.py` passed planning, skill, contract, provider and dependency checks, formatting, both Clippy modes and `cargo test --workspace` (814 tests). Its composed-host stage then failed 16 Confluence review-verification cases at default parallelism, the known deadline pressure recorded in STATE.md; `confluence_context_host` passed all 69 with `--test-threads=4`, and the other eight host suites, the runtime synthetic-acceptance library tests and `tools/synthetic-acceptance.py` all passed.
+
+## Live
+
+The live scans in [scan evidence](scan-artifacts.md) crossed real Jira token pages (including an empty final page) and Confluence cursor pages through the same adapters.
+
 ## Not covered
 
-- Jira field search, Confluence CQL search, Confluence footer comments and Confluence attachment list have native continuation but are not registered with the contract yet; their own adapter tests remain their evidence.
+- Jira field search, Confluence footer comments and Confluence attachment list have native continuation but are not registered with the contract yet; their own adapter tests remain their evidence.
 - Field masks and local filtering are exercised by projection in the host tests, not by this suite.
 - Engine-level `ITEM_TOO_LARGE` and `OUTPUT_BUDGET_TOO_SMALL` cases remain in `crates/craft-runtime/tests/provider_pages.rs`; the suite's small records rarely exceed the recovery envelope.

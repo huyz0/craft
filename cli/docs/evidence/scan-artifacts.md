@@ -40,9 +40,19 @@ Date: **15 November 2026**, Australia/Sydney. Windows x86_64 MSVC, pinned Rust 1
 | `page_list_scan_follows_bound_next_links_and_keeps_rate_advice` | Second request carries the bound cursor; 429 with `Retry-After: 45` keeps two records and the continuation |
 | `scan_checkpoints_export_only_with_their_digest_and_never_claim_a_partial_is_complete` | Wrong digest is `CURSOR_MISMATCH`; partial export is refused without `--allow-partial` and writes nothing; with it, three lines and `complete: false`; a second export to the same file is refused; segments are inspectable with `artifact get --collection scans`; resume with a wrong digest fails before profile access; non-scannable commands, a supplied cursor, unknown argument fields, zero caps and `--fields` are refused |
 
+Gate on the final source: `python tools/verify.py` passed planning, skill, contract, provider and dependency checks, formatting, both Clippy modes and `cargo test --workspace` (814 tests). Its composed-host stage then failed 16 Confluence review-verification cases at default parallelism, the known deadline pressure recorded in STATE.md; `confluence_context_host` passed all 69 with `--test-threads=4`, and the other eight host suites, the runtime synthetic-acceptance library tests and `tools/synthetic-acceptance.py` all passed.
+
 ## Live
 
-Recorded in the live section added after the read-only probe run.
+On 15 November 2026 `python tools/live_host.py scans` ran read-only against the test site through the CraftTest service profiles, with one-record native pages and an item cap of two:
+
+| Command | Start | Resume | Export |
+| --- | --- | --- | --- |
+| `jira.issue.search` | `budget_reached` (items) after 3 native pages, 2 records | `complete`, 4 records, 5 pages including one empty final page | 4 lines, `complete: true` |
+| `jira.project.list` | `complete`, 1 record (the site has one project) | refused `VERSION_CONFLICT`: already complete | 1 line |
+| `confluence.page.list` | `budget_reached` (items), 2 records | `complete`, 6 records over 6 cursor pages | 6 lines |
+
+Resume with a wrong checkpoint digest returned `CURSOR_MISMATCH` for all three. No duplicates were observed. The project scan did not cross a live `nextPage` link because the site has a single project; link following is covered by the host fixture.
 
 ## Not covered
 

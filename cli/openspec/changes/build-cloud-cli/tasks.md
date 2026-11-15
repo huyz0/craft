@@ -516,7 +516,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### async-operations
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Track remote jobs separately from submission and caller time budgets.
 
@@ -608,7 +608,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### scan-artifacts
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Offer bounded complete scans without dumping a collection into model context.
 
@@ -626,7 +626,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### pagination-conformance
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Prove cursor/projection behavior independently of one provider fixture.
 
