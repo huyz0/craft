@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "lock_sha256": "ac8ffaf4ff24e3ec908b4b9f47f553c90c89a4c465b814292bfd1b0595151433",
+  "lock_sha256": "c3c13c40b7159828e2e92464a8b82a8c71e58644fbb0eff3f6a537bb6b2d1b0a",
   "packages": [
     {
       "name": "aes",
@@ -2269,7 +2269,7 @@
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "e6bdea02f395e6c3592234e7b64cd0b4c2658cc9efbd45f05c0dfce7d3fd72d2",
+      "manifest_sha256": "0e8b9786b53802d326018b3a3ec8be6f19af8ceb26c092b31765affff811ce88",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",
@@ -2301,6 +2301,13 @@
           "version": "0.1.0",
           "kinds": [
             "normal"
+          ]
+        },
+        {
+          "package": "craft-provider-confluence",
+          "version": "0.1.0",
+          "kinds": [
+            "dev"
           ]
         },
         {

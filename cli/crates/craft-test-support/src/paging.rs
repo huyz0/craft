@@ -9,6 +9,8 @@ use craft_core::error::{CraftError, ErrorCode};
 use craft_core::pagination::{ListBinding, NativePage, NativePosition, PageSource};
 use serde_json::{Value, json};
 
+pub mod contract;
+
 /// How the native service advertises its next page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
@@ -34,7 +36,7 @@ pub enum Fault {
     RepeatPosition,
     /// Insert a record at the front of the collection before serving.
     InsertFront(String),
-    /// Delete the record with this ID before serving.
+    /// Delete the record with this ID, or the first record when empty, before serving.
     Delete(String),
 }
 
@@ -164,6 +166,11 @@ impl SyntheticService {
                 });
             }
             Some(Fault::InsertFront(id)) => self.records.insert(0, record(&id, 0)),
+            Some(Fault::Delete(id)) if id.is_empty() => {
+                if !self.records.is_empty() {
+                    self.records.remove(0);
+                }
+            }
             Some(Fault::Delete(id)) => self.records.retain(|item| item["id"] != id),
             None => {}
         }
@@ -212,4 +219,10 @@ pub fn ids(items: &[Value]) -> Vec<String> {
         .iter()
         .filter_map(|item| item["id"].as_str().map(String::from))
         .collect()
+}
+
+impl contract::CountingSource for SyntheticService {
+    fn fetches(&self) -> usize {
+        self.fetches
+    }
 }

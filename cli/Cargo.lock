@@ -681,6 +681,7 @@ dependencies = [
  "bytes",
  "craft-core",
  "craft-platform",
+ "craft-provider-confluence",
  "craft-provider-jira",
  "craft-test-support",
  "ctrlc",

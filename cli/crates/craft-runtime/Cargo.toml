@@ -39,6 +39,7 @@ security-framework.workspace = true
 secret-service.workspace = true
 
 [dev-dependencies]
+craft-provider-confluence = { path = "../craft-provider-confluence" }
 craft-provider-jira = { path = "../craft-provider-jira" }
 craft-test-support = { path = "../craft-test-support" }
 rustls.workspace = true
