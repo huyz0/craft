@@ -14,6 +14,8 @@ Commands:
   writes     create, transition, edit and delete one craft-test issue
   attachments  upload, read back, download and delete an attachment on a craft-test issue
   lifecycle  comment, link, assign and attachment writes on two craft-test issues, then attachments
+  scans      read-only: scan, resume and export issue search, project list and page list, then
+             poll seeded job handles with operation wait (see the seed test in tests/operations.rs)
 """
 
 import argparse
@@ -523,9 +525,54 @@ def space_create(state_root):
     return report
 
 
+def scans(state_root, wait_operations):
+    """Read-only scans with one-record native pages so every run crosses page boundaries.
+
+    Records land in the private scans collection and one export under target/live-captures.
+    """
+    report = []
+    projects = run(state_root, "jira-test", "jira.project.list", {"page_size": 50})
+    project_key = first(projects, "key")
+    plans = [
+        ("jira-test", "jira.project.list", {"page_size": 1}),
+        ("cf-test", "confluence.page.list", {"page_size": 1}),
+    ]
+    if project_key:
+        plans.insert(0, ("jira-test", "jira.issue.search", {"jql": f"project = {project_key} ORDER BY key", "page_size": 1}))
+    CAPTURES.mkdir(parents=True, exist_ok=True)
+    for profile, command, arguments in plans:
+        # A first invocation stops on the item cap; resume raises it and finishes.
+        start = craft(state_root, ["--profile", profile, "scan", "start"], {"command": command, "arguments": arguments, "max_items": 2, "max_pages": 50})
+        data = start.get("data") or {}
+        report.append(f"scan start {command} => ok={start.get('ok')} outcome={data.get('outcome')} limit={data.get('limit')} totals={json.dumps(data.get('totals'))} error={(start.get('error') or {}).get('code')}")
+        checkpoint = data.get("checkpoint") or {}
+        if not checkpoint:
+            continue
+        resumed = craft(state_root, ["--profile", profile, "scan", "resume"], {"checkpoint": checkpoint["name"], "checkpoint_digest": checkpoint["digest"], "max_items": 500})
+        rdata = resumed.get("data") or {}
+        report.append(f"scan resume {command} => ok={resumed.get('ok')} outcome={rdata.get('outcome')} complete={rdata.get('complete')} totals={json.dumps(rdata.get('totals'))} error={(resumed.get('error') or {}).get('code')}")
+        final = rdata.get("checkpoint") or checkpoint
+        output = f"scan-{command.replace('.', '-')}-{final['name'][:40]}.jsonl"
+        exported = craft(state_root, ["scan", "export"], {"checkpoint": final["name"], "checkpoint_digest": final["digest"], "output_root": str(CAPTURES), "output": output, "allow_partial": not rdata.get("complete")})
+        edata = exported.get("data") or {}
+        lines = 0
+        path = CAPTURES / output
+        if path.exists():
+            lines = len([line for line in path.read_text(encoding="utf-8").splitlines() if line])
+        report.append(f"scan export {command} => ok={exported.get('ok')} complete={edata.get('complete')} items={edata.get('items')} lines={lines}")
+        stale = craft(state_root, ["--profile", profile, "scan", "resume"], {"checkpoint": checkpoint["name"], "checkpoint_digest": "sha256:" + "0" * 64})
+        report.append(f"scan resume wrong digest {command} => {(stale.get('error') or {}).get('code')}")
+    for profile, operation in wait_operations:
+        out = craft(state_root, ["--profile", profile, "operation", "wait"], {"operation_id": operation, "wait_ms": 0})
+        data = out.get("data") or {}
+        report.append(f"operation wait {operation} => ok={out.get('ok')} stop={data.get('stop_reason')} polls={data.get('polls')} job={json.dumps((data.get('job') or {}).get('state'))} error={(out.get('error') or {}).get('code')}: {(out.get('error') or {}).get('message')}")
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page", "space"])
+    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page", "space", "scans"])
+    parser.add_argument("--wait", action="append", default=[], metavar="PROFILE=OPERATION", help="seeded job operation to poll in scans mode")
     parser.add_argument("--issue-type", help="numeric non-subtask issue type id for writes")
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
     parser.add_argument("--project", help="numeric Jira project id")
@@ -554,6 +601,8 @@ def main():
             report = attachments(args.state_root, args.project, args.issue_type)
         elif args.command == "space":
             report = space_create(args.state_root)
+        elif args.command == "scans":
+            report = scans(args.state_root, [tuple(item.split("=", 1)) for item in args.wait])
         else:
             report = page_lifecycle(args.state_root, args.space)
         text = "\n".join(report)

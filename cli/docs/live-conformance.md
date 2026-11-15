@@ -50,6 +50,15 @@ It creates two Jira issues and a Confluence page titled `craft-test live <timest
 
 `tools/live_host.py` runs the built `craft` executable through the full host: service-account OAuth, local policy and journal. The site owner provisions the grant once with `craft --state-root cli/target/live-state auth provision --profiles jira-test,cf-test --expected-actor <service-account-id> --interactive`. Give the OAuth credential exactly the ten scopes listed in the [evidence](evidence/live-read-conformance.md); broad selection hits Atlassian's 50-scope cap before the granular Confluence read scopes. Then `python tools/live_host.py policies --project <id> --space <id>`, `reads`, `writes --project <id> --issue-type <id>` and `page --space <id>`. Write runs create `craft-test` items; `tests/live_cleanup.rs` removes any that remain. Pass `--state-root` explicitly where the shell's AppData is virtualized.
 
+`python tools/live_host.py scans` is read-only on the site. It starts a scan of Jira issue search, project list and Confluence page list with one-record native pages and an item cap of two, resumes each from its checkpoint, exports the result under `target/live-captures` and checks that a wrong checkpoint digest is refused. To probe `operation wait` without creating a real asynchronous job, first seed a local job handle into the state root (this writes only local state):
+
+```powershell
+$env:CRAFT_LIVE_SEED_STATE='cli\target\live-state'; $env:CRAFT_LIVE_SEED_PROFILE='jira-test'; $env:CRAFT_LIVE_SEED_ACTOR='<service-account-id>'; $env:CRAFT_LIVE_SEED_TASK='1'
+cargo test -p craft-cli --test operations seed_live_job_handle -- --ignored --nocapture
+```
+
+Then pass the printed operation ID with `--wait jira-test=<operation-id>`.
+
 ## Replaying captures
 
 `ReplayContext` serves recorded bodies in order and `prepare_offline` prepares a request against a synthetic tenant, so a provider fix can be checked against captured live data without network access, or a rejected record can be isolated. A divergence that is fixed must also gain a deterministic fixture in the provider's own tests that mirrors the observed shape, since captures are local and untracked.

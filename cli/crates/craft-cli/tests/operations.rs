@@ -807,3 +807,70 @@ fn waiting_without_a_pollable_handle_returns_local_evidence_and_sends_nothing()
     assert_eq!(fields["ok"], false);
     Ok(())
 }
+
+/// Seeds local job handles for a read-only live `operation wait` probe. It writes only the
+/// selected private state root, never the provider site. Opt in with CRAFT_LIVE_SEED_STATE
+/// (state root), CRAFT_LIVE_SEED_PROFILE (Jira or Confluence service profile),
+/// CRAFT_LIVE_SEED_ACTOR (service actor) and CRAFT_LIVE_SEED_TASK (a task ID to poll).
+#[test]
+#[ignore = "writes a local job record into a selected live state root; opt in explicitly"]
+fn seed_live_job_handle_for_a_read_only_wait_probe() -> Result<(), Box<dyn std::error::Error>> {
+    let root = std::env::var("CRAFT_LIVE_SEED_STATE")?;
+    let name = std::env::var("CRAFT_LIVE_SEED_PROFILE")?;
+    let actor = std::env::var("CRAFT_LIVE_SEED_ACTOR")?;
+    let task = std::env::var("CRAFT_LIVE_SEED_TASK")?;
+    let control = control()?;
+    let profiles = ProfileStore::open(Path::new(&root), &control)?;
+    let profile = profiles.get(&name, &control)?;
+    let tenant = profile.tenant.clone().ok_or("profile tenant")?;
+    let resource_type = if profile.provider == "jira" {
+        "task"
+    } else {
+        "longtask"
+    };
+    let journal = NativeJournal::open(&profiles, &control)?;
+    let operation_id = format!("craft-test-wait-probe-{}-{task}", profile.provider);
+    let mut record = journal.begin(&OperationBinding {
+        operation_id: operation_id.clone(),
+        request_digest: content_digest(b"craft-test wait probe"),
+        descriptor_digest: content_digest(b"craft-test wait probe descriptor"),
+        target: ResourceRef {
+            provider: profile.provider.clone(),
+            deployment: "cloud".into(),
+            tenant: tenant.clone(),
+            resource_type: "site".into(),
+            id: tenant.clone(),
+        },
+        grant: profile.grant.clone(),
+        actor,
+    })?;
+    if record.revision == 0 {
+        for state in [
+            SubmissionState::Prepared,
+            SubmissionState::SendStarted,
+            SubmissionState::Confirmed,
+        ] {
+            let step = record.steps.entry("submit".into()).or_insert(JournalStep {
+                request_digest: Some(content_digest(b"craft-test wait probe native")),
+                ..Default::default()
+            });
+            step.state = state;
+            if state == SubmissionState::Confirmed {
+                step.job = Some(RemoteJob {
+                    resource: ResourceRef {
+                        provider: profile.provider.clone(),
+                        deployment: "cloud".into(),
+                        tenant: tenant.clone(),
+                        resource_type: resource_type.into(),
+                        id: task.clone(),
+                    },
+                    state: JobState::Accepted,
+                });
+            }
+            record.revision += 1;
+            journal.compare_and_swap(record.revision - 1, &record)?;
+        }
+    }
+    println!("{operation_id}");
+    Ok(())
+}

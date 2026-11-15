@@ -530,7 +530,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Successful submission is never labeled completed remote work; handles and known outcomes remain usable after restart.
 
-**Evidence:** none
+**Evidence:** docs/evidence/async-operations.md
 
 ### operation-preview
 
@@ -622,7 +622,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** A partial export cannot claim completeness and no unbounded --all stdout path is introduced.
 
-**Evidence:** none
+**Evidence:** docs/evidence/scan-artifacts.md
 
 ### pagination-conformance
 
@@ -640,7 +640,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** All provider adapters can reuse a losslessness/metadata test contract and none falsely claims snapshot isolation.
 
-**Evidence:** none
+**Evidence:** docs/evidence/pagination-conformance.md
 
 ## Provider contract inventory
 

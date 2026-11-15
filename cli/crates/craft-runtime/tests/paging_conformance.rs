@@ -668,6 +668,70 @@ impl Wire for ConfluenceList {
     }
 }
 
+/// Confluence CQL search continues through `_links.next` with a cursor and `next=true`, and
+/// reports the provider's own `limit`.
+struct CqlSearch;
+impl Wire for CqlSearch {
+    fn name(&self) -> &'static str {
+        "confluence page search"
+    }
+    fn style(&self) -> Style {
+        Style::NextLink
+    }
+    fn provider(&self) -> &'static str {
+        "confluence"
+    }
+    fn registry(&self) -> Result<Registry, CraftError> {
+        let mut registry = Registry::default();
+        registry.register_provider(&craft_provider_confluence::ConfluenceContext)?;
+        Ok(registry)
+    }
+    fn request(&self, page_size: usize) -> CanonicalRequest {
+        request(
+            "confluence",
+            craft_provider_confluence::PAGE_SEARCH,
+            json!({"cql":"type=page","page_size":page_size}),
+        )
+    }
+    fn record(&self, id: u64) -> Value {
+        json!({"content":{"id":id.to_string(),"type":"page","status":"current","title":format!("Plan {id}"),"space":{"id":100},"version":{"number":3}}})
+    }
+    fn offset(&self, call: &NativeCall) -> usize {
+        call.query
+            .get("cursor")
+            .and_then(|cursor| cursor.strip_prefix("c"))
+            .and_then(|offset| offset.parse().ok())
+            .unwrap_or(0)
+    }
+    fn body(
+        &self,
+        call: &NativeCall,
+        records: &[Value],
+        offset: usize,
+        page_size: usize,
+        _: usize,
+        next: Option<usize>,
+    ) -> Value {
+        let mut body = json!({"results":records,"size":records.len(),"start":offset,"limit":page_size,"_links":{}});
+        if let Some(next) = next {
+            let mut query = call.query.clone();
+            query.insert("cursor".into(), format!("c{next}"));
+            query.insert("next".into(), "true".into());
+            let query: Vec<_> = query.iter().map(|(k, v)| format!("{k}={v}")).collect();
+            body["_links"]["next"] = json!(format!("/wiki/rest/api/search?{}", query.join("&")));
+        }
+        body
+    }
+    fn read(
+        &self,
+        operation: &PreparedOperation,
+        context: &mut dyn OperationContext,
+        position: Option<&NativePosition>,
+    ) -> Result<NativePage, CraftError> {
+        craft_provider_confluence::read_page(operation, context, position)
+    }
+}
+
 fn adapter<W: Wire>(engine: &Engine, wire: W) -> Adapter<W> {
     let input = wire.request(5).input;
     let mut changed = input.clone();
@@ -746,6 +810,7 @@ fn every_native_style_and_list_adapter_meets_the_shared_paging_contract() -> Tes
     subjects.push(Box::new(adapter(&engine, CommentList)));
     subjects.push(Box::new(adapter(&engine, PAGE_LIST)));
     subjects.push(Box::new(adapter(&engine, SPACE_LIST)));
+    subjects.push(Box::new(adapter(&engine, CqlSearch)));
     let mut styles = std::collections::BTreeSet::new();
     for subject in &subjects {
         // Expire earlier subjects' cursors so each subject starts with free cursor capacity.
