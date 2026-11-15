@@ -733,3 +733,77 @@ fn remote_preview_runs_only_the_mapped_read_and_records_no_operation()
     assert!(fixture.journal()?.get("issue-change")?.is_none());
     Ok(())
 }
+
+#[test]
+fn waiting_without_a_pollable_handle_returns_local_evidence_and_sends_nothing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let wait = |fixture: &Fixture, extra: &[&str]| -> Result<Value, Box<dyn std::error::Error>> {
+        let mut args = vec![
+            "operation",
+            "wait",
+            "--operation-id",
+            "publish-summary",
+            "--wait-ms",
+            "60000",
+        ];
+        args.extend(extra);
+        success(&fixture.invoke(&args, None)?)
+    };
+    let missing = Fixture::new()?;
+    let result = wait(&missing, &[])?;
+    assert_eq!(result["data"]["found"], false);
+    assert_eq!(result["data"]["stop_reason"], "not_pollable");
+    assert_eq!(result["data"]["reconciliation_required"], Value::Null);
+    assert_eq!(result["data"]["polls"], 0);
+    for (state, job, reconcile, stop) in [
+        (SubmissionState::SendStarted, None, true, "not_pollable"),
+        (SubmissionState::Unknown, None, true, "not_pollable"),
+        (
+            SubmissionState::Confirmed,
+            Some(JobState::Succeeded),
+            false,
+            "terminal",
+        ),
+        (
+            SubmissionState::Confirmed,
+            Some(JobState::Failed),
+            false,
+            "terminal",
+        ),
+    ] {
+        let fixture = Fixture::new()?;
+        let before = fixture.seed(1, state, job)?;
+        let result = wait(&fixture, &[])?;
+        let data = &result["data"];
+        assert_eq!(data["found"], true);
+        assert_eq!(data["step"], "publish-000");
+        assert_eq!(data["submission_state"], serde_json::to_value(state)?);
+        assert_eq!(data["stop_reason"], stop);
+        assert_eq!(data["reconciliation_required"], reconcile);
+        assert_eq!(data["polls"], 0);
+        assert_eq!(data["replay_authorized"], false);
+        assert_eq!(data["credential_cache_update"], Value::Null);
+        assert_eq!(fixture.journal()?.get("publish-summary")?, Some(before));
+    }
+    let several = Fixture::new()?;
+    several.seed(2, SubmissionState::Confirmed, Some(JobState::Running))?;
+    let refused = envelope(&several.invoke(
+        &["operation", "wait", "--operation-id", "publish-summary"],
+        None,
+    )?)?;
+    assert_eq!(refused["ok"], false);
+    assert_eq!(refused["error"]["details"]["issues"][0]["path"], "/step");
+    let fields = envelope(&several.invoke(
+        &[
+            "operation",
+            "wait",
+            "--operation-id",
+            "publish-summary",
+            "--fields",
+            "job",
+        ],
+        None,
+    )?)?;
+    assert_eq!(fields["ok"], false);
+    Ok(())
+}

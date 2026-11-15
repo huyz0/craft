@@ -45,6 +45,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "operation.list"
                 | "operation.preview"
                 | "operation.reconcile"
+                | "operation.wait"
                 | "jira.issue.create"
                 | "jira.link.create"
                 | "jira.link.delete"
@@ -191,6 +192,7 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "jira.transition.apply"
             | "operation.reconcile"
             | "operation.preview"
+            | "operation.wait"
     )
 }
 
@@ -652,6 +654,7 @@ pub enum OperationAction {
     List(OperationListArgs),
     Preview(OperationPreviewArgs),
     Reconcile(Box<crate::issue_recovery::command::OperationReconcileArgs>),
+    Wait(Box<crate::job_wait::command::OperationWaitArgs>),
 }
 
 #[derive(Args, Debug, Serialize, Deserialize, JsonSchema)]

@@ -451,6 +451,44 @@ impl NativeJournal {
     }
 }
 
+impl NativeJournal {
+    /// Appends one polled job state to an existing handle. Only the job state may change: the
+    /// submission state, request digest and confirmed resources stay exactly as recorded, the
+    /// handle must match, and the transition must be allowed. Like receipt recording, this uses
+    /// one immediate transaction so an observation made before cancellation is not lost.
+    pub fn record_job_state(
+        &self,
+        operation_id: &str,
+        step: &str,
+        job: &RemoteJob,
+    ) -> Result<JournalRecord, StoreError> {
+        let profiles = self.lock(true)?;
+        let transaction = self.transaction(&profiles.connection, true)?;
+        let previous = self
+            .read(&transaction, operation_id)?
+            .ok_or(StoreError::Conflict)?;
+        let current = previous
+            .steps
+            .get(step)
+            .and_then(|step| step.job.as_ref())
+            .ok_or(StoreError::Conflict)?;
+        if current.resource != job.resource || !current.state.allows(job.state) {
+            return Err(StoreError::Conflict);
+        }
+        if current.state == job.state {
+            return Ok(previous);
+        }
+        let mut next = previous.clone();
+        next.revision = next.revision.checked_add(1).ok_or(StoreError::TooLarge)?;
+        if let Some(step) = next.steps.get_mut(step) {
+            step.job = Some(job.clone());
+        }
+        self.update(&transaction, &previous, &next)?;
+        self.commit(transaction, true, true)?;
+        Ok(next)
+    }
+}
+
 impl OperationJournal for NativeJournal {
     fn get(&self, operation_id: &str) -> Result<Option<JournalRecord>, StoreError> {
         let profiles = self.lock(false)?;

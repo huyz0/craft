@@ -289,7 +289,8 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
         "command.find" => (
             "/matches",
             &["id"],
-            &["id", "description", "provider", "effect"],
+            // Provider is derivable from the id prefix and stays selectable with --fields.
+            &["id", "description", "effect"],
         ),
         "provider.list" => ("/items", &["id"], &["id", "version", "deployments"]),
         "profile.list" => (
@@ -325,7 +326,8 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
         "help" => (
             "/commands",
             &["id"],
-            &["id", "description", "provider", "effect"],
+            // Provider is derivable from the id prefix and stays selectable with --fields.
+            &["id", "description", "effect"],
         ),
         _ => return None,
     };

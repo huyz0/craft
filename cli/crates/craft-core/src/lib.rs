@@ -11,6 +11,7 @@ pub mod presence;
 pub mod profiles;
 pub mod projection;
 pub mod registry;
+pub mod scan;
 pub mod storage;
 
 /// Identifies this distribution independently of other executables named Craft.

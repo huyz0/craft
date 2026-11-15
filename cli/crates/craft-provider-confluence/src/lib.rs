@@ -4,6 +4,7 @@ pub mod attachment_upload;
 pub mod attachments;
 pub mod comments;
 pub mod content_state;
+pub mod longtasks;
 mod models;
 pub mod pages;
 mod reads;

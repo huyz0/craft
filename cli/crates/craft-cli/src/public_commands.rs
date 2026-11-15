@@ -225,6 +225,7 @@ pub(crate) fn register(registry: &mut Registry) -> Result<(), CraftError> {
         recovery.descriptor(crate::issue_recovery::COMMAND)?.clone(),
         Arc::new(VerifiedHostRequired),
     )?;
+    crate::job_wait::command::register(registry)?;
     crate::planning_publication::register(registry)?;
     crate::planning_read::register(registry)
 }

@@ -137,6 +137,9 @@ pub fn command_id(action: &Action) -> &'static str {
         Action::Operation {
             action: crate::args::OperationAction::Reconcile(_),
         } => "operation.reconcile",
+        Action::Operation {
+            action: crate::args::OperationAction::Wait(_),
+        } => crate::job_wait::COMMAND,
         Action::Plan { action } => match action {
             crate::args::PlanAction::Scaffold(_) => "plan.scaffold",
             crate::args::PlanAction::Validate(_) => "plan.validate",
@@ -551,6 +554,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::args::OperationAction::Reconcile(_) => {
                     crate::args::OperationAction::Reconcile(Box::new(decode(input)?))
                 }
+                crate::args::OperationAction::Wait(_) => {
+                    crate::args::OperationAction::Wait(Box::new(decode(input)?))
+                }
             },
         },
         Action::Plan { action } => Action::Plan {
@@ -749,6 +755,9 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         } => value(arguments),
         Action::Operation {
             action: crate::args::OperationAction::Reconcile(arguments),
+        } => value(arguments),
+        Action::Operation {
+            action: crate::args::OperationAction::Wait(arguments),
         } => value(arguments),
         Action::Plan { action } => match action {
             crate::args::PlanAction::Scaffold(args) => value(args),
@@ -1234,6 +1243,21 @@ pub fn execute(
                 crate::confluence_reads::command::execute(args, fields, options, control)
             },
         );
+    }
+    if let Action::Operation {
+        action: crate::args::OperationAction::Wait(arguments),
+    } = &action
+    {
+        registry.validate(crate::job_wait::COMMAND, &value(arguments)?)?;
+        let Action::Operation {
+            action: crate::args::OperationAction::Wait(arguments),
+        } = action
+        else {
+            return Err(CraftError::field("/command", "expected_operation_wait"));
+        };
+        return Ok(crate::job_wait::command::execute(
+            *arguments, fields, options, control,
+        ));
     }
     if matches!(
         &action,

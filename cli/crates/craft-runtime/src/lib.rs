@@ -24,6 +24,7 @@ pub mod profile_pages;
 pub mod profiles;
 pub mod project_read_policy;
 pub mod review_policy;
+pub mod scan;
 pub mod secrets;
 pub mod transport;
 pub mod vault;

@@ -709,3 +709,64 @@ fn journal_claims_gate_loopback_sends_and_lost_responses_require_reconciliation(
     assert_eq!(remote.verify()?.len(), 1);
     Ok(())
 }
+
+#[test]
+fn polled_job_states_advance_one_way_without_touching_submission_evidence()
+-> Result<(), Box<dyn std::error::Error>> {
+    use craft_core::contracts::JobState;
+    let fixture = Fixture::new()?;
+    let invocation = control(CancellationToken::default(), 10_000)?;
+    let (profiles, grant, journal) = fixture.setup(&invocation)?;
+    let registry = registry()?;
+    let operation = registry.prepare(request())?;
+    let claim = journal.claim_send(&registry, &operation, &authority(&grant), "create", &call())?;
+    let handle = ResourceRef {
+        resource_type: "task".into(),
+        id: "77".into(),
+        ..target()
+    };
+    let job = |state| RemoteJob {
+        resource: handle.clone(),
+        state,
+    };
+    claim.record_outcome(&StepOutcome {
+        state: SubmissionState::Confirmed,
+        confirmed_resources: vec![],
+        job: Some(job(JobState::Accepted)),
+    })?;
+    let running = journal.record_job_state("create-record", "create", &job(JobState::Running))?;
+    assert_eq!(running.steps["create"].state, SubmissionState::Confirmed);
+    assert_eq!(
+        running.steps["create"].job.as_ref().map(|job| job.state),
+        Some(JobState::Running)
+    );
+    let unchanged = journal.record_job_state("create-record", "create", &job(JobState::Running))?;
+    assert_eq!(unchanged.revision, running.revision);
+    assert!(matches!(
+        journal.record_job_state("create-record", "create", &job(JobState::Accepted)),
+        Err(StoreError::Conflict)
+    ));
+    let other = RemoteJob {
+        resource: ResourceRef {
+            id: "78".into(),
+            ..handle.clone()
+        },
+        state: JobState::Succeeded,
+    };
+    assert!(matches!(
+        journal.record_job_state("create-record", "create", &other),
+        Err(StoreError::Conflict)
+    ));
+    assert!(matches!(
+        journal.record_job_state("create-record", "missing", &job(JobState::Succeeded)),
+        Err(StoreError::Conflict)
+    ));
+    let done = journal.record_job_state("create-record", "create", &job(JobState::Succeeded))?;
+    assert!(matches!(
+        journal.record_job_state("create-record", "create", &job(JobState::Failed)),
+        Err(StoreError::Conflict)
+    ));
+    let fresh = NativeJournal::open(&profiles, &control(CancellationToken::default(), 10_000)?)?;
+    assert_eq!(fresh.get("create-record")?, Some(done));
+    Ok(())
+}

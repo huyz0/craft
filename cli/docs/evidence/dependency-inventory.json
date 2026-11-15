@@ -2464,7 +2464,7 @@
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "4b5aaa561aea0f2b8fdd893838efe01183d89db48878ad470835963f859e5960",
+      "manifest_sha256": "54e143a43ab439864ed657dbe267d052f499e93633b09b0ec8121196cfc585d8",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",
@@ -2481,7 +2481,7 @@
           "package": "serde_json",
           "version": "1.0.151",
           "kinds": [
-            "dev"
+            "normal"
           ]
         }
       ]

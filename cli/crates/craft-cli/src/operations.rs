@@ -152,7 +152,7 @@ pub fn execute(
         OperationAction::List(arguments) => {
             return list(arguments, projection, options, control);
         }
-        OperationAction::Reconcile(_) | OperationAction::Preview(_) => {
+        OperationAction::Reconcile(_) | OperationAction::Preview(_) | OperationAction::Wait(_) => {
             return Err(CraftError::new(
                 ErrorCode::PolicyDenied,
                 "Recovery candidates require complete command-host dispatch.",

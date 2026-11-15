@@ -3287,7 +3287,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:d83096528148c8cf39ae86ee227ed24042f5afd399c3023f0033760e505aa9f3",
+      "default_projection_digest": "sha256:8a7f3197e5745946d2e8bc1aadc24db41f13566ea653cfa9c87e87796a41ce8d",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -3327,7 +3327,6 @@
           "default_selected": [
             "id",
             "description",
-            "provider",
             "effect"
           ],
           "item_pointer": "/matches",
@@ -27787,7 +27786,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:40b093193f36f7ebc3155c9a09696663e3f18352bf001d93692f6f84c768d339",
+      "default_projection_digest": "sha256:2967a7c4189b1deba9b82353480f4f6196fcd3772bd2af61e37e1fce83a8dbb1",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -27818,7 +27817,6 @@
           "default_selected": [
             "id",
             "description",
-            "provider",
             "effect"
           ],
           "item_pointer": "/commands",
@@ -60509,6 +60507,706 @@
         "replay_authorized": "sha256:7d890f317d021050321efb1c449d52616bdc9ebd27ac4600acec3d00e66274dc",
         "retry_after": "sha256:7d890f317d021050321efb1c449d52616bdc9ebd27ac4600acec3d00e66274dc"
       }
+    },
+    "operation.wait": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "recorded-job-status-v1",
+        "contract_version": "1.0",
+        "description": "Poll a recorded provider job handle within a bounded wait and record each state change; never submits or resubmits work.",
+        "effect": "read",
+        "example": {
+          "operation_id": "delete-space",
+          "wait_ms": 30000
+        },
+        "id": "operation.wait",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "operation_id": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "step": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "wait_ms": {
+              "default": 0,
+              "format": "uint64",
+              "maximum": 3600000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "operation_id"
+          ],
+          "title": "OperationWaitArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "The selected service profile must hold the grant and actor that recorded the job."
+        ],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "operation.wait",
+          "data": {
+            "credential_cache_update": null,
+            "found": true,
+            "job": {
+              "resource": {
+                "deployment": "cloud",
+                "id": "5e2c4b1a",
+                "provider": "confluence",
+                "resource_type": "longtask",
+                "tenant": "00000000-1111-2222-3333-444444444444"
+              },
+              "state": "running"
+            },
+            "journal_current": true,
+            "observation": {
+              "elapsed_ms": 1200,
+              "native_status": "running",
+              "progress_percent": 40,
+              "state": "running"
+            },
+            "operation_id": "delete-space",
+            "polls": 1,
+            "reconciliation_required": false,
+            "replay_authorized": false,
+            "retry_after": null,
+            "step": "submit",
+            "stop_reason": "wait_elapsed",
+            "submission_state": "confirmed"
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobObservation": {
+              "additionalProperties": false,
+              "description": "Bounded provider task status. Native result and message text never enter this record.",
+              "properties": {
+                "elapsed_ms": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "native_status": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "progress_percent": {
+                  "format": "uint8",
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "state",
+                "native_status"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "StopReason": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "rate_limited",
+                    "cancelled",
+                    "error"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "const": "terminal",
+                  "description": "The recorded or observed job is succeeded or failed.",
+                  "type": "string"
+                },
+                {
+                  "const": "wait_elapsed",
+                  "description": "The requested wait or the invocation budget ended with the job still pending.",
+                  "type": "string"
+                },
+                {
+                  "const": "not_visible",
+                  "description": "The provider no longer shows the task; tasks expire, so this is not a failure.",
+                  "type": "string"
+                },
+                {
+                  "const": "not_pollable",
+                  "description": "There is no recorded job handle to poll.",
+                  "type": "string"
+                }
+              ]
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "found": {
+                  "type": "boolean"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Latest known job evidence: the recorded handle, advanced by any observation this run."
+                },
+                "journal_current": {
+                  "description": "Whether every observed state change is in the journal. False keeps `job` as the only\ncopy of a newer observation.",
+                  "type": "boolean"
+                },
+                "observation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JobObservation"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The last provider status this invocation observed, without native result or messages."
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "polls": {
+                  "format": "uint32",
+                  "maximum": 10000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "reconciliation_required": {
+                  "description": "Null when no local record exists, so nothing can be inferred.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "step": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "stop_reason": {
+                  "$ref": "#/$defs/StopReason"
+                },
+                "submission_state": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SubmissionState"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "operation_id",
+                "found",
+                "polls",
+                "stop_reason",
+                "journal_current",
+                "replay_authorized"
+              ],
+              "title": "WaitData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "safe_read",
+        "routes": [],
+        "scope_alternatives": [
+          [
+            "read:jira-work"
+          ],
+          [
+            "read:confluence-space.summary"
+          ],
+          [
+            "read:content.metadata:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Only the job's own site is read, through the provider's task-status GET."
+        ]
+      },
+      "flags": {
+        "operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "step": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "step",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "wait_ms": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "0"
+          ],
+          "delimiter": null,
+          "long": "wait-ms",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "operation",
+        "wait"
+      ],
+      "selectable_fields": {}
     },
     "plan.page-create": {
       "controls": {

@@ -310,6 +310,18 @@ pub struct RemoteJob {
     pub state: JobState,
 }
 
+/// Bounded provider task status. Native result and message text never enter this record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct JobObservation {
+    pub state: JobState,
+    #[schemars(length(min = 1, max = 64))]
+    pub native_status: String,
+    #[schemars(range(max = 100))]
+    pub progress_percent: Option<u8>,
+    pub elapsed_ms: Option<u64>,
+}
+
 /// Confirmed effects survive a later failed or uncertain request in a composite operation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -15,3 +15,4 @@ pub mod permissions;
 pub mod project_context;
 pub mod projects;
 pub mod reconciliation;
+pub mod tasks;
