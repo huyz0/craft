@@ -86,7 +86,7 @@ def policies(state_root, site, cloud, actor, project, space):
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
             "confluence.comment.replies", "confluence.content-state.get",
             "confluence.content-state.available", "confluence.attachment.get",
-            "confluence.attachment.list"], None),
+            "confluence.attachment.list", "confluence.attachment.download"], None),
     ]
     results = []
     for profile, kind, target, operations, continuation in plans:
@@ -482,6 +482,15 @@ def page_lifecycle(state_root, space):
                  "attachment_id": attachment, "expected": {"version": item.get("version"), "file_id": item.get("file_id")}}))
             data = replaced.get("data") or {}
             report.append(f"replace version={data.get('version')} desired_fields_verified={data.get('desired_fields_verified')}")
+            exports = CAPTURES / "download-output"
+            exports.mkdir(parents=True, exist_ok=True)
+            target_file = exports / f"craft-test-{stamp}.txt"
+            got = step("confluence.attachment.download", craft(state_root, [
+                "--profile", "cf-test", "confluence", "attachment", "download"],
+                {"id": attachment, "page_id": page, "artifact_name": f"craft-test-{stamp}-download.txt",
+                 "output_root": str(exports.resolve()), "output": target_file.name}))
+            same = target_file.exists() and target_file.read_bytes() == (source / "craft-test.txt").read_bytes()
+            report.append(f"download followed_media_redirect={(got.get('data') or {}).get('followed_media_redirect')} bytes_match={same}")
             after = run(state_root, "cf-test", "confluence.attachment.get", {"id": attachment, "page_id": page})
             report.append(f"after replace: {json.dumps(((after.get('data') or {}).get('item') or {}))[:300]}")
     if "--attachments" in sys.argv:

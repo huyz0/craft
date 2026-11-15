@@ -33,6 +33,7 @@ fn prepared<'a>(
             call: fixtures::call(),
             artifact: spec(operation, maximum),
             expected_digest: expected.map(str::to_owned),
+            media_redirect: None,
         },
     )?)
 }
@@ -247,6 +248,7 @@ fn policy_case(mode: &str) -> TestResult {
             call: fixtures::call(),
             artifact: spec(&operation, 100),
             expected_digest: None,
+            media_redirect: None,
         },
     )?;
     let outcome = download.receive(&store, || {
@@ -409,6 +411,7 @@ fn confirmed_publication_survives_late_cancellation_and_existing_names_prevent_g
             call: fixtures::call(),
             artifact: spec(&operation, 100),
             expected_digest: None,
+            media_redirect: None,
         },
     )?;
     let outcome = download.receive(&store, || Ok(()));
@@ -435,6 +438,7 @@ fn bad_download_specs_and_undeclared_routes_are_local_refusals() -> TestResult {
             call: fixtures::call(),
             artifact: spec(&operation, 100),
             expected_digest: None,
+            media_redirect: None,
         };
         match mode {
             "oversize" => request.artifact.max_bytes = MAX_BYTES + 1,
@@ -476,5 +480,96 @@ fn retryable_status_before_streaming_is_repeated_once_and_publishes_one_artifact
     assert_eq!(outcome.received_bytes, bytes.len() as u64);
     assert_eq!(outcome.artifact_write_state, RequestState::Confirmed);
     assert_eq!(server.finish()?.len(), 2);
+    Ok(())
+}
+fn redirected<'a>(
+    registry: &'a Registry,
+    operation: &'a PreparedOperation,
+    server: &TlsServer,
+    media: Option<MediaOrigin>,
+) -> Result<PreparedHttpDownload<'a>, Box<dyn std::error::Error>> {
+    let context = fixtures::context(
+        server,
+        TlsPolicy::AdditionalCaBundle(server.root()),
+        fixtures::control(3000)?,
+    )?;
+    Ok(PreparedHttpDownload::freeze(
+        registry,
+        operation,
+        context,
+        DownloadRequest {
+            call: fixtures::call(),
+            artifact: spec(operation, 100),
+            expected_digest: None,
+            media_redirect: media,
+        },
+    )?)
+}
+#[test]
+fn one_media_redirect_is_followed_without_credentials_and_others_are_refused() -> TestResult {
+    let bytes = b"media bytes".to_vec();
+    for mode in ["follow", "not_allowed", "foreign_origin", "http", "chained"] {
+        let probe = TlsServer::start(complete(b""))?;
+        let port = probe.address().port();
+        drop(probe.finish());
+        let origin = format!("https://localhost:{port}");
+        let location = match mode {
+            "foreign_origin" => "https://media.invalid/file?token=t".to_string(),
+            "http" => format!("http://localhost:{port}/file?token=t"),
+            _ => format!("{origin}/file?token=t"),
+        };
+        let second = if mode == "chained" {
+            raw(
+                302,
+                b"",
+                &[
+                    ("Location", format!("{origin}/again")),
+                    ("Content-Length", "0".into()),
+                ],
+            )
+        } else {
+            complete(&bytes)
+        };
+        let server = TlsServer::start_on(
+            port,
+            Reply::Sequence(vec![
+                raw(
+                    302,
+                    b"",
+                    &[("Location", location), ("Content-Length", "0".into())],
+                ),
+                second,
+            ]),
+        )?;
+        let (registry, operation) = fixtures::prepared(EffectClass::Read)?;
+        let store = MemoryArtifacts::new(Faults::default(), 1000);
+        let media = (mode != "not_allowed")
+            .then(|| MediaOrigin::synthetic(&origin))
+            .transpose()?;
+        let outcome = redirected(&registry, &operation, &server, media)?.receive(&store, || Ok(()));
+        let requests = server.finish()?;
+        if mode == "follow" {
+            assert!(outcome.error.is_none(), "{:?}", outcome.error);
+            assert!(outcome.followed_media_redirect);
+            assert_eq!(
+                store.read("download.bin", 1000)?.ok_or("artifact")?.bytes,
+                bytes
+            );
+            assert_eq!(requests.len(), 2);
+            assert!(requests[0].headers.contains_key("authorization"));
+            assert!(!requests[1].headers.contains_key("authorization"));
+            assert_eq!(requests[1].target, "/file?token=t");
+            continue;
+        }
+        let error = outcome.error.ok_or("refusal")?;
+        assert_eq!(error.code, ErrorCode::PolicyDenied, "{mode}");
+        assert!(outcome.artifact.is_none(), "{mode}");
+        assert_eq!(
+            requests.len(),
+            if mode == "chained" { 2 } else { 1 },
+            "{mode}"
+        );
+        assert_eq!(outcome.followed_media_redirect, mode == "chained", "{mode}");
+    }
     Ok(())
 }

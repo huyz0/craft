@@ -18,4 +18,6 @@ Jira comment writes need an explicit profile, project/issue IDs, apply, operatio
 
 `confluence.attachment.upload` adds a new file to a page from the same workspace-file or digest-bound snapshot sources as Jira upload, and refuses a filename the page already has. `confluence.attachment.replace` replaces one attachment's bytes by `attachment_id` with the `expected` version and file ID from get; the filename must stay the same. Both need --max-bytes 8388608 and their own confluence-write operations, and never replay an unknown outcome.
 
+`confluence.attachment.download` writes local files like Jira download, needs a confluence-read allowance and follows only Confluence's credential-free redirect to its media service.
+
 `artifact.export` immediately writes a local output from a saved downloads, requests or reviews artifact. Bind expected_digest to the observed receipt. It does not use a profile or cloud access and never refetches. Preserve both source and export receipts; inspect uncertain output before another publication attempt.

@@ -355,6 +355,27 @@ impl Live {
 
     /// A raw request used only to create or remove fixture data that no public
     /// command manages. Requires writes to be enabled.
+    /// Status and redirect target host of one GET, without following it. The full Location,
+    /// which can carry a short-lived media token, is never returned.
+    pub fn redirect_host(&self, path: &str) -> Result<(u16, Option<String>), String> {
+        let url = self.config.site.join(path).map_err(|e| e.to_string())?;
+        let request = self
+            .client
+            .get(url)
+            .basic_auth(&self.config.email, Some(self.config.token.as_str()));
+        let response = self
+            .runtime
+            .block_on(async move { request.send().await })
+            .map_err(|e| e.to_string())?;
+        let host = response
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| Url::parse(v).ok())
+            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or_default()));
+        Ok((response.status().as_u16(), host))
+    }
+
     pub fn raw(&self, method: HttpMethod, path: &str, body: Body<'_>) -> Result<Exchange, String> {
         let url = self.config.site.join(path).map_err(|e| e.to_string())?;
         self.send(method, url, body, true, false)

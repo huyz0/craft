@@ -7,6 +7,7 @@ pub mod attachment_reads;
 pub mod auth;
 pub mod catalog;
 pub mod comment_writes;
+pub mod confluence_attachment_download;
 pub mod confluence_attachment_upload;
 pub mod confluence_pages;
 pub mod confluence_reads;

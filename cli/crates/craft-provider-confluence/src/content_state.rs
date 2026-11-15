@@ -210,9 +210,9 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
                 contract_version: SCHEMA_VERSION.into(),
                 api_revision: "confluence-cloud-v1".into(),
                 description: if get {
-                    "Read the published page's content-state badge; a badge is never approval or lifecycle."
+                    "Read the page's content-state badge; never approval."
                 } else {
-                    "List the content-state badges the caller may set on a page under its space settings."
+                    "List badges the space lets the caller set on a page."
                 }
                 .into(),
                 effect: EffectClass::Read,

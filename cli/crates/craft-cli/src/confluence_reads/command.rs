@@ -266,6 +266,9 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::Attachment {
             action: crate::args::ConfluenceAttachmentAction::Replace(_),
         } => craft_provider_confluence::attachment_upload::REPLACE,
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Download(_),
+        } => craft_provider_confluence::attachment_download::DOWNLOAD,
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Available(_),
         } => craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
@@ -340,6 +343,9 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
             action:
                 crate::args::ConfluenceAttachmentAction::Upload(v)
                 | crate::args::ConfluenceAttachmentAction::Replace(v),
+        } => encoded(v),
+        A::Attachment {
+            action: crate::args::ConfluenceAttachmentAction::Download(v),
         } => encoded(v),
         A::ContentState {
             action: crate::args::ConfluenceContentStateAction::Clear(v),

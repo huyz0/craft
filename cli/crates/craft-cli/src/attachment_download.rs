@@ -256,6 +256,8 @@ impl PreparedAttachmentDownload {
                             source: Some(source),
                         },
                         expected_digest: self.args.expected_digest.clone(),
+                        // Jira content is read with redirect=false; no redirect is accepted.
+                        media_redirect: None,
                     },
                 )?
                 .receive(&artifacts, check);

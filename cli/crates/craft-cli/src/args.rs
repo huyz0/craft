@@ -91,6 +91,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "confluence.space.create"
                 | "confluence.attachment.upload"
                 | "confluence.attachment.replace"
+                | "confluence.attachment.download"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -172,6 +173,7 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.space.create"
             | "confluence.attachment.upload"
             | "confluence.attachment.replace"
+            | "confluence.attachment.download"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -429,6 +431,7 @@ pub enum ConfluenceAttachmentAction {
     Trash(Box<crate::confluence_pages::command::AttachmentTrashArgs>),
     Upload(Box<crate::confluence_attachment_upload::command::UploadArgs>),
     Replace(Box<crate::confluence_attachment_upload::command::UploadArgs>),
+    Download(Box<crate::confluence_attachment_download::command::AttachmentDownloadArgs>),
 }
 #[derive(Subcommand)]
 pub enum ConfluenceContentStateAction {

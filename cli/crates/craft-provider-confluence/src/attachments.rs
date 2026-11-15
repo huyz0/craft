@@ -198,9 +198,9 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
             contract_version: SCHEMA_VERSION.into(),
             api_revision: "confluence-cloud-v2".into(),
             description: if get {
-                "Read one current page attachment's metadata; no bytes or download link are returned."
+                "Read one page attachment's metadata; no bytes or links."
             } else {
-                "Read a page of current attachment metadata for one page."
+                "List current attachment metadata for a page."
             }
             .into(),
             effect: EffectClass::Read,

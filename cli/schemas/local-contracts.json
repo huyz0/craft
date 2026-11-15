@@ -3671,6 +3671,754 @@
         "provider": "sha256:268dba83111696481409413c5006abf398f32763c01c65948e98cf02f92e04fd"
       }
     },
+    "confluence.attachment.download": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "confluence-cloud-v1-attachment-download",
+        "contract_version": "1.0",
+        "description": "Stream page attachment bytes to an artifact and guarded output; follows one credential-free media redirect.",
+        "effect": "read",
+        "example": {
+          "artifact_name": "attachment.bin",
+          "id": "att301",
+          "output": "attachment.bin",
+          "output_root": "D:/exports",
+          "page_id": "101"
+        },
+        "id": "confluence.attachment.download",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_name": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]+$",
+              "type": "string"
+            },
+            "byte_limit": {
+              "default": 16777216,
+              "format": "uint64",
+              "maximum": 1073741824,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "cloud_id": {
+              "maxLength": 36,
+              "minLength": 36,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "expected_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "pattern": "^att[1-9][0-9]*$",
+              "type": "string"
+            },
+            "output": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "output_root": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "overwrite": {
+              "default": false,
+              "type": "boolean"
+            },
+            "page_id": {
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "page_id",
+            "artifact_name",
+            "output_root",
+            "output"
+          ],
+          "title": "AttachmentDownloadArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "View the page that holds the attachment."
+        ],
+        "projection": null,
+        "provider": "confluence",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "confluence.attachment.download",
+          "data": {
+            "artifact": null,
+            "artifact_name": "attachment.bin",
+            "artifact_write_state": "not_sent",
+            "attachment_id": "att301",
+            "credential_cache_update": null,
+            "export_write_state": "not_sent",
+            "exported": null,
+            "followed_media_redirect": false,
+            "page_id": "101",
+            "received_bytes": 0,
+            "response_media_type": null,
+            "target": {
+              "deployment": "cloud",
+              "id": "00000000-1111-2222-3333-444444444444",
+              "provider": "confluence",
+              "resource_type": "site",
+              "tenant": "00000000-1111-2222-3333-444444444444"
+            }
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "ArtifactReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "local_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ResourceRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "media_type",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "artifact": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "artifact_name": {
+                  "type": "string"
+                },
+                "artifact_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "attachment_id": {
+                  "type": "string"
+                },
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "export_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "exported": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "followed_media_redirect": {
+                  "description": "True once the credential-free request to the media service was sent.",
+                  "type": "boolean"
+                },
+                "page_id": {
+                  "type": "string"
+                },
+                "received_bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "response_media_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "target",
+                "attachment_id",
+                "page_id",
+                "artifact_name",
+                "artifact_write_state",
+                "export_write_state",
+                "received_bytes",
+                "followed_media_redirect"
+              ],
+              "title": "DownloadData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "safe_read",
+        "routes": [
+          {
+            "continuation_parameters": [],
+            "id": "confluence-attachment-download",
+            "method": "get",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "rest"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "content"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              },
+              {
+                "kind": "literal",
+                "value": "child"
+              },
+              {
+                "kind": "literal",
+                "value": "attachment"
+              },
+              {
+                "kind": "parameter",
+                "value": "attachmentId"
+              },
+              {
+                "kind": "literal",
+                "value": "download"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 512
+          }
+        ],
+        "scope_alternatives": [
+          [
+            "readonly:content.attachment:confluence"
+          ],
+          [
+            "read:attachment:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Explicit download allowance required. One redirect, only to https://api.media.atlassian.com, is followed without Craft credentials. Local artifact and export receipts have independent dispositions."
+        ]
+      },
+      "flags": {
+        "artifact_name": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "artifact-name",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "byte_limit": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "16777216"
+          ],
+          "delimiter": null,
+          "long": "byte-limit",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "cloud_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "cloud-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "expected_digest": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "expected-digest",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "output": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "output",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "output_root": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "output-root",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "overwrite": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "overwrite",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "page_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "page-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "confluence",
+        "attachment",
+        "download"
+      ],
+      "selectable_fields": {}
+    },
     "confluence.attachment.get": {
       "controls": {
         "fields": "supported",
@@ -3684,7 +4432,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Read one current page attachment's metadata; no bytes or download link are returned.",
+        "description": "Read one page attachment's metadata; no bytes or links.",
         "effect": "read",
         "example": {
           "id": "att301",
@@ -4282,7 +5030,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Read a page of current attachment metadata for one page.",
+        "description": "List current attachment metadata for a page.",
         "effect": "read",
         "example": {
           "page_id": "101",
@@ -4961,7 +5709,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v1-attachment-upload",
         "contract_version": "1.0",
-        "description": "Replace the binary of one reviewed attachment by ID with an exact immutable snapshot.",
+        "description": "Replace one reviewed attachment's bytes by ID.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -6292,7 +7040,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Move a reviewed current page attachment to the trash; never purges.",
+        "description": "Move a reviewed attachment to the trash; never purges.",
         "effect": "trash",
         "example": {
           "apply": true,
@@ -7205,7 +7953,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v1-attachment-upload",
         "contract_version": "1.0",
-        "description": "Add one exact immutable snapshot as a new page attachment; an existing filename is refused, never versioned.",
+        "description": "Add a snapshot as a new page attachment; an existing filename is refused.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -8508,7 +9256,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Add a footer comment or reply to a current page in an allowed space; comment text is not approval.",
+        "description": "Add a footer comment or reply; comment text is not approval.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -9423,7 +10171,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Permanently delete a reviewed footer comment revision; Confluence offers no trash for comments.",
+        "description": "Permanently delete a reviewed footer comment.",
         "effect": "permanent",
         "example": {
           "apply": true,
@@ -12493,7 +13241,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Replace the body of a reviewed footer comment revision; edits never establish approval.",
+        "description": "Replace a reviewed footer comment's body.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -13463,7 +14211,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v1",
         "contract_version": "1.0",
-        "description": "List the content-state badges the caller may set on a page under its space settings.",
+        "description": "List badges the space lets the caller set on a page.",
         "effect": "read",
         "example": {
           "page_id": "101"
@@ -14043,7 +14791,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Remove the published page's content-state badge; this never changes review or ticket authority.",
+        "description": "Remove the page badge; never changes review authority.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -14898,7 +15646,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v1",
         "contract_version": "1.0",
-        "description": "Read the published page's content-state badge; a badge is never approval or lifecycle.",
+        "description": "Read the page's content-state badge; never approval.",
         "effect": "read",
         "example": {
           "page_id": "101"
@@ -15480,7 +16228,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Set the published page's content-state badge to a state the space offers; a badge is not approval or lifecycle.",
+        "description": "Set the page badge to a state the space offers; never approval.",
         "effect": "write",
         "example": {
           "apply": true,
@@ -19504,7 +20252,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Move a reviewed current page to the space trash through verified context and a journaled host; never purges.",
+        "description": "Move a reviewed page to the space trash; never purges.",
         "effect": "trash",
         "example": {
           "apply": true,
@@ -21404,7 +22152,7 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Create a space with an absent key and explicit visibility through the v2 route; no legacy fallback.",
+        "description": "Create a space with an unused key and explicit visibility (v2 only).",
         "effect": "write",
         "example": {
           "apply": true,

@@ -52,6 +52,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "confluence.space.create",
         "confluence.attachment.upload",
         "confluence.attachment.replace",
+        "confluence.attachment.download",
         "jira.issue.get",
         "jira.issue.search",
         "jira.issue.create",

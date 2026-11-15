@@ -39,6 +39,10 @@ fn live_confluence_download_probe() -> Result<(), Box<dyn std::error::Error>> {
     let page = std::env::var("CRAFT_LIVE_PAGE")?;
     let attachment = std::env::var("CRAFT_LIVE_ATTACHMENT")?;
     let live = Live::connect()?;
+    let (status, host) = live.redirect_host(&format!(
+        "/wiki/rest/api/content/{page}/child/attachment/{attachment}/download"
+    ))?;
+    println!("probe redirect -> {status} {host:?}");
     for path in [
         format!("/wiki/rest/api/content/{page}/child/attachment/{attachment}/download"),
         format!("/wiki/api/v2/attachments/{attachment}"),

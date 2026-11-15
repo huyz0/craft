@@ -105,6 +105,7 @@ impl PreparedConfluenceRead {
                         | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
                         | craft_provider_confluence::attachments::ATTACHMENT_GET
                         | craft_provider_confluence::attachments::ATTACHMENT_LIST
+                        | craft_provider_confluence::attachment_download::DOWNLOAD
                 )
             })
             || !policy.grant.id.strip_prefix("gr_").is_some_and(|suffix| {

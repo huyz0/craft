@@ -287,3 +287,121 @@ fn replace_is_bound_to_the_reviewed_attachment_id_version_and_file() -> UploadRe
     }
     Ok(())
 }
+
+#[test]
+fn download_follows_only_the_media_redirect_without_credentials() -> UploadResult {
+    use craft_cli::attachment_reads::ReadEnvironment;
+    use craft_cli::confluence_attachment_download::command::{
+        AttachmentDownloadArgs, PreparedDownload,
+    };
+    use craft_runtime::confluence_read_policy::{
+        ConfluenceReadOperation as ReadOp, ConfluenceReadPolicyUpdate,
+    };
+    use craft_runtime::transport::MediaOrigin;
+    let bytes = b"page attachment bytes".to_vec();
+    for mode in ["follow", "foreign"] {
+        let setup = Setup::new()?;
+        setup.store.set_confluence_read_policy(
+            "factory",
+            ConfluenceReadPolicyUpdate {
+                target: target(),
+                expected_actor: "actor-one".into(),
+                operations: vec![ReadOp::AttachmentDownload],
+                enabled: true,
+                expected_revision: None,
+            },
+            true,
+            &control()?,
+            |_| Ok(()),
+        )?;
+        let probe = TlsServer::start(reply(json!({}))?)?;
+        let port = probe.address().port();
+        drop(probe.finish());
+        let origin = format!("https://localhost:{port}");
+        let location = if mode == "foreign" {
+            "https://media.invalid/file?token=t".to_string()
+        } else {
+            format!("{origin}/file/abc?token=t")
+        };
+        let redirect = tls_fixture::Reply::json(302, b"", &[("Location", location.as_str())]);
+        let mut replies = vec![identity(), identity(), redirect];
+        if mode == "follow" {
+            replies.push(tls_fixture::Reply::json(
+                200,
+                &bytes,
+                &[("Content-Type", "text/plain")],
+            ));
+        }
+        let product = TlsServer::start_on(port, Reply::Sequence(replies))?;
+        let issuer = issuer("read:confluence-user read:attachment:confluence")?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        // Exports must stay outside the private state root.
+        let output = setup.root.with_file_name(format!(
+            "{}-exports",
+            setup
+                .root
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or("name")?
+        ));
+        fs::create_dir_all(&output)?;
+        let args = AttachmentDownloadArgs {
+            id: "att301".into(),
+            page_id: "101".into(),
+            artifact_name: format!("download-{mode}.bin"),
+            output_root: output.to_str().ok_or("path")?.into(),
+            output: "file.txt".into(),
+            byte_limit: 1000,
+            expected_digest: None,
+            overwrite: false,
+            cloud_id: Some(CLOUD.into()),
+        };
+        let prepared =
+            PreparedDownload::prepare(args, &[], &options(&setup), &setup.store, &control()?)?
+                .with_media_origin(MediaOrigin::synthetic(&origin)?);
+        let result = prepared.execute(ReadEnvironment {
+            store: &setup.store,
+            client: fixture.client(),
+            locked: &locked,
+            tls: TlsPolicy::AdditionalCaBundle(product.root()),
+            control: control()?,
+        });
+        drop(locked);
+        let requests = product.finish()?;
+        let data = result.envelope.data.clone().ok_or("data")?;
+        assert!(
+            requests[2]
+                .target
+                .contains("/wiki/rest/api/content/101/child/attachment/att301/download"),
+            "{}",
+            requests[2].target
+        );
+        if mode == "foreign" {
+            assert_eq!(
+                result.envelope.error.ok_or("err")?.code,
+                ErrorCode::PolicyDenied
+            );
+            assert_eq!(requests.len(), 3);
+            assert!(data["artifact"].is_null());
+            assert_eq!(data["followed_media_redirect"], false);
+        } else {
+            assert!(result.envelope.ok, "{:?}", result.envelope.error);
+            assert_eq!(data["followed_media_redirect"], true);
+            assert_eq!(data["export_write_state"], "confirmed");
+            assert_eq!(fs::read(output.join("file.txt"))?, bytes);
+            assert_eq!(requests.len(), 4);
+            assert!(requests[2].headers.contains_key("authorization"));
+            assert!(!requests[3].headers.contains_key("authorization"));
+            assert_eq!(requests[3].target, "/file/abc?token=t");
+        }
+        setup.no_secrets()?;
+    }
+    Ok(())
+}

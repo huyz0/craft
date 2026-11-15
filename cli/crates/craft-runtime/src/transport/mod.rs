@@ -4,7 +4,7 @@ mod downloads;
 mod multipart;
 mod mutations;
 mod retry;
-pub use downloads::{DownloadOutcome, DownloadRequest, PreparedHttpDownload};
+pub use downloads::{DownloadOutcome, DownloadRequest, MediaOrigin, PreparedHttpDownload};
 pub use multipart::MultipartFile;
 use retry::ReadRetry;
 mod routing;

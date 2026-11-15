@@ -45,6 +45,10 @@ pub(super) struct TlsServer {
 
 impl TlsServer {
     pub(super) fn start(reply: Reply) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::start_on(0, reply)
+    }
+    /// Binds a chosen local port so a reply can name the server's own origin.
+    pub(super) fn start_on(port: u16, reply: Reply) -> Result<Self, Box<dyn std::error::Error>> {
         use rcgen::{
             BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
             KeyUsagePurpose,
@@ -79,7 +83,7 @@ impl TlsServer {
                 rustls::pki_types::PrivateKeyDer::Pkcs8(key.serialize_der().into()),
             )?;
         let config = Arc::new(config);
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
         let accepted = Arc::new(AtomicUsize::new(0));

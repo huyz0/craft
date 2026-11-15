@@ -5,14 +5,34 @@ use craft_core::storage::{
 };
 use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, TRANSFER_ENCODING};
 use sha2::{Digest, Sha256};
+use url::Url;
 #[cfg(test)]
 mod tests;
 
 const MAX_BYTES: u64 = 1_073_741_824;
+/// The one origin a binary read may be redirected to. Only Atlassian's media service is offered
+/// in production; the redirected request carries no Craft credential because the native
+/// Location already embeds its own short-lived media token.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaOrigin(String);
+impl MediaOrigin {
+    pub fn atlassian() -> Self {
+        Self("https://api.media.atlassian.com".into())
+    }
+    /// A local fixture origin for synthetic hosts; never available in normal builds.
+    #[cfg(any(test, feature = "synthetic-acceptance"))]
+    pub fn synthetic(origin: &str) -> Result<Self, CraftError> {
+        let url = Url::parse(origin)
+            .map_err(|_| CraftError::field("/redirect", "invalid_synthetic_media_origin"))?;
+        Ok(Self(url.origin().ascii_serialization()))
+    }
+}
 pub struct DownloadRequest {
     pub call: NativeCall,
     pub artifact: ArtifactSpec,
     pub expected_digest: Option<String>,
+    /// `None` refuses every redirect. `Some` allows exactly one redirect to that origin.
+    pub media_redirect: Option<MediaOrigin>,
 }
 pub struct DownloadOutcome {
     pub artifact: Option<ArtifactReceipt>,
@@ -22,6 +42,8 @@ pub struct DownloadOutcome {
     pub retry_after: Option<RetryAfter>,
     pub response_media_type: Option<String>,
     pub received_bytes: u64,
+    /// True once a credential-free GET to the allowed media origin was sent.
+    pub followed_media_redirect: bool,
     pub error: Option<CraftError>,
 }
 impl DownloadOutcome {
@@ -34,6 +56,7 @@ impl DownloadOutcome {
             retry_after: None,
             response_media_type: None,
             received_bytes: 0,
+            followed_media_redirect: false,
             error: None,
         }
     }
@@ -46,6 +69,7 @@ pub struct PreparedHttpDownload<'a> {
     request: Request,
     spec: ArtifactSpec,
     expected_digest: Option<String>,
+    media_redirect: Option<MediaOrigin>,
 }
 fn valid_digest(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|v| {
@@ -101,6 +125,7 @@ impl<'a> PreparedHttpDownload<'a> {
             call,
             artifact: spec,
             expected_digest,
+            media_redirect,
         } = download;
         registry.prepared_descriptor(operation)?;
         context.verify_operation(operation)?;
@@ -131,6 +156,7 @@ impl<'a> PreparedHttpDownload<'a> {
             request,
             spec,
             expected_digest,
+            media_redirect,
         })
     }
     /// Bounded pre-body attempts and at most one finish. A storage failure never triggers another GET.
@@ -153,7 +179,7 @@ impl<'a> PreparedHttpDownload<'a> {
             self.context.control.check()?;
             check()?;
             let digest=self.context.runtime.block_on(async {
-                let transfer=stream(&self.context.client,self.request,self.context.retry,self.spec.max_bytes,writer.as_mut(),&self.context.control,&check,&mut outcome);
+                let transfer=stream(&self.context.client,self.request,self.context.retry,self.media_redirect.as_ref(),self.spec.max_bytes,writer.as_mut(),&self.context.control,&check,&mut outcome);
                 tokio::pin!(transfer);
                 loop {tokio::select! {
                     biased;
@@ -215,6 +241,7 @@ async fn stream(
     client: &Client,
     request: Request,
     retry: Option<ReadRetry>,
+    media: Option<&MediaOrigin>,
     maximum: u64,
     writer: &mut dyn ArtifactWriter,
     control: &InvocationControl,
@@ -224,7 +251,23 @@ async fn stream(
     control.check()?;
     check()?;
     let mut response = send_before_body(client, request, retry, control, check).await?;
-    let status = response.status().as_u16();
+    let mut status = response.status().as_u16();
+    if let Some(origin) = media
+        && matches!(status, 302 | 303 | 307)
+    {
+        let next = media_target(&response, origin)?;
+        control.check()?;
+        check()?;
+        // No retry and no credential: the media URL is single-use evidence from the provider.
+        let request = client
+            .get(next)
+            .header(ACCEPT, HeaderValue::from_static("*/*"))
+            .build()
+            .map_err(|_| internal())?;
+        outcome.followed_media_redirect = true;
+        response = client.execute(request).await.map_err(network_error)?;
+        status = response.status().as_u16();
+    }
     outcome.http_status = Some(status);
     outcome.provider_request_id = ["atl-traceid", "x-arequestid", "x-request-id"]
         .iter()
@@ -371,6 +414,35 @@ async fn stream(
     control.check()?;
     check()?;
     Ok(digest_text(digest))
+}
+
+/// Accepts only an absolute HTTPS Location on the exact media origin, without user information.
+fn media_target(response: &reqwest::Response, origin: &MediaOrigin) -> Result<Url, CraftError> {
+    let refused = || {
+        CraftError::new(
+            ErrorCode::PolicyDenied,
+            "Binary read redirected outside the approved media origin; nothing was followed.",
+        )
+    };
+    let mut locations = response.headers().get_all(reqwest::header::LOCATION).iter();
+    let location = locations.next().ok_or_else(refused)?;
+    if locations.next().is_some() {
+        return Err(refused());
+    }
+    let text = location.to_str().map_err(|_| refused())?;
+    if text.len() > 8192 {
+        return Err(refused());
+    }
+    let url = Url::parse(text).map_err(|_| refused())?;
+    if url.scheme() != "https"
+        || url.origin().ascii_serialization() != origin.0
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(refused());
+    }
+    Ok(url)
 }
 
 /// Repeats a safe binary read only before the artifact writer has received any byte: on a

@@ -51,10 +51,16 @@ Space create is also covered by `space_create_requires_an_empty_exact_key_lookup
 | `confluence.attachment.upload` (text file, workspace source) | confirmed with matching filename and size; a second upload with the same filename was refused `VERSION_CONFLICT` before any send |
 | `confluence.attachment.replace` (by ID with the reviewed version and file ID) | confirmed version 1 to 2 with matching size; a follow-up get showed a new file ID and size |
 
+| `confluence.attachment.download` | the native route returned 302 to `https://api.media.atlassian.com` through the OAuth gateway; the credential-free follow-up returned the bytes, `followed_media_redirect` was true and the exported file matched the uploaded bytes |
+
 These ran with CraftTest credential `craft-granular-4` (the earlier ten scopes plus `delete:page`, `read/write/delete:attachment`, `write/delete:comment`, `write:content` and `write:space`, all `:confluence`). `tests/live_cleanup.rs` now also purges `craft-test` pages that the CLI already moved to the trash. After cleanup, no `craft-test` pages remain current or trashed.
 
-Editor-draft interaction with another person's open draft is not live-tested. Attachment download and filename upsert are not implemented. Download is blocked by a design decision: both native download routes answered 302 to Atlassian's media host in a live probe, and the transport refuses redirects.
+Editor-draft interaction with another person's open draft is not live-tested. Filename upsert is not implemented.
 
 ## Attachment transfer tests
 
 The multipart transport seals a table of single-file protocols; the existing Jira multipart tests (11) and Jira upload host tests (4) still pass. `page_upload_refuses_existing_filename_and_sends_one_exact_multipart_snapshot` checks the v1 route, `X-Atlassian-Token`, the `minorEdit` part, exact file bytes and duplicate-filename refusal. `replace_is_bound_to_the_reviewed_attachment_id_version_and_file` covers replacement, a changed attachment and a lost response kept as `sent_unknown`. Saved-request validation accepts the two Confluence upload commands.
+
+## Media redirect
+
+The owner approved a single credential-free redirect to Atlassian's media service on 15 November 2026, after a live probe showed both native download routes answer 302 to `https://api.media.atlassian.com`. `one_media_redirect_is_followed_without_credentials_and_others_are_refused` (runtime) covers the allowed follow without an Authorization header, redirects when none is allowed, a foreign origin, plain HTTP and a chained second redirect. `download_follows_only_the_media_redirect_without_credentials` (Confluence host) covers the full download with guarded export and a foreign-origin refusal. Jira download passes `media_redirect: None` and keeps refusing redirects. Help output is now within about 200 bytes of the default 16 KiB budget, so the next public command will need help paging or shorter descriptions.

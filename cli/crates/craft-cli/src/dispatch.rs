@@ -316,6 +316,16 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
         Action::Confluence {
             action:
                 crate::args::ConfluenceAction::Attachment {
+                    action: crate::args::ConfluenceAttachmentAction::Download(_),
+                },
+        } => Action::Confluence {
+            action: crate::args::ConfluenceAction::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Download(decode(input)?),
+            },
+        },
+        Action::Confluence {
+            action:
+                crate::args::ConfluenceAction::Attachment {
                     action: crate::args::ConfluenceAttachmentAction::Upload(_),
                 },
         } => Action::Confluence {
@@ -1172,6 +1182,18 @@ pub fn execute(
                 crate::policies::execute(args, fields, options, control)
             },
         );
+    }
+    if let Action::Confluence {
+        action:
+            crate::args::ConfluenceAction::Attachment {
+                action: crate::args::ConfluenceAttachmentAction::Download(v),
+            },
+    } = action
+    {
+        registry.descriptor(craft_provider_confluence::attachment_download::DOWNLOAD)?;
+        return Ok(crate::confluence_attachment_download::command::execute(
+            *v, fields, options, control,
+        ));
     }
     if let Action::Confluence {
         action:

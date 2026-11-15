@@ -263,8 +263,8 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
             api_revision: "confluence-cloud-v1-attachment-upload".into(),
             description: match command {
                 CONTEXT => "Qualify the current page in its space and either an absent filename or the reviewed attachment revision.",
-                UPLOAD => "Add one exact immutable snapshot as a new page attachment; an existing filename is refused, never versioned.",
-                _ => "Replace the binary of one reviewed attachment by ID with an exact immutable snapshot.",
+                UPLOAD => "Add a snapshot as a new page attachment; an existing filename is refused.",
+                _ => "Replace one reviewed attachment's bytes by ID.",
             }
             .into(),
             effect: if command == CONTEXT { EffectClass::Read } else { EffectClass::Write },

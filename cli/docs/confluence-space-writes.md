@@ -48,7 +48,13 @@ Both use the v1 multipart routes with `X-Atlassian-Token: no-check` and `minorEd
 
 ## Attachment reads
 
-`confluence attachment get` and `list` return current page attachment metadata: ID (`att…`), page, title, media type, size, file ID, version and comment. Download links are not returned because they are not trusted routing input. Download, filename upsert and metadata update are not yet available.
+`confluence attachment get` and `list` return current page attachment metadata: ID (`att…`), page, title, media type, size, file ID, version and comment. Download links are not returned because they are not trusted routing input. Filename upsert and metadata update are not available.
+
+## Attachment download
+
+`confluence attachment download` takes `id` (`att…`), `page_id`, an immutable `artifact_name`, an existing `output_root` outside the private state root and a relative `output`, with optional `byte_limit` and `expected_digest`. It needs a `confluence-read` allowance for `confluence.attachment.download` and `read:attachment:confluence`.
+
+Confluence answers every native download with a redirect to its media service. The owner approved following exactly one redirect, under these rules: the Location must be an absolute HTTPS URL on `https://api.media.atlassian.com` with no user information or fragment, the follow-up GET carries no Craft credential (the URL embeds its own short-lived media token), it is sent once without retry, and a second redirect is refused. Bytes then stream into the immutable artifact and the guarded output with the same size, digest and publication rules as Jira download. Receipts report `followed_media_redirect`. Every other provider read still refuses redirects.
 
 ## Scopes
 
