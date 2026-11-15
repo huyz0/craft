@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_mutation::command::{IssueMutationArgs, PreparedInvocation};
 use craft_cli::issue_recovery::command::{OperationReconcileArgs, PreparedInvocation as Recovery};
 use craft_cli::profiles::InvocationOptions;
@@ -61,14 +62,16 @@ fn lost_edit_uses_saved_source_for_read_only_inspection_without_another_put() ->
         &setup.profiles,
         &c,
     )?;
-    let result = candidate.execute_saved(
-        &setup.profiles,
-        fixture.client(),
-        &locked,
-        &setup.journal,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        c.clone(),
-    );
+    let result = candidate
+        .execute_saved(
+            &setup.profiles,
+            fixture.client(),
+            &locked,
+            &setup.journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            c.clone(),
+        )
+        .observed();
     assert!(!result.envelope.ok);
     let data = result.envelope.data.as_ref().ok_or("data")?;
     assert_eq!(data["receipt"]["request_state"], "sent_unknown");
@@ -123,14 +126,16 @@ fn lost_edit_uses_saved_source_for_read_only_inspection_without_another_put() ->
         &setup.profiles,
         &c,
     )?;
-    let inspected = recovery.execute_cached(
-        &setup.profiles,
-        fixture.client(),
-        &locked,
-        &setup.journal,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        c,
-    );
+    let inspected = recovery
+        .execute_cached(
+            &setup.profiles,
+            fixture.client(),
+            &locked,
+            &setup.journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            c,
+        )
+        .observed();
     assert!(inspected.envelope.ok, "{:?}", inspected.envelope.error);
     let inspected = inspected.envelope.data.ok_or("inspection")?;
     assert_eq!(inspected["assessment"], "unresolved");

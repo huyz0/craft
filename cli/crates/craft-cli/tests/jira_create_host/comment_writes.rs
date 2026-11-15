@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::ObservedAs;
 use craft_cli::comment_writes::{CommentWriteEnvironment, MINIMUM_OUTPUT, PreparedCommentWrite};
 use craft_provider_jira::comments::{mutation as native, parse_record};
 use craft_runtime::issue_mutation_policy::{
@@ -294,7 +295,7 @@ fn case(command: &str, mode: &str) -> TestResult {
             },
         )
     };
-    let (data, error) = execute(prepared);
+    let (data, error) = execute(prepared).observed_as(command);
     let acknowledged = matches!(mode, "confirmed" | "incomplete");
     assert_eq!(
         error.is_none(),
@@ -320,7 +321,7 @@ fn case(command: &str, mode: &str) -> TestResult {
         let saved = setup.journal.get(COMMENT_OPERATION)?;
         assert!(saved.is_some());
         if !matches!(mode, "revoked_claim" | "late_revoked") {
-            assert!(execute(prepare()?).1.is_some());
+            assert!(execute(prepare()?).observed_as(command).1.is_some());
             assert_eq!(setup.journal.get(COMMENT_OPERATION)?, saved);
             assert_eq!(product.request_count(), count);
         }
@@ -380,6 +381,10 @@ fn comment_delete_is_one_claimed_delete() -> TestResult {
 #[test]
 fn lost_comment_create_response_cannot_send_again() -> TestResult {
     case(native::CREATE, "lost")
+}
+#[test]
+fn lost_comment_delete_response_cannot_send_again() -> TestResult {
+    case(native::DELETE, "lost")
 }
 #[test]
 fn refused_comment_write_cannot_send_again() -> TestResult {

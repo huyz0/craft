@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_links::reads::ReadEnvironment;
 use craft_cli::issue_links::reads::command::{LinkListArgs, LinkReadArgs, PreparedRead};
 use craft_runtime::issue_read_policy::{IssueReadOperation as Op, IssueReadPolicyUpdate};
@@ -85,7 +86,10 @@ fn paging_case(revoke: bool) -> TestResult {
         tls: TlsPolicy::AdditionalCaBundle(product.root()),
         control: control.clone(),
     };
-    let first = prepare(None, "11000")?.execute(environment()).envelope;
+    let first = prepare(None, "11000")?
+        .execute(environment())
+        .observed_selecting(&["id"])
+        .envelope;
     assert!(first.ok, "{first:?}");
     let first_data = first.data.as_ref().ok_or("first data")?;
     assert_eq!(first_data["items"][0]["id"], "90000");
@@ -100,7 +104,10 @@ fn paging_case(revoke: bool) -> TestResult {
     let next = prepare(Some(cursor.clone()), "11000")?;
     if revoke {
         policy(&setup, false, Some(1))?;
-        let denied = next.execute(environment()).envelope;
+        let denied = next
+            .execute(environment())
+            .observed_selecting(&["id"])
+            .envelope;
         assert!(!denied.ok);
         assert_eq!(
             denied.error.as_ref().map(|e| e.code),
@@ -114,6 +121,7 @@ fn paging_case(revoke: bool) -> TestResult {
                 store: &reopened,
                 ..environment()
             })
+            .observed_selecting(&["id"])
             .envelope;
         assert!(resumed.ok, "{resumed:?}");
         assert_eq!(
@@ -128,6 +136,7 @@ fn paging_case(revoke: bool) -> TestResult {
         );
         let replay = prepare(Some(cursor.clone()), "11000")?
             .execute(environment())
+            .observed_selecting(&["id"])
             .envelope;
         assert!(replay.ok);
         assert_eq!(
@@ -136,6 +145,7 @@ fn paging_case(revoke: bool) -> TestResult {
         );
         let mismatch = prepare(Some(cursor), "12000")?
             .execute(environment())
+            .observed_selecting(&["id"])
             .envelope;
         assert!(!mismatch.ok);
     }
@@ -216,6 +226,7 @@ fn direct_case(types: bool) -> TestResult {
             tls: TlsPolicy::AdditionalCaBundle(product.root()),
             control: control.clone(),
         })
+        .observed()
         .envelope;
     assert!(envelope.ok, "{envelope:?}");
     let data = envelope.data.ok_or("data")?;
@@ -247,4 +258,96 @@ fn native_link_get_retains_directed_endpoints_and_exact_identity() -> TestResult
 #[test]
 fn native_link_types_retains_current_labels() -> TestResult {
     direct_case(true)
+}
+
+#[test]
+fn every_link_read_refuses_without_work_scope_and_stops_at_its_deadline() -> TestResult {
+    use craft_cli::issue_links::reads::command::{LinkGetArgs, LinkTypesArgs};
+    for command in ["get", "list", "types"] {
+        for case in ["scope", "deadline"] {
+            let setup = Setup::new()?;
+            policy(&setup, true, None)?;
+            let issuer = issuer(if case == "scope" {
+                "read:jira-user"
+            } else {
+                SCOPES
+            })?;
+            let mut replies = vec![identity(), identity()];
+            if case == "deadline" {
+                replies.push(Reply::Stall);
+            }
+            let product = TlsServer::start(Reply::Sequence(replies))?;
+            let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+            let setup_control = control(CancellationToken::default(), 30_000)?;
+            let locked = fixture.lock(&setup.grant, &setup_control)?;
+            fixture.client().provision_grant(
+                &locked,
+                fixture.service_credentials()?,
+                &[target().tenant_ref()],
+                Some("actor-one"),
+            )?;
+            let (invocation, worker) = if case == "deadline" {
+                let (invocation, worker) = deadline_at_request(&product, 3)?;
+                (invocation, Some(worker))
+            } else {
+                (control(CancellationToken::default(), 30_000)?, None)
+            };
+            let args = match command {
+                "get" => LinkReadArgs::Get(LinkGetArgs {
+                    link_id: "90000".into(),
+                    cloud_id: None,
+                }),
+                "list" => LinkReadArgs::List(LinkListArgs {
+                    issue_id: "11000".into(),
+                    cloud_id: None,
+                    limit: 1,
+                    cursor: None,
+                }),
+                _ => LinkReadArgs::Types(LinkTypesArgs {
+                    limit: 20,
+                    cursor: None,
+                    cloud_id: None,
+                }),
+            };
+            let options = craft_cli::profiles::InvocationOptions {
+                state_root: Some(&setup.files.root),
+                profile: Some("factory"),
+                request_id: "bounded-link",
+                max_bytes: 262_144,
+            };
+            let envelope =
+                PreparedRead::prepare(args, &[], &options, &setup.profiles, &invocation)?
+                    .execute(ReadEnvironment {
+                        store: &setup.profiles,
+                        client: fixture.client(),
+                        locked: &locked,
+                        tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                        control: invocation.clone(),
+                    })
+                    .observed()
+                    .envelope;
+            join_deadline(worker)?;
+            assert_eq!(
+                envelope.error.as_ref().map(|error| error.code),
+                Some(if case == "scope" {
+                    ErrorCode::PermissionDenied
+                } else {
+                    ErrorCode::DeadlineExceeded
+                }),
+                "{command} {case}: {:?}",
+                envelope.error
+            );
+            let sent = product.finish()?.len();
+            assert_eq!(
+                sent,
+                if case == "scope" { 2 } else { 3 },
+                "{command} {case}"
+            );
+            issuer.finish()?;
+            drop(locked);
+            drop(fixture);
+            setup.cleanup()?;
+        }
+    }
+    Ok(())
 }

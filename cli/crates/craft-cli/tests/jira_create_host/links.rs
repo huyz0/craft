@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::ObservedAs;
 use craft_cli::issue_links::LinkEnvironment;
 use craft_cli::issue_links::command::{LinkArgs, prepare};
 use craft_core::contracts::RequestState;
@@ -188,25 +189,27 @@ fn run_case(mode: &str, boundary: Option<usize>) -> TestResult {
     }
     let changed = AtomicBool::new(false);
     let calls = product.request_counter();
-    let (data, error) = prepared.execute(
-        LinkEnvironment {
-            store: &setup.profiles,
-            client: fixture.client(),
-            locked: &locked,
-            journal: &setup.journal,
-            tls: TlsPolicy::AdditionalCaBundle(product.root()),
-            control: invocation.clone(),
-        },
-        || {
-            if let Some(boundary) = boundary
-                && calls.load(Ordering::SeqCst) >= boundary + 2
-                && !changed.swap(true, Ordering::SeqCst)
-            {
-                disable(&setup.profiles)?;
-            }
-            Ok(())
-        },
-    );
+    let (data, error) = prepared
+        .execute(
+            LinkEnvironment {
+                store: &setup.profiles,
+                client: fixture.client(),
+                locked: &locked,
+                journal: &setup.journal,
+                tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                control: invocation.clone(),
+            },
+            || {
+                if let Some(boundary) = boundary
+                    && calls.load(Ordering::SeqCst) >= boundary + 2
+                    && !changed.swap(true, Ordering::SeqCst)
+                {
+                    disable(&setup.profiles)?;
+                }
+                Ok(())
+            },
+        )
+        .observed_as("jira.link.create");
     let claimed = mode.starts_with("claim_");
     let sent = matches!(mode, "confirmed" | "lost" | "refused" | "unqualified");
     assert_eq!(error.is_none(), mode == "confirmed", "{mode}: {error:?}");
@@ -239,17 +242,19 @@ fn run_case(mode: &str, boundary: Option<usize>) -> TestResult {
     }
     if sent {
         let again = prepare(&args()?, "factory", &setup.profiles, &invocation)?;
-        let (again, error) = again.execute(
-            LinkEnvironment {
-                store: &setup.profiles,
-                client: fixture.client(),
-                locked: &locked,
-                journal: &setup.journal,
-                tls: TlsPolicy::AdditionalCaBundle(product.root()),
-                control: invocation,
-            },
-            || Ok(()),
-        );
+        let (again, error) = again
+            .execute(
+                LinkEnvironment {
+                    store: &setup.profiles,
+                    client: fixture.client(),
+                    locked: &locked,
+                    journal: &setup.journal,
+                    tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                    control: invocation,
+                },
+                || Ok(()),
+            )
+            .observed_as("jira.link.create");
         assert_eq!(error.map(|e| e.code), Some(ErrorCode::OperationIdReused));
         assert!(again.credential_cache_update.is_none());
         assert!(again.prior_record.is_some());

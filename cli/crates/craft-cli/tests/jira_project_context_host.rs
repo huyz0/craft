@@ -1,4 +1,7 @@
 //! Owned TLS acceptance for project context/auth/cache/continuation composition.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
@@ -403,13 +406,15 @@ fn typed_project_context_candidates_use_explicit_permissions_and_stop_on_capture
             ) {
                 clock.base.advance(Duration::from_secs(120))?;
             }
-            let mut result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            let mut result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
             if mode == "buffered" {
                 assert!(result.envelope.ok, "{:?}", result.envelope.error);
                 let args = ProjectContextArgs::Statuses(
@@ -425,13 +430,15 @@ fn typed_project_context_candidates_use_explicit_permissions_and_stop_on_capture
                 let prepared =
                     PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
                 clock.base.advance(Duration::from_secs(120))?;
-                result = prepared.execute_cached(
-                    &setup.store,
-                    fixture.client(),
-                    &locked,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control()?,
-                );
+                result = prepared
+                    .execute_cached(
+                        &setup.store,
+                        fixture.client(),
+                        &locked,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control()?,
+                    )
+                    .observed();
             }
             assert_eq!(result.envelope.request_id, "candidate-request");
             schema(&result.envelope, &[])?;
@@ -516,13 +523,15 @@ fn project_get_uses_one_declared_read_and_preserves_identity_schema_and_renewal(
         if renew {
             clock.advance(Duration::from_secs(120))?;
         }
-        let result = prepared(&setup.grant, GET, selection(&[], None, 20, 16_384))?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared(&setup.grant, GET, selection(&[], None, 20, 16_384))?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(result.envelope.ok, "{:?}", result.envelope.error);
         schema(&result.envelope, &[])?;
         assert_eq!(data(&result.envelope)?["project"]["id"], "10000");
@@ -575,13 +584,15 @@ fn grouped_status_remainders_resume_after_renewal_without_refetching_or_flatteni
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let first = prepared(&setup.grant, STATUSES, selection(&[], None, 1, 16_384))?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, STATUSES, selection(&[], None, 1, 16_384))?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     schema(&first.envelope, &[])?;
     assert_eq!(data(&first.envelope)?["items"][0]["id"], "1");
@@ -597,7 +608,8 @@ fn grouped_status_remainders_resume_after_renewal_without_refetching_or_flatteni
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(second.envelope.ok, "{:?}", second.envelope.error);
     schema(&second.envelope, &[])?;
     assert_eq!(data(&second.envelope)?["items"][0]["id"], "2");
@@ -652,13 +664,15 @@ fn changed_selector_fields_or_actor_refuse_status_cursor_before_auth() -> TestRe
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let first = prepared(&setup.grant, STATUSES, selection(&[], None, 1, 16_384))?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, STATUSES, selection(&[], None, 1, 16_384))?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     for mode in ["selector", "fields", "actor"] {
         let mut target = target();
@@ -690,13 +704,15 @@ fn changed_selector_fields_or_actor_refuse_status_cursor_before_auth() -> TestRe
                 .into(),
             },
         )?;
-        let result = prepared.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert_eq!(
             code(&result.envelope),
             Some(ErrorCode::CursorMismatch),
@@ -751,7 +767,8 @@ fn oversized_project_has_no_partial_body_and_status_group_recovery_is_lossless()
                 &setup.store,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 control()?,
-            );
+            )
+            .observed();
         assert_eq!(code(&first.envelope), Some(ErrorCode::ItemTooLarge));
         schema(&first.envelope, &fields)?;
         assert_eq!(
@@ -773,7 +790,8 @@ fn oversized_project_has_no_partial_body_and_status_group_recovery_is_lossless()
                 &setup.store,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 control()?,
-            );
+            )
+            .observed();
         assert!(last.envelope.ok, "{:?}", last.envelope.error);
         schema(&last.envelope, &fields)?;
         if command == STATUSES {
@@ -851,13 +869,15 @@ fn scope_actor_http_and_response_failures_preserve_independent_cache_evidence() 
         } else {
             prepared(&setup.grant, command, selection(&[], None, 20, 16_384))?
         };
-        let result = prepared.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(!result.envelope.ok, "{mode}");
         schema(&result.envelope, &[])?;
         assert!(result.envelope.page.is_none());
@@ -967,7 +987,8 @@ fn revocation_before_auth_during_auth_and_after_native_or_buffered_work_suppress
                     TlsPolicy::AdditionalCaBundle(product.root()),
                     control()?,
                     check,
-                );
+                )
+                .observed();
             if mode == "buffered" {
                 assert!(result.envelope.ok, "{:?}", result.envelope.error);
                 let prepared = prepared(
@@ -976,14 +997,16 @@ fn revocation_before_auth_during_auth_and_after_native_or_buffered_work_suppress
                     selection(&[], Some(cursor(&result.envelope)?), 20, 16_384),
                 )?;
                 clock.base.advance(Duration::from_secs(120))?;
-                result = prepared.execute_cached_with_policy_check(
-                    fixture.client(),
-                    &locked,
-                    &setup.store,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control()?,
-                    check,
-                );
+                result = prepared
+                    .execute_cached_with_policy_check(
+                        fixture.client(),
+                        &locked,
+                        &setup.store,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control()?,
+                        check,
+                    )
+                    .observed();
             }
             assert_eq!(
                 code(&result.envelope),
@@ -1063,7 +1086,8 @@ fn cancelled_or_expired_resource_io_does_not_retry_or_publish_project_context() 
                 &setup.store,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 invocation,
-            );
+            )
+            .observed();
         worker
             .join()
             .map_err(|_| "Control worker panicked")?

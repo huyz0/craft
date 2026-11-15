@@ -1,4 +1,7 @@
 //! Owned TLS qualification for current-user permissions and explicit context semantics.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
 use craft_cli::permission_reads::{PermissionReadPolicy, PreparedPermissionRead};
@@ -241,13 +244,15 @@ fn permission_context_queries_use_one_get_and_keep_global_project_issue_comment_
         if field != "global" {
             input[field] = json!(value);
         }
-        let result = prepared(&setup.grant, input, &[], None, 20, 16_384)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared(&setup.grant, input, &[], None, 20, 16_384)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(result.envelope.ok, "{:?}", result.envelope.error);
         validate(&result.envelope, &[], 16_384)?;
         assert_eq!(data(&result.envelope)?["context"]["kind"], kind);
@@ -298,13 +303,15 @@ fn permission_remainders_reopen_and_replay_with_false_and_unknown_after_renewal(
     clock.advance(Duration::from_secs(120))?;
     let input =
         json!({"permissions":["EDIT_ISSUES","BROWSE_PROJECTS","plugin:unknown"],"issue":"OLD-1"});
-    let first = prepared(&setup.grant, input.clone(), &[], None, 1, 16_384)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, input.clone(), &[], None, 1, 16_384)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     validate(&first.envelope, &[], 16_384)?;
     assert_eq!(
@@ -328,7 +335,8 @@ fn permission_remainders_reopen_and_replay_with_false_and_unknown_after_renewal(
             &reopened,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert!(result.envelope.ok, "{:?}", result.envelope.error);
         validate(&result.envelope, &[], 16_384)?;
         assert_eq!(data(&result.envelope)?["cached"], true);
@@ -381,13 +389,15 @@ fn permission_cursor_context_key_order_and_projection_mismatch_refuse_before_aut
         Some("actor-one"),
     )?;
     let input = json!({"permissions":["EDIT_ISSUES","BROWSE_PROJECTS"],"issue":"OLD-1"});
-    let first = prepared(&setup.grant, input.clone(), &[], None, 1, 16_384)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, input.clone(), &[], None, 1, 16_384)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     clock.advance(Duration::from_secs(120))?;
     for mode in ["context", "keys", "order", "fields"] {
@@ -413,7 +423,8 @@ fn permission_cursor_context_key_order_and_projection_mismatch_refuse_before_aut
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert_eq!(
             code(&result.envelope),
             Some(ErrorCode::CursorMismatch),
@@ -482,7 +493,8 @@ fn permission_denials_bad_json_warnings_and_interrupted_reads_keep_cache_receipt
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             invocation,
-        );
+        )
+        .observed();
         assert!(!result.envelope.ok);
         validate(&result.envelope, &[], 16_384)?;
         if mode == "deadline" {
@@ -525,13 +537,15 @@ fn oversized_permission_metadata_recovers_exact_inert_description_from_buffer() 
     )?;
     let input = json!({"permissions":["EDIT_ISSUES"],"project":"ED"});
     let fields = ["description"];
-    let first = prepared(&setup.grant, input.clone(), &fields, None, 1, 8192)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, input.clone(), &fields, None, 1, 8192)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert_eq!(code(&first.envelope), Some(ErrorCode::ItemTooLarge));
     validate(&first.envelope, &fields, 8192)?;
     let recovered = prepared(
@@ -548,7 +562,8 @@ fn oversized_permission_metadata_recovers_exact_inert_description_from_buffer() 
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(recovered.envelope.ok, "{:?}", recovered.envelope.error);
     validate(&recovered.envelope, &fields, 65_536)?;
     assert_eq!(data(&recovered.envelope)?["cached"], true);
@@ -701,13 +716,15 @@ fn parsed_permission_candidates_obey_policy_changes_and_missing_scope_on_native_
         if !matches!(mode, "success" | "before_auth") {
             clock.base.advance(Duration::from_secs(120))?;
         }
-        let mut result = prepared.execute_cached(
-            &setup.store,
-            fixture.client(),
-            &locked,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let mut result = prepared
+            .execute_cached(
+                &setup.store,
+                fixture.client(),
+                &locked,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         if mode == "buffered" {
             assert!(result.envelope.ok, "{:?}", result.envelope.error);
             let args = Candidate::try_parse_from([
@@ -725,13 +742,15 @@ fn parsed_permission_candidates_obey_policy_changes_and_missing_scope_on_native_
             let prepared =
                 PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
             clock.base.advance(Duration::from_secs(120))?;
-            result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
         }
         validate(&result.envelope, &[], 16_384)?;
         if mode == "success" {

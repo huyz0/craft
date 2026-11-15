@@ -1,4 +1,7 @@
 //! Actual internal paging/auth/transport composition against owned servers and synthetic material.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
@@ -234,13 +237,15 @@ fn typed_project_command_uses_private_configuration_and_refuses_revocation_befor
         if matches!(mode, "during_auth" | "after_page" | "changed_page") {
             clock.base.advance(Duration::from_secs(3600))?;
         }
-        let mut result = prepared.execute_cached(
-            &setup.store,
-            fixture.client(),
-            &locked,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let mut result = prepared
+            .execute_cached(
+                &setup.store,
+                fixture.client(),
+                &locked,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         if mode == "buffered" {
             assert!(result.envelope.ok, "{:?}", result.envelope.error);
             let args =
@@ -248,13 +253,15 @@ fn typed_project_command_uses_private_configuration_and_refuses_revocation_befor
                     .args;
             let prepared =
                 PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
-            result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
         }
         assert_eq!(result.envelope.request_id, "typed-list-request");
         if mode == "success" {
@@ -433,13 +440,15 @@ fn project_pages_buffer_without_resource_fetch_and_site_links_stay_on_bound_gate
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let first = prepared(&setup.grant, None, 1, 16384, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, None, 1, 16384, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     assert_eq!(
         first.envelope.data.as_ref().ok_or("Missing data")?["items"][0]["id"],
@@ -452,7 +461,8 @@ fn project_pages_buffer_without_resource_fetch_and_site_links_stay_on_bound_gate
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
     assert!(second.envelope.ok, "{:?}", second.envelope.error);
     assert_eq!(
         second.envelope.data.as_ref().ok_or("Missing data")?["cached"],
@@ -482,7 +492,8 @@ fn project_pages_buffer_without_resource_fetch_and_site_links_stay_on_bound_gate
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(third.envelope.ok);
     assert!(
         third.envelope.data.as_ref().ok_or("Missing data")?["items"]
@@ -503,7 +514,8 @@ fn project_pages_buffer_without_resource_fetch_and_site_links_stay_on_bound_gate
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(fourth.envelope.ok);
     assert!(
         !fourth
@@ -602,13 +614,15 @@ fn invalid_site_link_metadata_or_denial_preserves_renewal_receipt_without_follow
             Some("actor-one"),
         )?;
         clock.advance(Duration::from_secs(3600))?;
-        let result = prepared(&setup.grant, None, 20, 16384, None)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared(&setup.grant, None, 20, 16384, None)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(!result.envelope.ok, "{mode}");
         assert!(result.envelope.page.is_none());
         assert_eq!(
@@ -642,13 +656,15 @@ fn mismatched_cursor_is_refused_before_cached_identity_or_acquisition() -> TestR
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let first = prepared(&setup.grant, None, 1, 16384, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, None, 1, 16384, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok);
     let wrong = prepared(
         &setup.grant,
@@ -663,7 +679,8 @@ fn mismatched_cursor_is_refused_before_cached_identity_or_acquisition() -> TestR
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert_eq!(
         wrong.envelope.error.as_ref().map(|error| error.code),
         Some(ErrorCode::CursorMismatch)
@@ -711,13 +728,15 @@ fn scope_or_actor_denial_prevents_the_project_fetch() -> TestResult {
         } else {
             prepared(&setup.grant, None, 20, 16384, None)?
         };
-        let result = host.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = host
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert_eq!(
             result.envelope.error.as_ref().map(|error| error.code),
             Some(if mode == "scope" {
@@ -757,13 +776,15 @@ fn oversized_project_retains_cursor_and_exact_output_budget_until_retry() -> Tes
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let result = prepared(&setup.grant, None, 20, 3072, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let result = prepared(&setup.grant, None, 20, 3072, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert_eq!(
         result.envelope.error.as_ref().map(|error| error.code),
         Some(ErrorCode::ItemTooLarge)
@@ -772,13 +793,15 @@ fn oversized_project_retains_cursor_and_exact_output_budget_until_retry() -> Tes
     let output = craft_cli::output::encode(result.envelope, 3072, result.output_policy)?;
     assert!(output.bytes.len() <= 3072);
     assert_eq!(output.exit, 10);
-    let recovered = prepared(&setup.grant, Some(&next), 20, 8192, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let recovered = prepared(&setup.grant, Some(&next), 20, 8192, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(recovered.envelope.ok);
     assert_eq!(recovered.envelope.request_id, "original-request");
     assert_eq!(
@@ -831,13 +854,15 @@ fn stalled_project_read_obeys_deadline_without_a_retry_or_continuation() -> Test
             .advance(Duration::from_millis(10_000))
             .map_err(|error| error.to_string())
     });
-    let result = host.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        deadline,
-    );
+    let result = host
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            deadline,
+        )
+        .observed();
     worker
         .join()
         .map_err(|_| "Deadline worker panicked")?
@@ -873,13 +898,15 @@ fn disconnected_project_read_stops_after_bounded_attempts_without_continuation()
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let result = prepared(&setup.grant, None, 20, 16384, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let result = prepared(&setup.grant, None, 20, 16384, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert_eq!(
         result.envelope.error.as_ref().map(|error| error.code),
         Some(ErrorCode::RemoteUnavailable)
@@ -919,13 +946,15 @@ fn invocation_deadline_also_bounds_cached_identity_before_any_project_request() 
             .advance(Duration::from_millis(10_000))
             .map_err(|error| error.to_string())
     });
-    let result = host.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        deadline,
-    );
+    let result = host
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            deadline,
+        )
+        .observed();
     worker
         .join()
         .map_err(|_| "Identity deadline worker panicked")?
@@ -968,13 +997,15 @@ fn provider_clamped_page_size_uses_advertised_offset_without_changing_bound_requ
         &[target().tenant_ref()],
         Some("actor-one"),
     )?;
-    let first = prepared(&setup.grant, None, 20, 16384, None)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, None, 20, 16384, None)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     let last = prepared(
         &setup.grant,
@@ -989,7 +1020,8 @@ fn provider_clamped_page_size_uses_advertised_offset_without_changing_bound_requ
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(last.envelope.ok, "{:?}", last.envelope.error);
     assert_eq!(
         last.envelope.data.as_ref().ok_or("Missing data")?["items"][0]["id"],

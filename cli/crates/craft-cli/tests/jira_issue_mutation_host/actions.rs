@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 #[path = "actions/candidates.rs"]
 mod candidates;
 
@@ -100,13 +101,15 @@ fn issue_actions_send_exact_native_calls_and_preserve_outcomes_without_replay() 
             if mode == "renew" {
                 clock.advance(Duration::from_secs(3_600))?;
             }
-            let result = action_prepared(&setup.grant, command, cascade)?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control.clone(),
-            );
+            let result = action_prepared(&setup.grant, command, cascade)?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control.clone(),
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert_eq!(
                 result.envelope.ok,
@@ -132,13 +135,15 @@ fn issue_actions_send_exact_native_calls_and_preserve_outcomes_without_replay() 
             assert_eq!(data["credential_cache_update"].is_null(), mode != "renew");
             assert_eq!(data["replay_authorized"], false);
             assert!(!serde_json::to_string(&result.envelope)?.contains("private-provider-text"));
-            let repeated = action_prepared(&setup.grant, command, cascade)?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let repeated = action_prepared(&setup.grant, command, cascade)?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_eq!(
                 repeated.envelope.error.as_ref().ok_or("repeat error")?.code,
                 ErrorCode::OperationIdReused
@@ -247,7 +252,8 @@ fn issue_actions_refuse_claim_time_expiry_policy_revocation_and_cancellation() -
                         }
                         Ok(())
                     },
-                );
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert!(!result.envelope.ok);
             assert_eq!(

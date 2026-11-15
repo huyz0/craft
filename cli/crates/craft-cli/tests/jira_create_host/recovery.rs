@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_recovery::{self, PreparedRecovery, RecoveryInput, RecoveryPolicy};
 fn token(scopes: &str) -> Result<Reply, serde_json::Error> {
     Ok(Reply::json(
@@ -71,13 +72,15 @@ fn typed_create_recovery_uses_separate_policy_and_retains_uncertainty_and_renewa
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let lost = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control.clone(),
-        );
+        let lost = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control.clone(),
+            )
+            .observed_selecting(&["issue_key"]);
         assert!(!lost.envelope.ok);
         let saved = setup.journal.get(OPERATION)?.ok_or("saved")?;
         setup.profiles.set_issue_recovery_policy(
@@ -147,14 +150,16 @@ fn typed_create_recovery_uses_separate_policy_and_retains_uncertainty_and_renewa
                 )?;
             }
             clock.advance(Duration::from_secs(3_600))?;
-            let result = prepared.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control.clone(),
-            );
+            let result = prepared
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control.clone(),
+                )
+                .observed();
             assert_eq!(
                 result.envelope.ok,
                 matches!(mode, "visible" | "no_ids" | "missing"),
@@ -258,13 +263,15 @@ fn lost_create_investigation_keeps_candidates_unattributed_and_never_posts_again
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let created = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control.clone(),
-        );
+        let created = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control.clone(),
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(created.envelope.ok, confirmed);
         let saved = setup.journal.get(OPERATION)?.ok_or("journal")?;
         let mut original = original();
@@ -294,14 +301,16 @@ fn lost_create_investigation_keeps_candidates_unattributed_and_never_posts_again
             },
         )?;
         clock.advance(Duration::from_secs(3_600))?;
-        let result = prepared.execute_cached_with_policy_check(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control,
-            || Ok(()),
-        );
+        let result = prepared
+            .execute_cached_with_policy_check(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control,
+                || Ok(()),
+            )
+            .observed();
         assert!(
             jsonschema::validator_for(&issue_recovery::schema()?)?
                 .is_valid(&serde_json::to_value(&result.envelope)?)

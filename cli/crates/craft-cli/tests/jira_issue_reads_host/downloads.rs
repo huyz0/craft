@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::attachment_download::command::{AttachmentDownloadArgs, PreparedDownload};
 use craft_cli::attachment_download::{ARTIFACT_DIRECTORY, PreparedAttachmentDownload};
 use craft_cli::attachment_reads::ReadEnvironment;
@@ -86,6 +87,7 @@ fn attachment_download_streams_exact_bytes_exports_atomically_and_retains_artifa
                     tls: TlsPolicy::AdditionalCaBundle(product.root()),
                     control: control()?,
                 })
+                .observed()
                 .envelope,
         )
     };
@@ -218,6 +220,7 @@ fn attachment_download_refuses_bad_digest_oversize_partial_and_redirect_without_
                     tls: TlsPolicy::AdditionalCaBundle(product.root()),
                     control: control()?,
                 })
+                .observed()
                 .envelope;
         assert!(!envelope.ok, "{mode}");
         assert!(data(&envelope)?["artifact"].is_null());
@@ -307,6 +310,7 @@ fn download_permission_and_scope_refusals_precede_binary_get() -> TestResult {
                 tls: TlsPolicy::AdditionalCaBundle(product.root()),
                 control: control()?,
             })
+            .observed()
             .envelope;
     assert_eq!(code(&envelope), Some(ErrorCode::PermissionDenied));
     assert!(data(&envelope)?["artifact"].is_null());
@@ -394,6 +398,7 @@ fn download_policy_revocation_after_artifact_commit_retains_receipt_and_suppress
                 )
             },
         )
+        .observed()
         .envelope;
     assert!(!envelope.ok);
     assert!(changed.load(Ordering::SeqCst));
@@ -440,13 +445,15 @@ fn download_revoked_preparation_and_renewed_cache_keep_independent_effects() -> 
         &control()?,
     )?;
     clock.advance(Duration::from_secs(3600))?;
-    let result = host.execute(ReadEnvironment {
-        store: &setup.store,
-        client: fixture.client(),
-        locked: &locked,
-        tls: TlsPolicy::AdditionalCaBundle(product.root()),
-        control: control()?,
-    });
+    let result = host
+        .execute(ReadEnvironment {
+            store: &setup.store,
+            client: fixture.client(),
+            locked: &locked,
+            tls: TlsPolicy::AdditionalCaBundle(product.root()),
+            control: control()?,
+        })
+        .observed();
     assert!(result.envelope.ok, "{:?}", result.envelope.error);
     assert_eq!(
         data(&result.envelope)?["credential_cache_update"]["write_state"],
@@ -480,6 +487,7 @@ fn download_revoked_preparation_and_renewed_cache_keep_independent_effects() -> 
             tls: TlsPolicy::AdditionalCaBundle(product.root()),
             control: control()?,
         })
+        .observed()
         .envelope;
     assert!(!envelope.ok);
     assert_eq!(data(&envelope)?["artifact_write_state"], "not_sent");
@@ -527,6 +535,7 @@ fn download_export_cannot_replace_control_state_from_an_ancestor_output_root() -
                 tls: TlsPolicy::AdditionalCaBundle(product.root()),
                 control: control()?,
             })
+            .observed()
             .envelope;
     assert!(!envelope.ok);
     assert_eq!(data(&envelope)?["artifact_write_state"], "confirmed");
@@ -605,6 +614,7 @@ fn interrupted_composed_download_discards_disk_staging_without_export_or_refetch
                     )
                 },
             )
+            .observed()
             .envelope;
         assert_eq!(
             code(&envelope),

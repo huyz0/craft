@@ -1,4 +1,7 @@
 //! Owned TLS evidence for issue-bound metadata, renewal receipts and immutable continuation.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
 
@@ -208,13 +211,15 @@ fn typed_metadata_candidates_stop_at_captured_policy_changes_across_each_resourc
             if !matches!(mode, "success" | "before_auth") {
                 clock.base.advance(Duration::from_secs(120))?;
             }
-            let mut result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            let mut result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
             if mode == "buffered" {
                 assert!(result.envelope.ok, "{:?}", result.envelope.error);
                 let next = cursor(&result.envelope)?;
@@ -238,13 +243,15 @@ fn typed_metadata_candidates_stop_at_captured_policy_changes_across_each_resourc
                 let prepared =
                     PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
                 clock.base.advance(Duration::from_secs(120))?;
-                result = prepared.execute_cached(
-                    &setup.store,
-                    fixture.client(),
-                    &locked,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control()?,
-                );
+                result = prepared
+                    .execute_cached(
+                        &setup.store,
+                        fixture.client(),
+                        &locked,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control()?,
+                    )
+                    .observed();
             }
             validate(&result.envelope, &[], 16_384)?;
             if mode == "success" {
@@ -523,13 +530,15 @@ fn edit_and_transition_pages_keep_issue_observation_across_reopen_and_immutable_
             Some("actor-one"),
         )?;
         clock.advance(Duration::from_secs(120))?;
-        let first = prepared(&setup.grant, command, &[], None, 16_384)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let first = prepared(&setup.grant, command, &[], None, 16_384)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(first.envelope.ok, "{:?}", first.envelope.error);
         validate(&first.envelope, &[], 16_384)?;
         assert_eq!(
@@ -555,7 +564,8 @@ fn edit_and_transition_pages_keep_issue_observation_across_reopen_and_immutable_
                 &reopened,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 control()?,
-            );
+            )
+            .observed();
             assert!(last.envelope.ok, "{:?}", last.envelope.error);
             validate(&last.envelope, &[], 16_384)?;
             assert_eq!(data(&last.envelope)?["cached"], true);
@@ -640,13 +650,15 @@ fn empty_metadata_keeps_bracket_observation_without_claiming_absence_or_authorit
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let result = prepared(&setup.grant, command, &[], None, 16_384)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared(&setup.grant, command, &[], None, 16_384)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert!(result.envelope.ok, "{:?}", result.envelope.error);
         validate(&result.envelope, &[], 16_384)?;
         assert_eq!(data(&result.envelope)?["items"], json!([]));
@@ -695,13 +707,15 @@ fn state_drift_and_remote_denial_suppress_items_but_keep_renewal_receipts() -> T
             Some("actor-one"),
         )?;
         clock.advance(Duration::from_secs(120))?;
-        let result = prepared(&setup.grant, EDIT, &[], None, 16_384)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-        );
+        let result = prepared(&setup.grant, EDIT, &[], None, 16_384)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+            )
+            .observed();
         assert_eq!(
             code(&result.envelope),
             Some(if mode == "drift" {
@@ -728,64 +742,67 @@ fn state_drift_and_remote_denial_suppress_items_but_keep_renewal_receipts() -> T
 
 #[test]
 fn late_policy_denial_and_cancellation_suppress_results_after_bracket_reads() -> TestResult {
-    for mode in ["policy", "cancel"] {
-        let setup = Setup::new()?;
-        let issuer = issuer()?;
-        let product = TlsServer::start(Reply::Sequence(vec![
-            identity(),
-            identity(),
-            reply(state())?,
-            reply(metadata(EDIT))?,
-            reply(state())?,
-        ]))?;
-        let count = product.request_counter();
-        let clock = Arc::new(ManualClock::new(1000));
-        let fixture = setup.fixture(&issuer, &product, clock.clone())?;
-        let locked = fixture.lock(&setup.grant, &control()?)?;
-        fixture.client().provision_grant(
-            &locked,
-            fixture.service_credentials()?,
-            &[target().tenant_ref()],
-            Some("actor-one"),
-        )?;
-        clock.advance(Duration::from_secs(120))?;
-        let cancellation = CancellationToken::default();
-        let invocation = InvocationControl::new(
-            Arc::new(SystemClock::default()),
-            cancellation.clone(),
-            30_000,
-        )?;
-        let result = prepared(&setup.grant, EDIT, &[], None, 16_384)?
-            .execute_cached_with_policy_check(
-                fixture.client(),
+    for command in [EDIT, TRANSITIONS] {
+        for mode in ["policy", "cancel"] {
+            let setup = Setup::new()?;
+            let issuer = issuer()?;
+            let product = TlsServer::start(Reply::Sequence(vec![
+                identity(),
+                identity(),
+                reply(state())?,
+                reply(metadata(command))?,
+                reply(state())?,
+            ]))?;
+            let count = product.request_counter();
+            let clock = Arc::new(ManualClock::new(1000));
+            let fixture = setup.fixture(&issuer, &product, clock.clone())?;
+            let locked = fixture.lock(&setup.grant, &control()?)?;
+            fixture.client().provision_grant(
                 &locked,
-                &setup.store,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                invocation,
-                || {
-                    if count.load(Ordering::SeqCst) >= 5 {
-                        if mode == "cancel" {
-                            cancellation.cancel();
-                        } else {
-                            return Err(CraftError::new(
-                                ErrorCode::PolicyDenied,
-                                "Policy changed.",
-                            ));
+                fixture.service_credentials()?,
+                &[target().tenant_ref()],
+                Some("actor-one"),
+            )?;
+            clock.advance(Duration::from_secs(120))?;
+            let cancellation = CancellationToken::default();
+            let invocation = InvocationControl::new(
+                Arc::new(SystemClock::default()),
+                cancellation.clone(),
+                30_000,
+            )?;
+            let result = prepared(&setup.grant, command, &[], None, 16_384)?
+                .execute_cached_with_policy_check(
+                    fixture.client(),
+                    &locked,
+                    &setup.store,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    invocation,
+                    || {
+                        if count.load(Ordering::SeqCst) >= 5 {
+                            if mode == "cancel" {
+                                cancellation.cancel();
+                            } else {
+                                return Err(CraftError::new(
+                                    ErrorCode::PolicyDenied,
+                                    "Policy changed.",
+                                ));
+                            }
                         }
-                    }
-                    Ok(())
-                },
+                        Ok(())
+                    },
+                )
+                .observed();
+            assert!(!result.envelope.ok);
+            validate(&result.envelope, &[], 16_384)?;
+            assert_eq!(data(&result.envelope)?["items"], json!([]));
+            assert_eq!(
+                data(&result.envelope)?["credential_cache_update"]["write_state"],
+                "confirmed"
             );
-        assert!(!result.envelope.ok);
-        validate(&result.envelope, &[], 16_384)?;
-        assert_eq!(data(&result.envelope)?["items"], json!([]));
-        assert_eq!(
-            data(&result.envelope)?["credential_cache_update"]["write_state"],
-            "confirmed"
-        );
-        assert!(result.envelope.page.is_none());
-        assert_eq!(product.finish()?.len(), 5);
-        assert_eq!(issuer.finish()?.len(), 2);
+            assert!(result.envelope.page.is_none());
+            assert_eq!(product.finish()?.len(), 5);
+            assert_eq!(issuer.finish()?.len(), 2);
+        }
     }
     Ok(())
 }
@@ -813,13 +830,15 @@ fn oversized_selected_metadata_recovers_from_buffer_with_full_issue_context() ->
         Some("actor-one"),
     )?;
     let fields = ["default_value"];
-    let first = prepared(&setup.grant, EDIT, &fields, None, 16_384)?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.store,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control()?,
-    );
+    let first = prepared(&setup.grant, EDIT, &fields, None, 16_384)?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.store,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        )
+        .observed();
     assert_eq!(code(&first.envelope), Some(ErrorCode::ItemTooLarge));
     validate(&first.envelope, &fields, 16_384)?;
     assert!(data(&first.envelope)?["issue_observation"].is_object());
@@ -836,7 +855,8 @@ fn oversized_selected_metadata_recovers_from_buffer_with_full_issue_context() ->
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(recovered.envelope.ok, "{:?}", recovered.envelope.error);
     validate(&recovered.envelope, &fields, 65_536)?;
     assert_eq!(
@@ -859,63 +879,67 @@ fn oversized_selected_metadata_recovers_from_buffer_with_full_issue_context() ->
 #[test]
 fn interrupted_metadata_read_obeys_deadline_and_never_retries_or_publishes_partial_context()
 -> TestResult {
-    for mode in ["disconnect", "deadline"] {
-        let setup = Setup::new()?;
-        let issuer = issuer()?;
-        let product = TlsServer::start(Reply::Sequence(vec![
-            identity(),
-            identity(),
-            reply(state())?,
+    for command in [EDIT, TRANSITIONS] {
+        for mode in ["disconnect", "deadline"] {
+            let setup = Setup::new()?;
+            let issuer = issuer()?;
+            let product = TlsServer::start(Reply::Sequence(vec![
+                identity(),
+                identity(),
+                reply(state())?,
+                if mode == "deadline" {
+                    Reply::Stall
+                } else {
+                    Reply::Disconnect
+                },
+            ]))?;
+            let clock = Arc::new(ManualClock::new(1000));
+            let fixture = setup.fixture(&issuer, &product, clock.clone())?;
+            let locked = fixture.lock(&setup.grant, &control()?)?;
+            fixture.client().provision_grant(
+                &locked,
+                fixture.service_credentials()?,
+                &[target().tenant_ref()],
+                Some("actor-one"),
+            )?;
+            clock.advance(Duration::from_secs(120))?;
+            // Start the deadline fault only after the server receives the metadata request.
+            let invocation = InvocationControl::new(
+                Arc::new(MetadataDeadlineClock(product.request_counter())),
+                CancellationToken::default(),
+                1000,
+            )?;
+            let result = prepared(&setup.grant, command, &[], None, 16_384)?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.store,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    invocation,
+                )
+                .observed();
             if mode == "deadline" {
-                Reply::Stall
+                assert_eq!(code(&result.envelope), Some(ErrorCode::DeadlineExceeded));
             } else {
-                Reply::Disconnect
-            },
-        ]))?;
-        let clock = Arc::new(ManualClock::new(1000));
-        let fixture = setup.fixture(&issuer, &product, clock.clone())?;
-        let locked = fixture.lock(&setup.grant, &control()?)?;
-        fixture.client().provision_grant(
-            &locked,
-            fixture.service_credentials()?,
-            &[target().tenant_ref()],
-            Some("actor-one"),
-        )?;
-        clock.advance(Duration::from_secs(120))?;
-        // Start the deadline fault only after the server receives the metadata request.
-        let invocation = InvocationControl::new(
-            Arc::new(MetadataDeadlineClock(product.request_counter())),
-            CancellationToken::default(),
-            1000,
-        )?;
-        let result = prepared(&setup.grant, EDIT, &[], None, 16_384)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            invocation,
-        );
-        if mode == "deadline" {
-            assert_eq!(code(&result.envelope), Some(ErrorCode::DeadlineExceeded));
-        } else {
-            // An abrupt TLS close can surface as EOF or wait until the request deadline.
-            assert!(matches!(
-                code(&result.envelope),
-                Some(ErrorCode::RemoteUnavailable | ErrorCode::DeadlineExceeded)
-            ));
+                // An abrupt TLS close can surface as EOF or wait until the request deadline.
+                assert!(matches!(
+                    code(&result.envelope),
+                    Some(ErrorCode::RemoteUnavailable | ErrorCode::DeadlineExceeded)
+                ));
+            }
+            validate(&result.envelope, &[], 16_384)?;
+            assert_eq!(data(&result.envelope)?["items"], json!([]));
+            assert!(data(&result.envelope)?["issue_observation"].is_null());
+            assert_eq!(
+                data(&result.envelope)?["credential_cache_update"]["write_state"],
+                "confirmed"
+            );
+            assert!(result.envelope.page.is_none());
+            assert_eq!(product.request_count(), 4);
+            assert_eq!(product.connections(), 4);
+            assert_eq!(product.finish()?.len(), 4);
+            assert_eq!(issuer.finish()?.len(), 2);
         }
-        validate(&result.envelope, &[], 16_384)?;
-        assert_eq!(data(&result.envelope)?["items"], json!([]));
-        assert!(data(&result.envelope)?["issue_observation"].is_null());
-        assert_eq!(
-            data(&result.envelope)?["credential_cache_update"]["write_state"],
-            "confirmed"
-        );
-        assert!(result.envelope.page.is_none());
-        assert_eq!(product.request_count(), 4);
-        assert_eq!(product.connections(), 4);
-        assert_eq!(product.finish()?.len(), 4);
-        assert_eq!(issuer.finish()?.len(), 2);
     }
     Ok(())
 }

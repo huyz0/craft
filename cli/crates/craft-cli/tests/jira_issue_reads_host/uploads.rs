@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::attachment_upload::command::UploadArgs;
 use craft_cli::attachment_upload::{PreparedUpload, UploadEnvironment};
 use craft_cli::profiles::InvocationOptions;
@@ -124,17 +125,19 @@ fn upload_captures_exact_snapshot_and_confirmed_operation_never_sends_again() ->
         &control()?,
     )?;
     let run = |host: &PreparedUpload| -> Result<craft_cli::dispatch::CommandResult, CraftError> {
-        Ok(host.execute(
-            UploadEnvironment {
-                store: &setup.store,
-                client: fixture.client(),
-                locked: &locked,
-                journal: &journal,
-                tls: TlsPolicy::AdditionalCaBundle(product.root()),
-                control: control()?,
-            },
-            || Ok(()),
-        ))
+        Ok(host
+            .execute(
+                UploadEnvironment {
+                    store: &setup.store,
+                    client: fixture.client(),
+                    locked: &locked,
+                    journal: &journal,
+                    tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                    control: control()?,
+                },
+                || Ok(()),
+            )
+            .observed())
     };
     let first = run(&prepared)?;
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
@@ -237,6 +240,7 @@ fn lost_or_sparse_upload_acknowledgment_keeps_source_and_blocks_all_replay() -> 
                     },
                     || Ok(()),
                 )
+                .observed()
                 .envelope)
         };
         let first = run()?;
@@ -296,6 +300,7 @@ fn preclaim_refusal_can_resume_only_the_original_frozen_snapshot() -> TestResult
                     },
                     || Ok(()),
                 )
+                .observed()
                 .envelope,
         )
     };
@@ -367,6 +372,7 @@ fn missing_upload_scope_and_live_permission_refusal_never_reach_post() -> TestRe
                     },
                     || Ok(()),
                 )
+                .observed()
                 .envelope;
         assert_eq!(code(&envelope), Some(ErrorCode::PermissionDenied));
         assert_eq!(data(&envelope)?["receipt"]["request_state"], "not_sent");

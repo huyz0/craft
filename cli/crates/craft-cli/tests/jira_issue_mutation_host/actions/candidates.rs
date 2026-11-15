@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_mutation::command::{IssueMutationArgs, PreparedInvocation};
 use craft_runtime::issue_mutation_policy::{
     IssueMutationOperation as Op, IssueMutationPolicyUpdate,
@@ -133,14 +134,16 @@ fn action_candidates_use_exact_policy_through_auth_claim_and_frozen_boundaries()
                     |_| Ok(()),
                 )?;
             }
-            let result = prepared.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control.clone(),
-            );
+            let result = prepared
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control.clone(),
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert_eq!(
                 result.envelope.ok,
@@ -189,14 +192,16 @@ fn action_candidates_use_exact_policy_through_auth_claim_and_frozen_boundaries()
                     &setup.profiles,
                     &control,
                 )?;
-                let repeated = repeated.execute_cached(
-                    &setup.profiles,
-                    fixture.client(),
-                    &locked,
-                    &setup.journal,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control,
-                );
+                let repeated = repeated
+                    .execute_cached(
+                        &setup.profiles,
+                        fixture.client(),
+                        &locked,
+                        &setup.journal,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control,
+                    )
+                    .observed();
                 assert_eq!(
                     repeated.envelope.error.as_ref().ok_or("repeat error")?.code,
                     ErrorCode::OperationIdReused
@@ -293,14 +298,16 @@ fn action_candidates_preserve_renewal_when_native_context_refuses_before_claim()
                 Some("actor-one"),
             )?;
             clock.advance(Duration::from_secs(3_600))?;
-            let result = prepared.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let result = prepared
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert!(!result.envelope.ok);
             let data = result.envelope.data.as_ref().ok_or("data")?;
@@ -376,14 +383,16 @@ fn persisted_action_policy_revocation_stops_each_completed_read_boundary() -> Te
                 Some("actor-one"),
             )?;
             clock.base.advance(Duration::from_secs(3_600))?;
-            let result = prepared.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let result = prepared
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert!(!result.envelope.ok, "{command} {threshold}");
             assert_eq!(
