@@ -227,7 +227,9 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
             projection: Some(projection(command)),
             scope_alternatives: vec![vec!["read:attachment:confluence".into()]],
             permissions: vec!["View the page that holds the attachment.".into()],
-            tenant_conditions: vec!["Exact page binding; only current page attachments are reported.".into()],
+            tenant_conditions: vec![
+                "Exact page binding; only current page attachments are reported.".into(),
+            ],
             routes: vec![route(command)],
             retry_class: RetryClass::SafeRead,
             reconciliation: ReconciliationClass::NotApplicable,
