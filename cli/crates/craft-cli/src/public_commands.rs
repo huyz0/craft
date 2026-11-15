@@ -77,7 +77,16 @@ impl ProviderModule for CloudCommands {
                 "confluence.comment.get" => {
                     register!(crate::confluence_reads::command::ConfluenceCommentGetArgs)
                 }
-                "confluence.space.get" | "confluence.page.get" => register!(ConfluenceGetArgs),
+                "confluence.space.get"
+                | "confluence.page.get"
+                | "confluence.folder.get"
+                | "confluence.whiteboard.get" => register!(ConfluenceGetArgs),
+                "confluence.folder.create" | "confluence.whiteboard.create" => {
+                    register!(crate::confluence_pages::command::ContentCreateArgs)
+                }
+                "confluence.folder.trash" | "confluence.whiteboard.trash" => {
+                    register!(crate::confluence_pages::command::ContentTrashArgs)
+                }
                 "confluence.space.list" => register!(ConfluenceSpaceListArgs),
                 "confluence.page.list" => register!(ConfluencePageListArgs),
                 "confluence.page.search" => register!(ConfluenceSearchArgs),

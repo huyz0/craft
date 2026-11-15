@@ -20,4 +20,6 @@ Jira comment writes need an explicit profile, project/issue IDs, apply, operatio
 
 `confluence.attachment.download` writes local files like Jira download, needs a confluence-read allowance and follows only Confluence's credential-free redirect to its media service.
 
+`confluence.folder.create` and `confluence.whiteboard.create` take a title and a placement of root, a page or a folder in the same space; whiteboards start blank. `confluence.folder.trash` and `confluence.whiteboard.trash` need the `expected` version from the matching get and never purge. Each needs its own operation in the space's confluence-write policy, and each get needs its own confluence-read allowance. An unknown create outcome means inspect the space, not rerun.
+
 `artifact.export` immediately writes a local output from a saved downloads, requests or reviews artifact. Bind expected_digest to the observed receipt. It does not use a profile or cloud access and never refetches. Preserve both source and export receipts; inspect uncertain output before another publication attempt.

@@ -1,6 +1,8 @@
 //! Actual Confluence host, sealed access and buffered pagination against owned TLS servers.
 #[path = "confluence/comments.rs"]
 mod comments;
+#[path = "confluence/content.rs"]
+mod content;
 #[path = "confluence/documents.rs"]
 mod documents;
 #[path = "confluence/inventory.rs"]

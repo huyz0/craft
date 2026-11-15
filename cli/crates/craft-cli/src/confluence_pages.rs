@@ -18,13 +18,16 @@ use craft_core::storage::{
 };
 use craft_provider_confluence::attachments::ATTACHMENT_GET;
 use craft_provider_confluence::comments::COMMENT_GET;
+use craft_provider_confluence::content::{ContentKind, FOLDER_GET, WHITEBOARD_GET};
 use craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE;
 use craft_provider_confluence::pages::{
     self, ATTACHMENT_TRASH, AttachmentTrashInput, COMMENT_CREATE, COMMENT_DELETE, COMMENT_UPDATE,
     CONTENT_STATE_CLEAR, CONTENT_STATE_SET, CommentCreateInput, CommentDeleteInput,
-    CommentUpdateInput, ConfluencePages, ContentStateClearInput, ContentStateSetInput, PAGE_CREATE,
-    PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput, PageUpdateInput,
-    PageWriteKind, PreparedPageWrite, SPACE_CREATE, SpaceCreateInput,
+    CommentUpdateInput, ConfluencePages, ContentCreateInput, ContentPlacement,
+    ContentStateClearInput, ContentStateSetInput, ContentTrashInput, FOLDER_CREATE, FOLDER_TRASH,
+    PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput,
+    PageUpdateInput, PageWriteKind, PreparedPageWrite, SPACE_CREATE, SpaceCreateInput,
+    WHITEBOARD_CREATE, WHITEBOARD_TRASH,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET, SPACE_LIST};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -55,6 +58,19 @@ enum Intent {
     ContentStateClear(ContentStateClearInput),
     AttachmentTrash(AttachmentTrashInput),
     SpaceCreate(SpaceCreateInput),
+    /// Folder or whiteboard create; the kind selects the native type.
+    ContentCreate(PageWriteKind, ContentCreateInput),
+    ContentTrash(PageWriteKind, ContentTrashInput),
+}
+fn content_kind(kind: PageWriteKind) -> ContentKind {
+    if matches!(
+        kind,
+        PageWriteKind::FolderCreate | PageWriteKind::FolderTrash
+    ) {
+        ContentKind::Folder
+    } else {
+        ContentKind::Whiteboard
+    }
 }
 impl Intent {
     fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
@@ -69,6 +85,12 @@ impl Intent {
             PageWriteKind::ContentStateClear => Self::ContentStateClear(decode(input)?),
             PageWriteKind::AttachmentTrash => Self::AttachmentTrash(decode(input)?),
             PageWriteKind::SpaceCreate => Self::SpaceCreate(decode(input)?),
+            PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => {
+                Self::ContentCreate(kind, decode(input)?)
+            }
+            PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => {
+                Self::ContentTrash(kind, decode(input)?)
+            }
         })
     }
     fn kind(&self) -> PageWriteKind {
@@ -83,6 +105,7 @@ impl Intent {
             Self::ContentStateClear(_) => PageWriteKind::ContentStateClear,
             Self::AttachmentTrash(_) => PageWriteKind::AttachmentTrash,
             Self::SpaceCreate(_) => PageWriteKind::SpaceCreate,
+            Self::ContentCreate(kind, _) | Self::ContentTrash(kind, _) => *kind,
         }
     }
     fn space_id(&self) -> &str {
@@ -96,6 +119,8 @@ impl Intent {
             Self::ContentStateSet(i) => &i.space_id,
             Self::ContentStateClear(i) => &i.space_id,
             Self::AttachmentTrash(i) => &i.space_id,
+            Self::ContentCreate(_, i) => &i.space_id,
+            Self::ContentTrash(_, i) => &i.space_id,
             // Site-level: no existing space binds this write; authority is the site policy.
             Self::SpaceCreate(_) => "",
         }
@@ -329,6 +354,27 @@ impl PreparedPagePublication {
                     &self.read_operation(COMMENT_GET, id, Some(page_id), None)?,
                 )?;
             }
+            Intent::ContentCreate(_, input) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(SPACE_GET, &input.space_id, None, None)?,
+                )?;
+                let parent = match &input.placement {
+                    ContentPlacement::Root => None,
+                    ContentPlacement::Page { id } => Some((PAGE_GET, id)),
+                    ContentPlacement::Folder { id } => Some((FOLDER_GET, id)),
+                };
+                if let Some((command, id)) = parent {
+                    access.check_operation(
+                        &self.registry,
+                        &self.read_operation(command, id, None, None)?,
+                    )?;
+                }
+            }
+            Intent::ContentTrash(kind, input) => access.check_operation(
+                &self.registry,
+                &self.read_operation(content_kind(*kind).get_command(), &input.id, None, None)?,
+            )?,
         }
         Ok(())
     }
@@ -398,6 +444,8 @@ impl PreparedPagePublication {
             COMMENT_GET => ("confluence-footer-comment-get", "comment-id"),
             ATTACHMENT_GET => (craft_provider_confluence::attachments::GET_ROUTE, "id"),
             SPACE_LIST => ("confluence-space-list", "id"),
+            FOLDER_GET => (ContentKind::Folder.get_route(), "id"),
+            WHITEBOARD_GET => (ContentKind::Whiteboard.get_route(), "id"),
             CONTENT_STATE_AVAILABLE => (
                 craft_provider_confluence::content_state::AVAILABLE_ROUTE,
                 "id",
@@ -613,6 +661,56 @@ impl PreparedPagePublication {
                     check_policy,
                 )?;
                 pages::prepare_attachment_trash(&self.operation, &page, &attachment)
+            }
+            Intent::ContentCreate(_, input) => {
+                let space = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: SPACE_GET,
+                        id: &input.space_id,
+                        page_id: None,
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                let parent = match &input.placement {
+                    ContentPlacement::Root => None,
+                    ContentPlacement::Page { id } => Some((PAGE_GET, id.as_str())),
+                    ContentPlacement::Folder { id } => Some((FOLDER_GET, id.as_str())),
+                }
+                .map(|(command, id)| {
+                    self.read(
+                        access,
+                        tls,
+                        control,
+                        ReadSpec {
+                            command,
+                            id,
+                            page_id: None,
+                            representation: None,
+                        },
+                        check_policy,
+                    )
+                })
+                .transpose()?;
+                pages::prepare_content_create(&self.operation, &space, parent.as_ref())
+            }
+            Intent::ContentTrash(kind, input) => {
+                let item = self.read(
+                    access,
+                    tls,
+                    control,
+                    ReadSpec {
+                        command: content_kind(*kind).get_command(),
+                        id: &input.id,
+                        page_id: None,
+                        representation: None,
+                    },
+                    check_policy,
+                )?;
+                pages::prepare_content_trash(&self.operation, &item)
             }
         }
     }

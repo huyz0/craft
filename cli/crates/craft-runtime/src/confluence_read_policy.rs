@@ -40,6 +40,10 @@ pub enum ConfluenceReadOperation {
     AttachmentList,
     #[serde(rename = "confluence.attachment.download")]
     AttachmentDownload,
+    #[serde(rename = "confluence.folder.get")]
+    FolderGet,
+    #[serde(rename = "confluence.whiteboard.get")]
+    WhiteboardGet,
 }
 impl ConfluenceReadOperation {
     pub fn command(self) -> &'static str {
@@ -57,6 +61,8 @@ impl ConfluenceReadOperation {
             Self::AttachmentGet => "confluence.attachment.get",
             Self::AttachmentList => "confluence.attachment.list",
             Self::AttachmentDownload => "confluence.attachment.download",
+            Self::FolderGet => "confluence.folder.get",
+            Self::WhiteboardGet => "confluence.whiteboard.get",
         }
     }
 }

@@ -48,6 +48,8 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
         "page" => "pages",
         "attachment" => "attachments",
         "space" => "spaces",
+        "folder" => "folders",
+        "whiteboard" => "whiteboards",
         _ => "footer-comments",
     };
     let mut path: Vec<_> = ["wiki", "api", "v2", collection]
@@ -55,8 +57,8 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
         .map(|p| RouteSegment::Literal(p.into()))
         .collect();
     match kind {
-        K::Create | K::CommentCreate | K::SpaceCreate => {}
-        K::Update | K::Trash | K::AttachmentTrash => {
+        K::Create | K::CommentCreate | K::SpaceCreate | K::FolderCreate | K::WhiteboardCreate => {}
+        K::Update | K::Trash | K::AttachmentTrash | K::FolderTrash | K::WhiteboardTrash => {
             path.push(RouteSegment::Parameter("id".into()))
         }
         K::CommentUpdate | K::CommentDelete => {
@@ -68,11 +70,18 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
     NativeRoute {
         id: kind.route().into(),
         method: match kind {
-            K::Create | K::CommentCreate | K::SpaceCreate => HttpMethod::Post,
+            K::Create
+            | K::CommentCreate
+            | K::SpaceCreate
+            | K::FolderCreate
+            | K::WhiteboardCreate => HttpMethod::Post,
             K::Update | K::CommentUpdate => HttpMethod::Put,
-            K::Trash | K::CommentDelete | K::ContentStateClear | K::AttachmentTrash => {
-                HttpMethod::Delete
-            }
+            K::Trash
+            | K::CommentDelete
+            | K::ContentStateClear
+            | K::AttachmentTrash
+            | K::FolderTrash
+            | K::WhiteboardTrash => HttpMethod::Delete,
             K::ContentStateSet => HttpMethod::Put,
         },
         path,
@@ -148,6 +157,24 @@ impl ProviderModule for ConfluencePages {
                     json!({"key":"CRAFT","name":"Craft plans","visibility":"default_roles"}),
                     "write:space:confluence",
                 ),
+                PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => (
+                    schema_for::<ContentCreateInput>()?,
+                    json!({"space_id":"100","title":"Plans","placement":{"kind":"root"}}),
+                    if kind == PageWriteKind::FolderCreate {
+                        "write:folder:confluence"
+                    } else {
+                        "write:whiteboard:confluence"
+                    },
+                ),
+                PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => (
+                    schema_for::<ContentTrashInput>()?,
+                    json!({"space_id":"100","id":"401","expected":{"version":1}}),
+                    if kind == PageWriteKind::FolderTrash {
+                        "delete:folder:confluence"
+                    } else {
+                        "delete:whiteboard:confluence"
+                    },
+                ),
                 PageWriteKind::AttachmentTrash => (
                     schema_for::<AttachmentTrashInput>()?,
                     json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":1,"file_id":"0b6f6a1c-file"}}),
@@ -173,6 +200,10 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::ContentStateClear => "Remove the page badge; never changes review authority.",
                     PageWriteKind::AttachmentTrash => "Move a reviewed attachment to the trash; never purges.",
                     PageWriteKind::SpaceCreate => "Create a space with an unused key and explicit visibility (v2 only).",
+                    PageWriteKind::FolderCreate => "Create a folder in a space.",
+                    PageWriteKind::WhiteboardCreate => "Create a blank whiteboard in a space.",
+                    PageWriteKind::FolderTrash => "Move a reviewed folder to the trash.",
+                    PageWriteKind::WhiteboardTrash => "Move a reviewed whiteboard to the trash.",
                     _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
                 }.into(),
                 effect,
@@ -188,6 +219,8 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::ContentStateSet | PageWriteKind::ContentStateClear => "Edit the page; space settings must allow the selected suggested or custom state.",
                     PageWriteKind::AttachmentTrash => "View the page and delete attachments in its space.",
                     PageWriteKind::SpaceCreate => "Global Create space permission; the v2 route needs role-based access control on the site.",
+                    PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => "View the space and create content of this type in it.",
+                    PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => "View the item and delete content of this type in its space.",
                     _ => "Native Confluence space/content visibility and page creation or editing permissions.",
                 }.into()],
                 tenant_conditions:vec![match kind {
@@ -200,6 +233,8 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::ContentStateClear => "Exact site/space/grant/actor; the page must be current in that space. Always targets status=current.",
                     PageWriteKind::AttachmentTrash => "Exact site/space/grant/actor; the attachment must be current on that page with the reviewed version and file ID.",
                     PageWriteKind::SpaceCreate => "Exact site/grant/actor under a site-level Confluence administration allowance; a fresh exact-key lookup must be empty.",
+                    PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => "Exact site/space/grant/actor; the space, and a named parent page or folder, must be current in that space.",
+                    PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => "Exact site/space/grant/actor; the item must be current in that space at the reviewed version. Trash is recoverable; purge is not offered.",
                 }.into()],
                 routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
@@ -233,6 +268,17 @@ impl ProviderModule for ConfluencePages {
                     )?,
                 PageWriteKind::SpaceCreate => registry
                     .register_typed_handler::<SpaceCreateInput>(descriptor, Arc::new(Handler))?,
+                PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => {
+                    registry.register_typed_handler::<ContentCreateInput>(
+                        descriptor,
+                        Arc::new(Handler),
+                    )?
+                }
+                PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => registry
+                    .register_typed_handler::<ContentTrashInput>(
+                    descriptor,
+                    Arc::new(Handler),
+                )?,
             }
         }
         Ok(())

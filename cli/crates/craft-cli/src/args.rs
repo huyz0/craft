@@ -96,6 +96,12 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "confluence.attachment.upload"
                 | "confluence.attachment.replace"
                 | "confluence.attachment.download"
+                | "confluence.folder.get"
+                | "confluence.folder.create"
+                | "confluence.folder.trash"
+                | "confluence.whiteboard.get"
+                | "confluence.whiteboard.create"
+                | "confluence.whiteboard.trash"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -178,6 +184,12 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.attachment.upload"
             | "confluence.attachment.replace"
             | "confluence.attachment.download"
+            | "confluence.folder.get"
+            | "confluence.folder.create"
+            | "confluence.folder.trash"
+            | "confluence.whiteboard.get"
+            | "confluence.whiteboard.create"
+            | "confluence.whiteboard.trash"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -418,6 +430,26 @@ pub enum ConfluenceAction {
         #[command(subcommand)]
         action: ConfluenceAttachmentAction,
     },
+    Folder {
+        #[command(subcommand)]
+        action: ConfluenceFolderAction,
+    },
+    Whiteboard {
+        #[command(subcommand)]
+        action: ConfluenceWhiteboardAction,
+    },
+}
+#[derive(Subcommand)]
+pub enum ConfluenceFolderAction {
+    Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
+    Create(Box<crate::confluence_pages::command::ContentCreateArgs>),
+    Trash(Box<crate::confluence_pages::command::ContentTrashArgs>),
+}
+#[derive(Subcommand)]
+pub enum ConfluenceWhiteboardAction {
+    Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
+    Create(Box<crate::confluence_pages::command::ContentCreateArgs>),
+    Trash(Box<crate::confluence_pages::command::ContentTrashArgs>),
 }
 #[derive(Subcommand)]
 pub enum ConfluenceCommentAction {

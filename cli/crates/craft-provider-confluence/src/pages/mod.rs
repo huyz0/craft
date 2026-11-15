@@ -2,6 +2,7 @@
 mod attachment_writes;
 mod comment_writes;
 mod content_state_writes;
+mod content_writes;
 mod input;
 mod registration;
 mod result;
@@ -20,6 +21,12 @@ pub use content_state_writes::{
     CONTENT_STATE_CLEAR, CONTENT_STATE_CLEAR_ROUTE, CONTENT_STATE_SET, CONTENT_STATE_SET_ROUTE,
     ContentStateClearInput, ContentStateSetInput, prepare_content_state_clear,
     prepare_content_state_set,
+};
+pub use content_writes::{
+    ContentCreateInput, ContentPlacement, ContentRevision, ContentTrashInput, FOLDER_CREATE,
+    FOLDER_CREATE_ROUTE, FOLDER_TRASH, FOLDER_TRASH_ROUTE, WHITEBOARD_CREATE,
+    WHITEBOARD_CREATE_ROUTE, WHITEBOARD_TRASH, WHITEBOARD_TRASH_ROUTE, prepare_content_create,
+    prepare_content_trash,
 };
 use craft_core::contracts::{CanonicalRequest, EffectClass, ResourceRef};
 use craft_core::error::{CraftError, ErrorCode};
@@ -59,6 +66,10 @@ pub enum PageWriteKind {
     ContentStateClear,
     AttachmentTrash,
     SpaceCreate,
+    FolderCreate,
+    FolderTrash,
+    WhiteboardCreate,
+    WhiteboardTrash,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -73,6 +84,10 @@ impl PageWriteKind {
             Self::ContentStateClear => CONTENT_STATE_CLEAR,
             Self::AttachmentTrash => ATTACHMENT_TRASH,
             Self::SpaceCreate => SPACE_CREATE,
+            Self::FolderCreate => FOLDER_CREATE,
+            Self::FolderTrash => FOLDER_TRASH,
+            Self::WhiteboardCreate => WHITEBOARD_CREATE,
+            Self::WhiteboardTrash => WHITEBOARD_TRASH,
         }
     }
     pub fn route(self) -> &'static str {
@@ -87,9 +102,13 @@ impl PageWriteKind {
             Self::ContentStateClear => CONTENT_STATE_CLEAR_ROUTE,
             Self::AttachmentTrash => ATTACHMENT_TRASH_ROUTE,
             Self::SpaceCreate => SPACE_CREATE_ROUTE,
+            Self::FolderCreate => FOLDER_CREATE_ROUTE,
+            Self::FolderTrash => FOLDER_TRASH_ROUTE,
+            Self::WhiteboardCreate => WHITEBOARD_CREATE_ROUTE,
+            Self::WhiteboardTrash => WHITEBOARD_TRASH_ROUTE,
         }
     }
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 14] = [
         Self::Create,
         Self::Update,
         Self::Trash,
@@ -100,10 +119,16 @@ impl PageWriteKind {
         Self::ContentStateClear,
         Self::AttachmentTrash,
         Self::SpaceCreate,
+        Self::FolderCreate,
+        Self::FolderTrash,
+        Self::WhiteboardCreate,
+        Self::WhiteboardTrash,
     ];
     pub fn effect(self) -> EffectClass {
         match self {
-            Self::Trash | Self::AttachmentTrash => EffectClass::Trash,
+            Self::Trash | Self::AttachmentTrash | Self::FolderTrash | Self::WhiteboardTrash => {
+                EffectClass::Trash
+            }
             Self::CommentDelete => EffectClass::Permanent,
             _ => EffectClass::Write,
         }
@@ -113,6 +138,8 @@ impl PageWriteKind {
             Self::CommentCreate | Self::CommentUpdate | Self::CommentDelete => "comment",
             Self::AttachmentTrash => "attachment",
             Self::SpaceCreate => "space",
+            Self::FolderCreate | Self::FolderTrash => "folder",
+            Self::WhiteboardCreate | Self::WhiteboardTrash => "whiteboard",
             _ => "page",
         }
     }

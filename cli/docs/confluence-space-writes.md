@@ -15,12 +15,22 @@ Every write except space create needs an enabled `confluence-write` policy for t
 | `confluence.content-state.clear` | DELETE badge, `status=current` | page | HTTP 200 with no badge |
 | `confluence.attachment.trash` | DELETE attachment, no `purge` | page, then the attachment matching the reviewed version and file ID | HTTP 204 |
 | `confluence.space.create` | POST space (v2) | exact-key space lookup with no results | HTTP 201 with numeric ID, same key and name |
+| `confluence.folder.create`, `confluence.whiteboard.create` | POST folder or whiteboard (v2) | current space; a named parent page or folder current in that space | HTTP 200 (or 201) with that type, space, title and parent |
+| `confluence.folder.trash`, `confluence.whiteboard.trash` | DELETE folder or whiteboard, no purge | the current item at the reviewed version | HTTP 204 |
 
 ## Space create
 
 `confluence.space.create` creates a space through the v2 route with an explicit `key`, `name`, `visibility` (`default_roles` or `private`, no default) and optional plain description. It first runs an exact-key lookup and refuses with `VERSION_CONFLICT` if any visible space has that key. Atlassian offers this route on sites with role-based access control; there is no fallback to the legacy v1 route, so an uncertain create is never replayed elsewhere. It needs `write:space:confluence` and the site's Create space permission.
 
 Its authority is a site-level `confluence-admin` policy listing `confluence.space.create`. Per-space write policies and read policies never grant it. Space update, deletion and permission changes are not exposed.
+
+## Folders and whiteboards
+
+`confluence folder get` and `confluence whiteboard get` take a numeric `id` and return its space, title, status, parent ID and type, version and creation time. Each needs its own `confluence-read` allowance and `read:folder:confluence` or `read:whiteboard:confluence`. Author and owner account IDs are not returned, and whiteboard drawing content has no API.
+
+`create` takes `space_id`, `title` and `placement`: `{"kind":"root"}`, `{"kind":"page","id":…}` or `{"kind":"folder","id":…}`. Before sending, Craft reads the space and the named parent and refuses one that is not current in that space or is not of the named type. Root placement sends no `parentId`, so Confluence picks the space-level position. Whiteboards start blank: templates and private creation are not exposed. A create is confirmed only when the response has the requested type, space, title and, when named, parent; a different type or space keeps no resource and stays unknown.
+
+`trash` takes `id` and `expected` (`{"version":…}` from the matching get) and refuses a newer version or an item that is no longer current. The v2 routes move the item to the trash and offer no purge. Scopes are `write:folder:confluence` and `delete:folder:confluence`, or the whiteboard equivalents, plus `read:space:confluence` and the parent's read scope for create.
 
 ## Page update and editor drafts
 

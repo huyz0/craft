@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "catalog_sha256": "9b86640acd1e2f2d53b598e0044473bb0d878503a4838b530843cdb3cea95827",
+  "catalog_sha256": "4bd0b8a7460b046dbd025b637c7b948df68d16ed64376e940069f14b10f517c4",
   "sources": [
     {
       "id": "confluence-v1",
@@ -161,7 +161,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 80,
+        "line": 82,
         "row_digest": "13bb4df597d949f7bb5a2137e38fa38a7b75e882d97a92810aa5b9fef2840c37",
         "tiers": [
           "core"
@@ -272,7 +272,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 77,
+        "line": 79,
         "row_digest": "08c12414791c2d63d3250ed000ef8873e8966bf61da121eb339007c240a7fd9c",
         "tiers": [
           "core"
@@ -386,7 +386,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 77,
+        "line": 79,
         "row_digest": "08c12414791c2d63d3250ed000ef8873e8966bf61da121eb339007c240a7fd9c",
         "tiers": [
           "core"
@@ -498,7 +498,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 81,
+        "line": 83,
         "row_digest": "4efa34caaf7212a2429f193ad4885ad9ccc8445a8f0b27cbfa7f76f9c4edc9ba",
         "tiers": [
           "core",
@@ -631,7 +631,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 79,
+        "line": 81,
         "row_digest": "21e8ed9b7cdd77081d9361782627e4d7754c8bdfd309740c9ba556f0d75f1c26",
         "tiers": [
           "core"
@@ -741,7 +741,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 81,
+        "line": 83,
         "row_digest": "4efa34caaf7212a2429f193ad4885ad9ccc8445a8f0b27cbfa7f76f9c4edc9ba",
         "tiers": [
           "core",
@@ -871,7 +871,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 79,
+        "line": 81,
         "row_digest": "21e8ed9b7cdd77081d9361782627e4d7754c8bdfd309740c9ba556f0d75f1c26",
         "tiers": [
           "core"
@@ -1000,7 +1000,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 78,
+        "line": 80,
         "row_digest": "83d34dc3336d2212ad18828776046f75d6a16dc17d3f68402891cefeb3735c04",
         "tiers": [
           "core",
@@ -1129,7 +1129,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 78,
+        "line": 80,
         "row_digest": "83d34dc3336d2212ad18828776046f75d6a16dc17d3f68402891cefeb3735c04",
         "tiers": [
           "core",
@@ -1313,7 +1313,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 76,
+        "line": 78,
         "row_digest": "5b26bdd58336f44f7af46ed74cc283e4864fa913cefbdd28ec73e3a1db1b1157",
         "tiers": [
           "core",
@@ -1505,7 +1505,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 76,
+        "line": 78,
         "row_digest": "5b26bdd58336f44f7af46ed74cc283e4864fa913cefbdd28ec73e3a1db1b1157",
         "tiers": [
           "core",
@@ -1713,7 +1713,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 76,
+        "line": 78,
         "row_digest": "5b26bdd58336f44f7af46ed74cc283e4864fa913cefbdd28ec73e3a1db1b1157",
         "tiers": [
           "core",
@@ -1924,7 +1924,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 74,
+        "line": 76,
         "row_digest": "a24327e859c78521770f8c9741b668abaf618d52b8de8f7ece204f0ad9407013",
         "tiers": [
           "core",
@@ -2129,7 +2129,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 75,
+        "line": 77,
         "row_digest": "3c2db96c075d0adf963961ab089282ebded1ce7d79a19d45ee625f3144aab212",
         "tiers": [
           "core"
@@ -2320,7 +2320,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 76,
+        "line": 78,
         "row_digest": "5b26bdd58336f44f7af46ed74cc283e4864fa913cefbdd28ec73e3a1db1b1157",
         "tiers": [
           "core",
@@ -2444,7 +2444,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 82,
+        "line": 84,
         "row_digest": "61582cf084f17824bc9018b6a01ed7d924fdd56099d3bbeaaf37cd40f2ff7c3b",
         "tiers": [
           "core"
@@ -2565,7 +2565,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 82,
+        "line": 84,
         "row_digest": "61582cf084f17824bc9018b6a01ed7d924fdd56099d3bbeaaf37cd40f2ff7c3b",
         "tiers": [
           "core"
@@ -2685,7 +2685,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 82,
+        "line": 84,
         "row_digest": "61582cf084f17824bc9018b6a01ed7d924fdd56099d3bbeaaf37cd40f2ff7c3b",
         "tiers": [
           "core"
@@ -2809,8 +2809,319 @@
         }
       ],
       "catalog_evidence": {
-        "line": 82,
+        "line": 84,
         "row_digest": "61582cf084f17824bc9018b6a01ed7d924fdd56099d3bbeaaf37cd40f2ff7c3b",
+        "tiers": [
+          "core"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.folder.create",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createFolder",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "POST",
+          "source_path": "/folders",
+          "route": "/wiki/api/v2/folders",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "folders"
+              }
+            ],
+            "query_parameters": []
+          },
+          "source_ref": "#/paths/~1folders/post",
+          "source_operation_sha256": "537fad7a5630c38c19b41a9e1d5e4589a033596298c37391cc25f6534a2e056f",
+          "input": {
+            "operation_parameters_ref": null,
+            "path_parameters_ref": null,
+            "body_ref": "#/paths/~1folders/post/requestBody"
+          },
+          "output": {
+            "responses_ref": "#/paths/~1folders/post/responses",
+            "statuses": [
+              "200",
+              "400",
+              "401",
+              "404",
+              "413"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "write:folder:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1folders/post/security",
+          "permissions": {
+            "description_ref": "#/paths/~1folders/post/description",
+            "documented": true,
+            "text": "Permission to view the corresponding space. Permission to create a folder in the space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 67,
+        "row_digest": "264984ca95b79b87b764f6b8624934dcee308fa84a700e6bb75cfa82a81c9834",
+        "tiers": [
+          "core"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.folder.get",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getFolderById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "GET",
+          "source_path": "/folders/{id}",
+          "route": "/wiki/api/v2/folders/{id}",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "folders"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              }
+            ],
+            "query_parameters": [
+              "include-collaborators",
+              "include-direct-children",
+              "include-operations",
+              "include-properties"
+            ]
+          },
+          "source_ref": "#/paths/~1folders~1{id}/get",
+          "source_operation_sha256": "843e34b9d728044fac3c6f436c15d7e2aa4fe67431673d82eff680ffadc9cb46",
+          "input": {
+            "operation_parameters_ref": "#/paths/~1folders~1{id}/get/parameters",
+            "path_parameters_ref": null,
+            "body_ref": null
+          },
+          "output": {
+            "responses_ref": "#/paths/~1folders~1{id}/get/responses",
+            "statuses": [
+              "200",
+              "400",
+              "401",
+              "404"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "read:folder:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1folders~1{id}/get/security",
+          "permissions": {
+            "description_ref": "#/paths/~1folders~1{id}/get/description",
+            "documented": true,
+            "text": "Permission to view the folder and its corresponding space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 67,
+        "row_digest": "264984ca95b79b87b764f6b8624934dcee308fa84a700e6bb75cfa82a81c9834",
+        "tiers": [
+          "core"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.folder.trash",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteFolder",
+          "effect": "trash",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "DELETE",
+          "source_path": "/folders/{id}",
+          "route": "/wiki/api/v2/folders/{id}",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "folders"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              }
+            ],
+            "query_parameters": []
+          },
+          "source_ref": "#/paths/~1folders~1{id}/delete",
+          "source_operation_sha256": "5fac26c30c0bc602560b19f12d4298bf5ef3c6303aab32cec5e67bf704b54d60",
+          "input": {
+            "operation_parameters_ref": "#/paths/~1folders~1{id}/delete/parameters",
+            "path_parameters_ref": null,
+            "body_ref": null
+          },
+          "output": {
+            "responses_ref": "#/paths/~1folders~1{id}/delete/responses",
+            "statuses": [
+              "204",
+              "400",
+              "401",
+              "404"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "delete:folder:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1folders~1{id}/delete/security",
+          "permissions": {
+            "description_ref": "#/paths/~1folders~1{id}/delete/description",
+            "documented": true,
+            "text": "Permission to view the folder and its corresponding space.\nPermission to delete folders in the space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 67,
+        "row_digest": "264984ca95b79b87b764f6b8624934dcee308fa84a700e6bb75cfa82a81c9834",
         "tiers": [
           "core"
         ]
@@ -2928,7 +3239,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 90,
+        "line": 92,
         "row_digest": "49321efb84bfef914435e4d390d1e34de06ad646fcbcc8b191e532916d002f95",
         "tiers": [
           "extended"
@@ -3040,7 +3351,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 90,
+        "line": 92,
         "row_digest": "49321efb84bfef914435e4d390d1e34de06ad646fcbcc8b191e532916d002f95",
         "tiers": [
           "extended"
@@ -3160,7 +3471,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 90,
+        "line": 92,
         "row_digest": "49321efb84bfef914435e4d390d1e34de06ad646fcbcc8b191e532916d002f95",
         "tiers": [
           "extended"
@@ -4863,7 +5174,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 91,
+        "line": 93,
         "row_digest": "8e52a6d05180127443ec7491c925654b22df6751b735bb43769d2d04359049a2",
         "tiers": [
           "extended"
@@ -4977,7 +5288,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 91,
+        "line": 93,
         "row_digest": "8e52a6d05180127443ec7491c925654b22df6751b735bb43769d2d04359049a2",
         "tiers": [
           "extended"
@@ -5090,7 +5401,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 91,
+        "line": 93,
         "row_digest": "8e52a6d05180127443ec7491c925654b22df6751b735bb43769d2d04359049a2",
         "tiers": [
           "extended"
@@ -5204,7 +5515,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 91,
+        "line": 93,
         "row_digest": "8e52a6d05180127443ec7491c925654b22df6751b735bb43769d2d04359049a2",
         "tiers": [
           "extended"
@@ -5318,7 +5629,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 91,
+        "line": 93,
         "row_digest": "8e52a6d05180127443ec7491c925654b22df6751b735bb43769d2d04359049a2",
         "tiers": [
           "extended"
@@ -5438,7 +5749,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 92,
+        "line": 94,
         "row_digest": "1d6acdefadea7a120bc8f56860a430026d697d669845c4cf689cdac11e6f2e15",
         "tiers": [
           "extended",
@@ -5560,7 +5871,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 92,
+        "line": 94,
         "row_digest": "1d6acdefadea7a120bc8f56860a430026d697d669845c4cf689cdac11e6f2e15",
         "tiers": [
           "extended",
@@ -5681,7 +5992,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 92,
+        "line": 94,
         "row_digest": "1d6acdefadea7a120bc8f56860a430026d697d669845c4cf689cdac11e6f2e15",
         "tiers": [
           "extended",
@@ -5802,7 +6113,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 92,
+        "line": 94,
         "row_digest": "1d6acdefadea7a120bc8f56860a430026d697d669845c4cf689cdac11e6f2e15",
         "tiers": [
           "extended",
@@ -6452,6 +6763,319 @@
         "row_digest": "5d745307b47eeba2579d185bf313393999bb02bc8b640bd080f0fc5759dd82d5",
         "tiers": [
           "privileged"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.whiteboard.create",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createWhiteboard",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "POST",
+          "source_path": "/whiteboards",
+          "route": "/wiki/api/v2/whiteboards",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "whiteboards"
+              }
+            ],
+            "query_parameters": [
+              "private"
+            ]
+          },
+          "source_ref": "#/paths/~1whiteboards/post",
+          "source_operation_sha256": "332ca6cf3712567e815a4cd98b71d1a378ac743b0cbeb97c040a3521d4a79be1",
+          "input": {
+            "operation_parameters_ref": "#/paths/~1whiteboards/post/parameters",
+            "path_parameters_ref": null,
+            "body_ref": "#/paths/~1whiteboards/post/requestBody"
+          },
+          "output": {
+            "responses_ref": "#/paths/~1whiteboards/post/responses",
+            "statuses": [
+              "200",
+              "400",
+              "401",
+              "404",
+              "413"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "write:whiteboard:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1whiteboards/post/security",
+          "permissions": {
+            "description_ref": "#/paths/~1whiteboards/post/description",
+            "documented": true,
+            "text": "Permission to view the corresponding space. Permission to create a whiteboard in the space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 68,
+        "row_digest": "50a25b6a2538a0ce0081bf1240383157f100844c74d82674f0bca97abadecdc0",
+        "tiers": [
+          "core"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.whiteboard.get",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getWhiteboardById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "GET",
+          "source_path": "/whiteboards/{id}",
+          "route": "/wiki/api/v2/whiteboards/{id}",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "whiteboards"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              }
+            ],
+            "query_parameters": [
+              "include-collaborators",
+              "include-direct-children",
+              "include-operations",
+              "include-properties"
+            ]
+          },
+          "source_ref": "#/paths/~1whiteboards~1{id}/get",
+          "source_operation_sha256": "18118c2bd27133b70074f7e5acb68c10397a43fb67313b0722b37a566f8b4ddb",
+          "input": {
+            "operation_parameters_ref": "#/paths/~1whiteboards~1{id}/get/parameters",
+            "path_parameters_ref": null,
+            "body_ref": null
+          },
+          "output": {
+            "responses_ref": "#/paths/~1whiteboards~1{id}/get/responses",
+            "statuses": [
+              "200",
+              "400",
+              "401",
+              "404"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "read:whiteboard:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1whiteboards~1{id}/get/security",
+          "permissions": {
+            "description_ref": "#/paths/~1whiteboards~1{id}/get/description",
+            "documented": true,
+            "text": "Permission to view the whiteboard and its corresponding space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 68,
+        "row_digest": "50a25b6a2538a0ce0081bf1240383157f100844c74d82674f0bca97abadecdc0",
+        "tiers": [
+          "core"
+        ]
+      },
+      "implemented": false,
+      "runtime_available": false,
+      "live_verified": false
+    },
+    {
+      "command": "confluence.whiteboard.trash",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteWhiteboard",
+          "effect": "trash",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": [],
+          "method": "DELETE",
+          "source_path": "/whiteboards/{id}",
+          "route": "/wiki/api/v2/whiteboards/{id}",
+          "route_shape": {
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "whiteboards"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              }
+            ],
+            "query_parameters": []
+          },
+          "source_ref": "#/paths/~1whiteboards~1{id}/delete",
+          "source_operation_sha256": "cd5bceda1c8919e33bc77a5ea6c577de133391d5d3978e1f190335a85895323b",
+          "input": {
+            "operation_parameters_ref": "#/paths/~1whiteboards~1{id}/delete/parameters",
+            "path_parameters_ref": null,
+            "body_ref": null
+          },
+          "output": {
+            "responses_ref": "#/paths/~1whiteboards~1{id}/delete/responses",
+            "statuses": [
+              "204",
+              "400",
+              "401",
+              "404"
+            ]
+          },
+          "oauth_scope_alternatives": [
+            {
+              "state": "Current",
+              "scheme": "oAuthDefinitions",
+              "scopes": [
+                "delete:whiteboard:confluence"
+              ],
+              "declared_in_security": true,
+              "missing_scheme_scopes": []
+            }
+          ],
+          "native_security_ref": "#/paths/~1whiteboards~1{id}/delete/security",
+          "permissions": {
+            "description_ref": "#/paths/~1whiteboards~1{id}/delete/description",
+            "documented": true,
+            "text": "Permission to view the whiteboard and its corresponding space.\nPermission to delete whiteboards in the space.",
+            "truncated": false
+          },
+          "app_access_rule_evidence": [
+            {
+              "app-access-rule-exempt": false
+            }
+          ],
+          "runtime_available": false,
+          "unavailable_reasons": [
+            "not_implemented",
+            "auth_unqualified",
+            "tenant_unverified"
+          ]
+        }
+      ],
+      "catalog_evidence": {
+        "line": 68,
+        "row_digest": "50a25b6a2538a0ce0081bf1240383157f100844c74d82674f0bca97abadecdc0",
+        "tiers": [
+          "core"
         ]
       },
       "implemented": false,
@@ -12979,7 +13603,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 93,
+        "line": 95,
         "row_digest": "4d7e69493b7a97769356c25b1d3727c1416ee239f60ade7a408cb36247f8fcbc",
         "tiers": [
           "core"
@@ -13183,7 +13807,7 @@
         }
       ],
       "catalog_evidence": {
-        "line": 93,
+        "line": 95,
         "row_digest": "4d7e69493b7a97769356c25b1d3727c1416ee239f60ade7a408cb36247f8fcbc",
         "tiers": [
           "core"

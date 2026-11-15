@@ -159,6 +159,9 @@ pub fn read_get(
     if command == crate::attachments::ATTACHMENT_GET {
         return crate::attachments::read_get(operation, context);
     }
+    if crate::content::ContentKind::from_get(command).is_some() {
+        return crate::content::read_get(operation, context);
+    }
     if !is_get(command) {
         return Err(CraftError::field("/command", "expected_confluence_get"));
     }

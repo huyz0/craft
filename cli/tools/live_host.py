@@ -14,6 +14,8 @@ Commands:
   writes     create, transition, edit and delete one craft-test issue
   attachments  upload, read back, download and delete an attachment on a craft-test issue
   lifecycle  comment, link, assign and attachment writes on two craft-test issues, then attachments
+  space      create one CRAFTTEST space and refuse the same key again
+  content    create, read and trash craft-test folders and whiteboards in --space
   scans      read-only: scan, resume and export issue search, project list and page list, then
              poll seeded job handles with operation wait (see the seed test in tests/operations.rs)
 """
@@ -26,7 +28,10 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CRAFT = ROOT / "target" / "debug" / ("craft.exe" if sys.platform == "win32" else "craft")
+import os
+
+# CRAFT_BIN selects a binary built under another CARGO_TARGET_DIR.
+CRAFT = Path(os.environ.get("CRAFT_BIN") or ROOT / "target" / "debug" / ("craft.exe" if sys.platform == "win32" else "craft"))
 CAPTURES = ROOT / "target" / "live-captures"
 
 
@@ -80,7 +85,8 @@ def policies(state_root, site, cloud, actor, project, space):
           "confluence.comment.create", "confluence.comment.update", "confluence.comment.delete",
           "confluence.content-state.set", "confluence.content-state.clear",
           "confluence.attachment.trash", "confluence.attachment.upload",
-          "confluence.attachment.replace"], None),
+          "confluence.attachment.replace", "confluence.folder.create", "confluence.folder.trash",
+          "confluence.whiteboard.create", "confluence.whiteboard.trash"], None),
         ("cf-test", "confluence-admin", ref("confluence", cloud, "site", cloud),
          ["confluence.space.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
@@ -88,7 +94,8 @@ def policies(state_root, site, cloud, actor, project, space):
             "confluence.page.search", "confluence.comment.get", "confluence.comment.list",
             "confluence.comment.replies", "confluence.content-state.get",
             "confluence.content-state.available", "confluence.attachment.get",
-            "confluence.attachment.list", "confluence.attachment.download"], None),
+            "confluence.attachment.list", "confluence.attachment.download", "confluence.folder.get",
+            "confluence.whiteboard.get"], None),
     ]
     results = []
     for profile, kind, target, operations, continuation in plans:
@@ -525,6 +532,64 @@ def space_create(state_root):
     return report
 
 
+def content_lifecycle(state_root, space):
+    """Creates a craft-test folder at the space root, a whiteboard and a nested folder inside it,
+    reads each back, refuses a stale trash and then trashes everything. Items stay in the space
+    trash; the v2 folder and whiteboard routes offer no purge."""
+    import time
+    stamp = int(time.time() * 1000)
+    report = []
+
+    def step(name, out, expect_ok=True, expect_code=None):
+        error = out.get("error") or {}
+        data = out.get("data") or {}
+        passed = out.get("ok") if expect_ok else (not out.get("ok") and error.get("code") == expect_code)
+        detail = "" if passed else f" {error.get('code')}: {error.get('message')} http={data.get('http_status')}"
+        report.append(f"{name} => {'PASS' if passed else 'FAIL'}{detail}")
+        return out
+
+    def created(out, kind):
+        resources = ((out.get("data") or {}).get("receipt") or {}).get("confirmed_resources") or []
+        return next((r.get("id") for r in resources if r.get("resource_type") == kind), None)
+
+    def get(kind, ident):
+        out = step(f"confluence.{kind}.get", run(state_root, "cf-test", f"confluence.{kind}.get", {"id": ident}))
+        item = (out.get("data") or {}).get("item") or {}
+        report.append(f"  {kind} {ident}: status={item.get('status')} parent={item.get('parent_type')}:{item.get('parent_id')} version={item.get('version')}")
+        return item
+
+    folder = created(step("confluence.folder.create root", run(state_root, "cf-test", "confluence.folder.create", {
+        "operation_id": f"craft-test-{stamp}-folder", "apply": True, "space_id": space,
+        "title": f"craft-test folder {stamp}", "placement": {"kind": "root"}})), "folder")
+    if not folder:
+        return report
+    get("folder", folder)
+    board = created(step("confluence.whiteboard.create in folder", run(state_root, "cf-test", "confluence.whiteboard.create", {
+        "operation_id": f"craft-test-{stamp}-whiteboard", "apply": True, "space_id": space,
+        "title": f"craft-test whiteboard {stamp}", "placement": {"kind": "folder", "id": folder}})), "whiteboard")
+    nested = created(step("confluence.folder.create in folder", run(state_root, "cf-test", "confluence.folder.create", {
+        "operation_id": f"craft-test-{stamp}-folder-nested", "apply": True, "space_id": space,
+        "title": f"craft-test nested folder {stamp}", "placement": {"kind": "folder", "id": folder}})), "folder")
+    for kind, ident, suffix in [("whiteboard", board, "whiteboard"), ("folder", nested, "folder-nested")]:
+        if not ident:
+            continue
+        item = get(kind, ident)
+        version = item.get("version") or 1
+        step(f"confluence.{kind}.trash stale version", run(state_root, "cf-test", f"confluence.{kind}.trash", {
+            "operation_id": f"craft-test-{stamp}-{suffix}-stale", "apply": True, "space_id": space, "id": ident,
+            "expected": {"version": version + 1}}), expect_ok=False, expect_code="VERSION_CONFLICT")
+        step(f"confluence.{kind}.trash", run(state_root, "cf-test", f"confluence.{kind}.trash", {
+            "operation_id": f"craft-test-{stamp}-{suffix}-trash", "apply": True, "space_id": space, "id": ident,
+            "expected": {"version": version}}))
+        get(kind, ident)
+    item = get("folder", folder)
+    step("confluence.folder.trash root", run(state_root, "cf-test", "confluence.folder.trash", {
+        "operation_id": f"craft-test-{stamp}-folder-trash", "apply": True, "space_id": space, "id": folder,
+        "expected": {"version": item.get("version") or 1}}))
+    get("folder", folder)
+    return report
+
+
 def scans(state_root, wait_operations):
     """Read-only scans with one-record native pages so every run crosses page boundaries.
 
@@ -571,7 +636,7 @@ def scans(state_root, wait_operations):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page", "space", "scans"])
+    parser.add_argument("command", choices=["policies", "reads", "writes", "attachments", "lifecycle", "page", "space", "content", "scans"])
     parser.add_argument("--wait", action="append", default=[], metavar="PROFILE=OPERATION", help="seeded job operation to poll in scans mode")
     parser.add_argument("--issue-type", help="numeric non-subtask issue type id for writes")
     parser.add_argument("--state-root", default=str(ROOT / "target" / "live-state"))
@@ -601,6 +666,8 @@ def main():
             report = attachments(args.state_root, args.project, args.issue_type)
         elif args.command == "space":
             report = space_create(args.state_root)
+        elif args.command == "content":
+            report = content_lifecycle(args.state_root, args.space)
         elif args.command == "scans":
             report = scans(args.state_root, [tuple(item.split("=", 1)) for item in args.wait])
         else:

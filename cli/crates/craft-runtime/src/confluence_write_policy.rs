@@ -33,6 +33,14 @@ pub enum ConfluenceWriteOperation {
     AttachmentUpload,
     #[serde(rename = "confluence.attachment.replace")]
     AttachmentReplace,
+    #[serde(rename = "confluence.folder.create")]
+    FolderCreate,
+    #[serde(rename = "confluence.folder.trash")]
+    FolderTrash,
+    #[serde(rename = "confluence.whiteboard.create")]
+    WhiteboardCreate,
+    #[serde(rename = "confluence.whiteboard.trash")]
+    WhiteboardTrash,
 }
 impl ConfluenceWriteOperation {
     pub fn command(self) -> &'static str {
@@ -48,6 +56,10 @@ impl ConfluenceWriteOperation {
             Self::AttachmentTrash => "confluence.attachment.trash",
             Self::AttachmentUpload => "confluence.attachment.upload",
             Self::AttachmentReplace => "confluence.attachment.replace",
+            Self::FolderCreate => "confluence.folder.create",
+            Self::FolderTrash => "confluence.folder.trash",
+            Self::WhiteboardCreate => "confluence.whiteboard.create",
+            Self::WhiteboardTrash => "confluence.whiteboard.trash",
         }
     }
 }
