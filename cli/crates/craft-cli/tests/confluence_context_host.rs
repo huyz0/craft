@@ -834,3 +834,91 @@ fn policy_revocation_bad_scope_and_native_refusal_preserve_renewal_without_retur
     }
     Ok(())
 }
+
+#[test]
+fn page_list_scan_follows_bound_next_links_and_keeps_rate_advice() -> TestResult {
+    use craft_core::execution::RetryAfter;
+    use craft_core::scan::{ScanCaps, ScanOutcome};
+    use craft_runtime::scan::{self, ScanCheckpoint, ScanInputs};
+    let setup = Setup::new()?;
+    let issuer = issuer(SCOPES)?;
+    let product = TlsServer::start(Reply::Sequence(vec![
+        identity(),
+        identity(),
+        reply(
+            json!({"results":[page(101),page(102)],"_links":{"next":"/wiki/api/v2/pages?cursor=opaque%2Fnext"}}),
+        )?,
+        Reply::json(429, br#"{}"#, &[("Retry-After", "45")]),
+    ]))?;
+    let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+    let locked = fixture.lock(&setup.grant, &control()?)?;
+    fixture.client().provision_grant(
+        &locked,
+        fixture.service_credentials()?,
+        &[target().tenant_ref()],
+        Some("actor-one"),
+    )?;
+    let host = prepared(
+        &setup.grant,
+        PAGE_LIST,
+        json!({}),
+        &[],
+        None,
+        20,
+        16_777_216,
+    )?;
+    let start = ScanCheckpoint::start(
+        PAGE_LIST,
+        json!({"input":{},"record_fields":[]}),
+        host.binding(),
+        ScanCaps {
+            max_items: 100,
+            max_pages: 10,
+            max_stored_bytes: 65_536,
+        },
+        1000,
+    )?;
+    let control = control()?;
+    let clock = SystemClock::default();
+    let id = |item: &Value| item["id"].as_str().map(String::from);
+    let mut run = |session: craft_cli::scans::ScanSession<'_>| {
+        scan::advance(
+            &start,
+            ScanInputs {
+                source: session.source,
+                binding: session.binding,
+                project: session.project,
+                item_id: &id,
+                rate_advice: session.rate_advice,
+                control: &control,
+                clock: &clock,
+            },
+        )
+    };
+    let (result, _) = host.scan_cached(
+        fixture.client(),
+        &locked,
+        TlsPolicy::AdditionalCaBundle(product.root()),
+        control.clone(),
+        || Ok(()),
+        &mut run,
+    );
+    let advanced = result?;
+    assert_eq!(advanced.checkpoint.outcome, ScanOutcome::RateLimited);
+    assert_eq!(advanced.retry_after, Some(RetryAfter::DelaySeconds(45)));
+    assert_eq!(advanced.checkpoint.totals.items, 2);
+    assert!(!advanced.checkpoint.complete);
+    assert!(advanced.checkpoint.next.is_some());
+    let text = String::from_utf8(advanced.segment.clone())?;
+    assert_eq!(text.lines().count(), 2);
+    assert!(!text.contains("private-sentinel"));
+    let observed = product.finish()?;
+    let lists: Vec<_> = observed
+        .iter()
+        .filter(|r| r.target.contains("/wiki/api/v2/pages"))
+        .collect();
+    assert_eq!(lists.len(), 2);
+    assert!(lists[1].target.contains("cursor=opaque%2Fnext"));
+    drop(locked);
+    setup.no_secrets()
+}

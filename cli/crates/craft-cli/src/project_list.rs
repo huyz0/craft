@@ -21,7 +21,7 @@ use craft_runtime::pagination::recovery_probe;
 use craft_runtime::profiles::ProfileStore;
 use craft_runtime::secrets::LockedCredentials;
 use craft_runtime::transport::{JiraProjectSite, TlsPolicy};
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::dispatch::CommandResult;
 use crate::output::OutputPolicy;
@@ -222,6 +222,7 @@ impl PreparedProjectList {
             access,
             tls,
             check_policy: &check_policy,
+            advice: None,
         };
         let result = store.provider_page(
             self.request(),
@@ -301,11 +302,75 @@ impl PreparedProjectList {
         }
     }
 }
+impl PreparedProjectList {
+    pub fn binding(&self) -> &ListBinding {
+        &self.binding
+    }
+    fn project_items(&self, items: &[Value]) -> Result<Vec<Value>, CraftError> {
+        let data = self.projection.data(&json!({"target":self.binding.target,"items":items,"observation":null,"cached":false,"credential_cache_update":null}))?;
+        data["items"].as_array().cloned().ok_or_else(internal)
+    }
+    /// Lends the scan driver this listing's own source after opening verified access.
+    pub fn scan_cached(
+        &self,
+        client: &ServiceOAuthClient,
+        locked: &LockedCredentials<'_>,
+        tls: TlsPolicy,
+        control: InvocationControl,
+        check_policy: impl Fn() -> Result<(), CraftError>,
+        run: crate::scans::ScanRunner<'_>,
+    ) -> (
+        Result<craft_runtime::scan::Advanced, CraftError>,
+        Option<CredentialCacheUpdate>,
+    ) {
+        let before = (|| {
+            control.check()?;
+            check_policy()?;
+            if locked.grant() != self.binding.grant {
+                return Err(CraftError::new(
+                    ErrorCode::PolicyDenied,
+                    "Locked grant differs from the prepared project-list binding.",
+                ));
+            }
+            Ok(())
+        })();
+        if let Err(error) = before {
+            return (Err(error), None);
+        }
+        let (access, cache) = match crate::scans::open_access(
+            client,
+            locked,
+            &self.binding.target.tenant_ref(),
+            &control,
+        ) {
+            Ok(opened) => opened,
+            Err((error, cache)) => return (Err(error), cache),
+        };
+        let advice = std::cell::Cell::new(None);
+        let mut source = ProjectsSource {
+            prepared: self,
+            access: &access,
+            tls,
+            check_policy: &check_policy,
+            advice: Some(&advice),
+        };
+        let project = |items: &[Value]| self.project_items(items);
+        let read_advice = || advice.get();
+        let result = run(crate::scans::ScanSession {
+            source: &mut source,
+            binding: &self.binding,
+            project: &project,
+            rate_advice: &read_advice,
+        });
+        (result, cache)
+    }
+}
 struct ProjectsSource<'a> {
     prepared: &'a PreparedProjectList,
     access: &'a VerifiedServiceAccess,
     tls: TlsPolicy,
     check_policy: &'a dyn Fn() -> Result<(), CraftError>,
+    advice: Option<&'a std::cell::Cell<Option<craft_core::execution::RetryAfter>>>,
 }
 impl PageSource for ProjectsSource<'_> {
     fn check_access(
@@ -344,7 +409,17 @@ impl PageSource for ProjectsSource<'_> {
                 control.clone(),
             )?
             .with_jira_project_site(self.prepared.site.clone())?;
-        projects::read_page(&self.prepared.operation, &mut context, position)
+        match self.advice {
+            Some(last) => projects::read_page(
+                &self.prepared.operation,
+                &mut crate::scans::AdviceRecorder {
+                    inner: &mut context,
+                    last,
+                },
+                position,
+            ),
+            None => projects::read_page(&self.prepared.operation, &mut context, position),
+        }
     }
 }
 

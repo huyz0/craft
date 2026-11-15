@@ -38,6 +38,7 @@ pub mod provision;
 mod public_commands;
 pub mod review_policy;
 pub mod saved_requests;
+pub mod scans;
 
 pub mod local_artifacts;
 

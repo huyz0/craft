@@ -300,6 +300,34 @@ impl PreparedInvocation {
             })
     }
 }
+impl PreparedInvocation {
+    pub fn binding(&self) -> &craft_core::pagination::ListBinding {
+        self.host.binding()
+    }
+    /// Runs a bounded scan through the search host, rechecking the captured configuration.
+    pub fn scan_cached(
+        &self,
+        store: &ProfileStore,
+        client: &ServiceOAuthClient,
+        locked: &LockedCredentials<'_>,
+        tls: TlsPolicy,
+        control: InvocationControl,
+        run: crate::scans::ScanRunner<'_>,
+    ) -> (
+        Result<craft_runtime::scan::Advanced, CraftError>,
+        Option<craft_core::contracts::CredentialCacheUpdate>,
+    ) {
+        let check_control = control.clone();
+        self.host.scan_cached(
+            client,
+            locked,
+            tls,
+            control,
+            || store.verify_issue_read_policy(&self.policy, self.operation, &check_control),
+            run,
+        )
+    }
+}
 /// Validates before opening state, then uses only configured native credentials and declared hosts.
 /// This candidate entry point is absent from public startup/registration.
 pub fn execute(

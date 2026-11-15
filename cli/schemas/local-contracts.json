@@ -127,7 +127,8 @@
                 "downloads",
                 "uploads",
                 "requests",
-                "reviews"
+                "reviews",
+                "scans"
               ],
               "type": "string"
             }
@@ -261,7 +262,8 @@
                 "downloads",
                 "uploads",
                 "requests",
-                "reviews"
+                "reviews",
+                "scans"
               ],
               "type": "string"
             },
@@ -623,7 +625,8 @@
             "downloads",
             "uploads",
             "requests",
-            "reviews"
+            "reviews",
+            "scans"
           ],
           "defaults": [
             "downloads"
@@ -739,7 +742,8 @@
                 "downloads",
                 "uploads",
                 "requests",
-                "reviews"
+                "reviews",
+                "scans"
               ],
               "type": "string"
             }
@@ -843,7 +847,8 @@
                 "downloads",
                 "uploads",
                 "requests",
-                "reviews"
+                "reviews",
+                "scans"
               ],
               "type": "string"
             },
@@ -1205,7 +1210,8 @@
             "downloads",
             "uploads",
             "requests",
-            "reviews"
+            "reviews",
+            "scans"
           ],
           "defaults": [
             "downloads"
@@ -74446,6 +74452,2099 @@
       "path": [
         "review",
         "verify"
+      ],
+      "selectable_fields": {}
+    },
+    "scan.export": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "bounded-scan-v1",
+        "contract_version": "1.0",
+        "description": "Export a scan's verified segments as one create-new JSON Lines file; a partial scan needs --allow-partial and stays complete: false.",
+        "effect": "write",
+        "example": {
+          "checkpoint": "scan_0123456789abcdef0123456789abcdef-r00001.checkpoint.json",
+          "checkpoint_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "output": "issues.jsonl",
+          "output_root": "C:/work/out"
+        },
+        "id": "scan.export",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "allow_partial": {
+              "default": false,
+              "type": "boolean"
+            },
+            "checkpoint": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]+$",
+              "type": "string"
+            },
+            "checkpoint_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "output": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "output_root": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "checkpoint",
+            "checkpoint_digest",
+            "output_root",
+            "output"
+          ],
+          "title": "ScanExportArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "Writes only the selected file under the selected output root."
+        ],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "known_resource",
+        "response_example": {
+          "command": "scan.export",
+          "data": {
+            "artifact": null,
+            "complete": true,
+            "export_write_state": "confirmed",
+            "exported": null,
+            "items": 1500,
+            "revision": 2,
+            "scan_id": "scan_0123456789abcdef0123456789abcdef"
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "ArtifactReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "local_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ResourceRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "media_type",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "artifact": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "export_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "exported": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ArtifactReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "revision": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "scan_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "complete",
+                "export_write_state"
+              ],
+              "title": "ExportData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "never",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "allow_partial": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "allow-partial",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "checkpoint": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "checkpoint",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "checkpoint_digest": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "checkpoint-digest",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "output": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "output",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "output_root": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "output-root",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "scan",
+        "export"
+      ],
+      "selectable_fields": {}
+    },
+    "scan.resume": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "bounded-scan-v1",
+        "contract_version": "1.0",
+        "description": "Continue a scan from its exact checkpoint name and digest under the same list semantics.",
+        "effect": "read",
+        "example": {
+          "checkpoint": "scan_0123456789abcdef0123456789abcdef-r00001.checkpoint.json",
+          "checkpoint_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "id": "scan.resume",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "checkpoint": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._-]+$",
+              "type": "string"
+            },
+            "checkpoint_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "max_items": {
+              "format": "uint32",
+              "maximum": 100000,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_pages": {
+              "format": "uint32",
+              "maximum": 10000,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_stored_bytes": {
+              "format": "uint64",
+              "maximum": 67108864,
+              "minimum": 1024,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "checkpoint",
+            "checkpoint_digest"
+          ],
+          "title": "ScanResumeArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "The scanned list command's own policy, scopes and native permissions apply."
+        ],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "scan.resume",
+          "data": {
+            "caps": {
+              "max_items": 1000,
+              "max_pages": 50,
+              "max_stored_bytes": 8388608
+            },
+            "checkpoint": {
+              "bytes": 2048,
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "scan_0123456789abcdef0123456789abcdef-r00001.checkpoint.json"
+            },
+            "command": "jira.issue.search",
+            "complete": false,
+            "consistency": "live",
+            "credential_cache_update": null,
+            "limit": "items",
+            "outcome": "budget_reached",
+            "retry_after": null,
+            "revision": 1,
+            "scan_id": "scan_0123456789abcdef0123456789abcdef",
+            "segment": {
+              "bytes": 180000,
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "items": 1000,
+              "name": "scan_0123456789abcdef0123456789abcdef-r00001.jsonl"
+            },
+            "totals": {
+              "duplicate_ids": 0,
+              "empty_pages": 0,
+              "items": 1000,
+              "pages": 20,
+              "stored_bytes": 180000
+            }
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CheckpointRef": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "ScanCaps": {
+              "additionalProperties": false,
+              "properties": {
+                "max_items": {
+                  "format": "uint32",
+                  "maximum": 100000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_pages": {
+                  "format": "uint32",
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_stored_bytes": {
+                  "format": "uint64",
+                  "maximum": 67108864,
+                  "minimum": 1024,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "max_items",
+                "max_pages",
+                "max_stored_bytes"
+              ],
+              "type": "object"
+            },
+            "ScanLimit": {
+              "enum": [
+                "items",
+                "pages",
+                "stored_bytes",
+                "time"
+              ],
+              "type": "string"
+            },
+            "ScanOutcome": {
+              "enum": [
+                "complete",
+                "budget_reached",
+                "rate_limited",
+                "cancelled",
+                "error"
+              ],
+              "type": "string"
+            },
+            "ScanTotals": {
+              "additionalProperties": false,
+              "properties": {
+                "duplicate_ids": {
+                  "description": "Records whose identity was already written by this scan. They stay in the output.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "empty_pages": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "pages": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stored_bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "pages",
+                "stored_bytes",
+                "duplicate_ids",
+                "empty_pages"
+              ],
+              "type": "object"
+            },
+            "SegmentReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "bytes",
+                "items"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "caps": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanCaps"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checkpoint": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CheckpointRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The resumption point to pass to `scan resume` or `scan export`. Null when nothing new\nwas published; the earlier checkpoint then remains the resumption point."
+                },
+                "command": {
+                  "type": "string"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "consistency": {
+                  "const": "live",
+                  "type": "string"
+                },
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanLimit"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanOutcome"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "scan_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "segment": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SegmentReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "totals": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanTotals"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "command",
+                "complete",
+                "consistency"
+              ],
+              "title": "ScanData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "safe_read",
+        "routes": [],
+        "scope_alternatives": [
+          [
+            "read:jira-work"
+          ],
+          [
+            "read:page:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "A scan is a live traversal, not a snapshot; repeated IDs are counted and missing records cannot be detected."
+        ]
+      },
+      "flags": {
+        "checkpoint": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "checkpoint",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "checkpoint_digest": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "checkpoint-digest",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_items": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "max-items",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_pages": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "max-pages",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_stored_bytes": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "max-stored-bytes",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "scan",
+        "resume"
+      ],
+      "selectable_fields": {}
+    },
+    "scan.start": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "bounded-scan-v1",
+        "contract_version": "1.0",
+        "description": "Start an explicit bounded scan of a list command into private record segments and a checkpoint; never prints records.",
+        "effect": "read",
+        "example": {
+          "arguments": {
+            "jql": "project = ED ORDER BY key"
+          },
+          "command": "jira.issue.search",
+          "max_items": 1000
+        },
+        "id": "scan.start",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "arguments": {
+              "default": {}
+            },
+            "command": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "max_items": {
+              "default": 1000,
+              "format": "uint32",
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_pages": {
+              "default": 50,
+              "format": "uint32",
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_stored_bytes": {
+              "default": 8388608,
+              "format": "uint64",
+              "maximum": 67108864,
+              "minimum": 1024,
+              "type": "integer"
+            },
+            "record_fields": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array"
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "title": "ScanStartArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "The scanned list command's own policy, scopes and native permissions apply."
+        ],
+        "projection": null,
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "scan.start",
+          "data": {
+            "caps": {
+              "max_items": 1000,
+              "max_pages": 50,
+              "max_stored_bytes": 8388608
+            },
+            "checkpoint": {
+              "bytes": 2048,
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "name": "scan_0123456789abcdef0123456789abcdef-r00001.checkpoint.json"
+            },
+            "command": "jira.issue.search",
+            "complete": false,
+            "consistency": "live",
+            "credential_cache_update": null,
+            "limit": "items",
+            "outcome": "budget_reached",
+            "retry_after": null,
+            "revision": 1,
+            "scan_id": "scan_0123456789abcdef0123456789abcdef",
+            "segment": {
+              "bytes": 180000,
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "items": 1000,
+              "name": "scan_0123456789abcdef0123456789abcdef-r00001.jsonl"
+            },
+            "totals": {
+              "duplicate_ids": 0,
+              "empty_pages": 0,
+              "items": 1000,
+              "pages": 20,
+              "stored_bytes": 180000
+            }
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CheckpointRef": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "ScanCaps": {
+              "additionalProperties": false,
+              "properties": {
+                "max_items": {
+                  "format": "uint32",
+                  "maximum": 100000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_pages": {
+                  "format": "uint32",
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_stored_bytes": {
+                  "format": "uint64",
+                  "maximum": 67108864,
+                  "minimum": 1024,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "max_items",
+                "max_pages",
+                "max_stored_bytes"
+              ],
+              "type": "object"
+            },
+            "ScanLimit": {
+              "enum": [
+                "items",
+                "pages",
+                "stored_bytes",
+                "time"
+              ],
+              "type": "string"
+            },
+            "ScanOutcome": {
+              "enum": [
+                "complete",
+                "budget_reached",
+                "rate_limited",
+                "cancelled",
+                "error"
+              ],
+              "type": "string"
+            },
+            "ScanTotals": {
+              "additionalProperties": false,
+              "properties": {
+                "duplicate_ids": {
+                  "description": "Records whose identity was already written by this scan. They stay in the output.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "empty_pages": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "pages": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stored_bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "pages",
+                "stored_bytes",
+                "duplicate_ids",
+                "empty_pages"
+              ],
+              "type": "object"
+            },
+            "SegmentReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "digest",
+                "bytes",
+                "items"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "caps": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanCaps"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checkpoint": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CheckpointRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The resumption point to pass to `scan resume` or `scan export`. Null when nothing new\nwas published; the earlier checkpoint then remains the resumption point."
+                },
+                "command": {
+                  "type": "string"
+                },
+                "complete": {
+                  "type": "boolean"
+                },
+                "consistency": {
+                  "const": "live",
+                  "type": "string"
+                },
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanLimit"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanOutcome"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "scan_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "segment": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SegmentReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "totals": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ScanTotals"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "command",
+                "complete",
+                "consistency"
+              ],
+              "title": "ScanData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "safe_read",
+        "routes": [],
+        "scope_alternatives": [
+          [
+            "read:jira-work"
+          ],
+          [
+            "read:page:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "A scan is a live traversal, not a snapshot; repeated IDs are counted and missing records cannot be detected."
+        ]
+      },
+      "flags": {
+        "arguments": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "{}"
+          ],
+          "delimiter": null,
+          "long": "arguments",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "command": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "command",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_items": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "1000"
+          ],
+          "delimiter": null,
+          "long": "max-items",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_pages": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "50"
+          ],
+          "delimiter": null,
+          "long": "max-pages",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "max_stored_bytes": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            "8388608"
+          ],
+          "delimiter": null,
+          "long": "max-stored-bytes",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "record_fields": {
+          "action": "Append",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": ",",
+          "long": "record-fields",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "scan",
+        "start"
       ],
       "selectable_fields": {}
     },

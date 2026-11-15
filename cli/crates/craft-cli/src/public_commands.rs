@@ -226,6 +226,7 @@ pub(crate) fn register(registry: &mut Registry) -> Result<(), CraftError> {
         Arc::new(VerifiedHostRequired),
     )?;
     crate::job_wait::command::register(registry)?;
+    crate::scans::command::register(registry)?;
     crate::planning_publication::register(registry)?;
     crate::planning_read::register(registry)
 }

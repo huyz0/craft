@@ -855,6 +855,33 @@ impl PreparedInvocation {
             })
     }
 }
+impl PreparedInvocation {
+    pub fn binding(&self) -> &craft_core::pagination::ListBinding {
+        self.host.binding()
+    }
+    pub fn scan_cached(
+        &self,
+        store: &ProfileStore,
+        client: &ServiceOAuthClient,
+        locked: &LockedCredentials<'_>,
+        tls: TlsPolicy,
+        control: InvocationControl,
+        run: crate::scans::ScanRunner<'_>,
+    ) -> (
+        Result<craft_runtime::scan::Advanced, CraftError>,
+        Option<craft_core::contracts::CredentialCacheUpdate>,
+    ) {
+        let check = control.clone();
+        self.host.scan_cached(
+            client,
+            locked,
+            tls,
+            control,
+            || store.verify_confluence_read_policy(&self.policy, self.operation, &check),
+            run,
+        )
+    }
+}
 /// Validates before private state and uses only the selected profile's native credential grant.
 pub fn execute(
     args: ConfluenceReadArgs,

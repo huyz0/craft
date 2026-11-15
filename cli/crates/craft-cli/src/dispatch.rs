@@ -140,6 +140,7 @@ pub fn command_id(action: &Action) -> &'static str {
         Action::Operation {
             action: crate::args::OperationAction::Wait(_),
         } => crate::job_wait::COMMAND,
+        Action::Scan { action } => action.command(),
         Action::Plan { action } => match action {
             crate::args::PlanAction::Scaffold(_) => "plan.scaffold",
             crate::args::PlanAction::Validate(_) => "plan.validate",
@@ -540,6 +541,19 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 }
             },
         },
+        Action::Scan { action } => Action::Scan {
+            action: match action {
+                crate::scans::command::ScanAction::Start(_) => {
+                    crate::scans::command::ScanAction::Start(Box::new(decode(input)?))
+                }
+                crate::scans::command::ScanAction::Resume(_) => {
+                    crate::scans::command::ScanAction::Resume(Box::new(decode(input)?))
+                }
+                crate::scans::command::ScanAction::Export(_) => {
+                    crate::scans::command::ScanAction::Export(Box::new(decode(input)?))
+                }
+            },
+        },
         Action::Operation { action } => Action::Operation {
             action: match action {
                 crate::args::OperationAction::Get(_) => {
@@ -744,6 +758,7 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
             crate::args::JiraIssueAction::Search(arguments) => value(arguments),
         },
         Action::Artifact { action } => action.arguments(),
+        Action::Scan { action } => action.arguments(),
         Action::Operation {
             action: crate::args::OperationAction::Get(arguments),
         } => value(arguments),
@@ -1243,6 +1258,12 @@ pub fn execute(
                 crate::confluence_reads::command::execute(args, fields, options, control)
             },
         );
+    }
+    if let Action::Scan { action } = action {
+        registry.validate(action.command(), &action.arguments()?)?;
+        return Ok(crate::scans::command::execute(
+            action, fields, options, control,
+        ));
     }
     if let Action::Operation {
         action: crate::args::OperationAction::Wait(arguments),
@@ -1755,6 +1776,7 @@ fn execute_data(
     };
     let data = match action {
         Action::Artifact { .. }
+        | Action::Scan { .. }
         | Action::Jira { .. }
         | Action::Confluence { .. }
         | Action::Policy { .. }

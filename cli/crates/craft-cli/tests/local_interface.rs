@@ -105,6 +105,9 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "jira.link.types",
         "jira.link.reconcile",
         "operation.wait",
+        "scan.start",
+        "scan.resume",
+        "scan.export",
     ];
     for command in commands {
         let body = envelope(&invoke(&["schema", "--command", command], None)?)?;

@@ -403,6 +403,7 @@ impl PreparedConfluenceRead {
             access,
             tls,
             check_policy: &check_policy,
+            advice: None,
         };
         let result = store.provider_page(
             self.request(),
@@ -492,11 +493,102 @@ impl PreparedConfluenceRead {
     }
 }
 
+impl PreparedConfluenceRead {
+    pub fn binding(&self) -> &ListBinding {
+        &self.binding
+    }
+    fn project_list(&self, items: &[Value]) -> Result<Vec<Value>, CraftError> {
+        let page = ListPage {
+            context: None,
+            items: items.to_vec(),
+            page: craft_core::contracts::Page {
+                returned: items.len(),
+                has_more: false,
+                next_cursor: None,
+                truncated: false,
+                stop_reason: "exhausted".into(),
+                consistency: "live".into(),
+            },
+            observation: craft_core::pagination::PageObservation {
+                observed_at: 0,
+                page_digest: format!("sha256:{}", "0".repeat(64)),
+            },
+            cached: false,
+            error: None,
+        };
+        let envelope = self.envelope(Some(ReadData::List(&page)), None, None)?;
+        envelope
+            .data
+            .as_ref()
+            .and_then(|data| data["items"].as_array())
+            .cloned()
+            .ok_or_else(internal)
+    }
+    /// Lends the scan driver this listing's own source after opening verified access.
+    pub fn scan_cached(
+        &self,
+        client: &ServiceOAuthClient,
+        locked: &LockedCredentials<'_>,
+        tls: TlsPolicy,
+        control: InvocationControl,
+        check_policy: impl Fn() -> Result<(), CraftError>,
+        run: crate::scans::ScanRunner<'_>,
+    ) -> (
+        Result<craft_runtime::scan::Advanced, CraftError>,
+        Option<CredentialCacheUpdate>,
+    ) {
+        if is_get(&self.binding.operation) {
+            return (Err(internal()), None);
+        }
+        let before = (|| {
+            control.check()?;
+            check_policy()?;
+            if locked.grant() != self.binding.grant {
+                return Err(CraftError::new(
+                    ErrorCode::PolicyDenied,
+                    "Locked grant differs from the prepared Confluence read binding.",
+                ));
+            }
+            Ok(())
+        })();
+        if let Err(error) = before {
+            return (Err(error), None);
+        }
+        let (access, cache) = match crate::scans::open_access(
+            client,
+            locked,
+            &self.binding.target.tenant_ref(),
+            &control,
+        ) {
+            Ok(opened) => opened,
+            Err((error, cache)) => return (Err(error), cache),
+        };
+        let advice = std::cell::Cell::new(None);
+        let mut source = ConfluenceSource {
+            prepared: self,
+            access: &access,
+            tls,
+            check_policy: &check_policy,
+            advice: Some(&advice),
+        };
+        let project = |items: &[Value]| self.project_list(items);
+        let read_advice = || advice.get();
+        let result = run(crate::scans::ScanSession {
+            source: &mut source,
+            binding: &self.binding,
+            project: &project,
+            rate_advice: &read_advice,
+        });
+        (result, cache)
+    }
+}
+
 struct ConfluenceSource<'a> {
     prepared: &'a PreparedConfluenceRead,
     access: &'a VerifiedServiceAccess,
     tls: TlsPolicy,
     check_policy: &'a dyn Fn() -> Result<(), CraftError>,
+    advice: Option<&'a std::cell::Cell<Option<craft_core::execution::RetryAfter>>>,
 }
 impl PageSource for ConfluenceSource<'_> {
     fn check_access(
@@ -530,7 +622,17 @@ impl PageSource for ConfluenceSource<'_> {
             native: &mut context,
             check: self.check_policy,
         };
-        provider::read_page(&self.prepared.operation, &mut context, position)
+        match self.advice {
+            Some(last) => provider::read_page(
+                &self.prepared.operation,
+                &mut crate::scans::AdviceRecorder {
+                    inner: &mut context,
+                    last,
+                },
+                position,
+            ),
+            None => provider::read_page(&self.prepared.operation, &mut context, position),
+        }
     }
 }
 

@@ -1004,3 +1004,91 @@ fn provider_clamped_page_size_uses_advertised_offset_without_changing_bound_requ
     assert_eq!(issuer.finish()?.len(), 1);
     Ok(())
 }
+
+#[test]
+fn project_scan_follows_site_links_through_empty_pages_to_completion() -> TestResult {
+    use craft_core::scan::{ScanCaps, ScanOutcome};
+    use craft_runtime::scan::{self, ScanCheckpoint, ScanInputs};
+    use serde_json::Value;
+    let setup = Setup::new()?;
+    let issuer = issuer("read:jira-user read:jira-work")?;
+    let product = TlsServer::start(Reply::Sequence(vec![
+        identity(),
+        identity(),
+        page(0, &[1, 2, 3], Some(50))?,
+        page(50, &[], Some(75))?,
+        page(75, &[4], None)?,
+    ]))?;
+    let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+    let locked = fixture.lock(&setup.grant, &control()?)?;
+    fixture.client().provision_grant(
+        &locked,
+        fixture.service_credentials()?,
+        &[target().tenant_ref()],
+        Some("actor-one"),
+    )?;
+    let host = prepared(&setup.grant, None, 20, 16_777_216, None)?;
+    let start = ScanCheckpoint::start(
+        "jira.project.list",
+        json!({"input":{"page_size":50},"record_fields":[]}),
+        host.binding(),
+        ScanCaps {
+            max_items: 100,
+            max_pages: 10,
+            max_stored_bytes: 65_536,
+        },
+        1000,
+    )?;
+    let control = control()?;
+    let clock = SystemClock::default();
+    let id = |item: &Value| item["id"].as_str().map(String::from);
+    let mut run = |session: craft_cli::scans::ScanSession<'_>| {
+        scan::advance(
+            &start,
+            ScanInputs {
+                source: session.source,
+                binding: session.binding,
+                project: session.project,
+                item_id: &id,
+                rate_advice: session.rate_advice,
+                control: &control,
+                clock: &clock,
+            },
+        )
+    };
+    let (result, _) = host.scan_cached(
+        fixture.client(),
+        &locked,
+        TlsPolicy::AdditionalCaBundle(product.root()),
+        control.clone(),
+        || Ok(()),
+        &mut run,
+    );
+    let advanced = result?;
+    assert_eq!(advanced.checkpoint.outcome, ScanOutcome::Complete);
+    assert_eq!(advanced.checkpoint.totals.items, 4);
+    assert_eq!(advanced.checkpoint.totals.pages, 3);
+    assert_eq!(advanced.checkpoint.totals.empty_pages, 1);
+    let text = String::from_utf8(advanced.segment.clone())?;
+    let ids: Vec<Value> = text
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).map(|item| item["id"].clone()))
+        .collect::<Result<_, _>>()?;
+    assert_eq!(ids, vec![json!("1"), json!("2"), json!("3"), json!("4")]);
+    let observed = product.finish()?;
+    let searches: Vec<_> = observed
+        .iter()
+        .filter(|r| r.target.contains("/rest/api/3/project/search"))
+        .collect();
+    assert_eq!(searches.len(), 3);
+    assert!(
+        searches
+            .iter()
+            .all(|r| r.target.starts_with(&format!("/ex/jira/{CLOUD}/")))
+    );
+    assert!(searches[1].target.contains("startAt=50"));
+    assert!(searches[2].target.contains("startAt=75"));
+    drop(locked);
+    drop(fixture);
+    setup.no_plaintext()
+}

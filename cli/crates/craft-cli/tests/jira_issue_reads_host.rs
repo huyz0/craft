@@ -10,6 +10,8 @@ mod deletes;
 mod downloads;
 #[path = "jira_issue_reads_host/job_wait.rs"]
 mod job_wait;
+#[path = "jira_issue_reads_host/scans.rs"]
+mod scans;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
 #[path = "jira_issue_reads_host/uploads.rs"]

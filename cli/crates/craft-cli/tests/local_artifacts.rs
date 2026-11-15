@@ -221,3 +221,226 @@ fn executable_reports_corruption_as_unknown_presence_and_missing_as_a_local_obse
     assert_eq!(corrupt["data"]["integrity_verified"], false);
     Ok(())
 }
+
+#[test]
+#[cfg(windows)]
+fn scan_checkpoints_export_only_with_their_digest_and_never_claim_a_partial_is_complete()
+-> TestResult {
+    use craft_core::contracts::{GrantRef, ResourceRef};
+    use craft_core::pagination::ListBinding;
+    use craft_core::scan::ScanCaps;
+    use craft_runtime::scan::{self, ScanCheckpoint, ScanInputs};
+    use craft_test_support::paging::{Style, SyntheticService, dataset};
+    let files = Files::new()?;
+    let control = InvocationControl::new(
+        Arc::new(SystemClock::default()),
+        CancellationToken::default(),
+        30_000,
+    )?;
+    craft_runtime::profiles::ProfileStore::open(&files.state, &control)?;
+    let digest = craft_core::input::content_digest(b"binding");
+    let binding = ListBinding {
+        operation: "jira.issue.search".into(),
+        descriptor_digest: digest.clone(),
+        schema_digest: digest.clone(),
+        projection_digest: digest,
+        api_revision: "v3".into(),
+        target: ResourceRef {
+            provider: "jira".into(),
+            deployment: "cloud".into(),
+            tenant: "00000000-1111-2222-3333-444444444444".into(),
+            resource_type: "site".into(),
+            id: "00000000-1111-2222-3333-444444444444".into(),
+        },
+        grant: GrantRef {
+            id: format!("gr_{}", "0".repeat(32)),
+        },
+        actor: "actor-one".into(),
+        query: Default::default(),
+    };
+    let start = ScanCheckpoint::start(
+        "jira.issue.search",
+        json!({"input":{"jql":"project = ED"},"record_fields":[]}),
+        &binding,
+        ScanCaps {
+            max_items: 3,
+            max_pages: 10,
+            max_stored_bytes: 65_536,
+        },
+        1,
+    )?;
+    let mut service = SyntheticService::new(Style::Token, 4, dataset(5, 0));
+    let project = |items: &[Value]| Ok(items.to_vec());
+    let id = |item: &Value| item["id"].as_str().map(String::from);
+    let advice = || None;
+    let clock = SystemClock::default();
+    let mut advanced = scan::advance(
+        &start,
+        ScanInputs {
+            source: &mut service,
+            binding: &binding,
+            project: &project,
+            item_id: &id,
+            rate_advice: &advice,
+            control: &control,
+            clock: &clock,
+        },
+    )?;
+    let artifacts = NativeArtifacts::open(&files.state.join("scans"), 1 << 27, &control)?;
+    let published = scan::publish(&artifacts, &mut advanced)?;
+    let name = published.checkpoint.name.as_str();
+    let wrong = format!("sha256:{}", "0".repeat(64));
+    let root = files.output.to_str().ok_or("output")?;
+    let mismatch = files.run(
+        &[
+            "scan",
+            "export",
+            "--checkpoint",
+            name,
+            "--checkpoint-digest",
+            &wrong,
+            "--output-root",
+            root,
+            "--output",
+            "records.jsonl",
+        ],
+        None,
+    )?;
+    assert_eq!(mismatch["ok"], false);
+    assert_eq!(mismatch["error"]["code"], "CURSOR_MISMATCH");
+    let digest = published.checkpoint.digest.as_str();
+    let refused = files.run(
+        &[
+            "scan",
+            "export",
+            "--checkpoint",
+            name,
+            "--checkpoint-digest",
+            digest,
+            "--output-root",
+            root,
+            "--output",
+            "records.jsonl",
+        ],
+        None,
+    )?;
+    assert_eq!(refused["ok"], false, "{refused}");
+    assert_eq!(refused["data"]["complete"], false);
+    assert!(!files.output.join("records.jsonl").exists());
+    let partial = files.run(
+        &[
+            "scan",
+            "export",
+            "--checkpoint",
+            name,
+            "--checkpoint-digest",
+            digest,
+            "--output-root",
+            root,
+            "--output",
+            "records.jsonl",
+            "--allow-partial",
+        ],
+        None,
+    )?;
+    assert_eq!(partial["ok"], true, "{partial}");
+    assert_eq!(partial["data"]["complete"], false);
+    assert_eq!(partial["data"]["items"], 3);
+    assert_eq!(partial["data"]["export_write_state"], "confirmed");
+    let text = fs::read_to_string(files.output.join("records.jsonl"))?;
+    assert_eq!(text.lines().count(), 3);
+    assert!(!partial.to_string().contains("Record 0001"));
+    let again = files.run(
+        &[
+            "scan",
+            "export",
+            "--checkpoint",
+            name,
+            "--checkpoint-digest",
+            digest,
+            "--output-root",
+            root,
+            "--output",
+            "records.jsonl",
+            "--allow-partial",
+        ],
+        None,
+    )?;
+    assert_eq!(again["ok"], false);
+    let segment = published.segment.ok_or("segment")?;
+    let inspected = files.run(
+        &[
+            "artifact",
+            "get",
+            "--collection",
+            "scans",
+            "--artifact-name",
+            &segment.name,
+        ],
+        None,
+    )?;
+    assert_eq!(inspected["data"]["artifact"]["digest"], segment.digest);
+    // Resume refuses a mismatched digest before any profile or credential access.
+    let resume = files.run(
+        &[
+            "scan",
+            "resume",
+            "--checkpoint",
+            name,
+            "--checkpoint-digest",
+            &wrong,
+        ],
+        None,
+    )?;
+    assert_eq!(resume["error"]["code"], "CURSOR_MISMATCH");
+    for arguments in [
+        vec![
+            "scan",
+            "start",
+            "--command",
+            "jira.issue.get",
+            "--arguments",
+            "{}",
+        ],
+        vec![
+            "scan",
+            "start",
+            "--command",
+            "jira.issue.search",
+            "--arguments",
+            r#"{"jql":"x","cursor":"cur_00000000000000000000000000000000"}"#,
+        ],
+        vec![
+            "scan",
+            "start",
+            "--command",
+            "jira.issue.search",
+            "--arguments",
+            r#"{"jql":"x","extra":1}"#,
+        ],
+        vec![
+            "scan",
+            "start",
+            "--command",
+            "jira.issue.search",
+            "--arguments",
+            r#"{"jql":"x"}"#,
+            "--max-items",
+            "0",
+        ],
+        vec![
+            "scan",
+            "start",
+            "--command",
+            "jira.issue.search",
+            "--arguments",
+            r#"{"jql":"x"}"#,
+            "--fields",
+            "totals",
+        ],
+    ] {
+        let refused = files.run(&arguments, None)?;
+        assert_eq!(refused["ok"], false, "{arguments:?}: {refused}");
+    }
+    Ok(())
+}

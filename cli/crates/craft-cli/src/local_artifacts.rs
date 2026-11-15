@@ -33,6 +33,7 @@ pub enum Collection {
     Uploads,
     Requests,
     Reviews,
+    Scans,
 }
 impl Collection {
     pub fn directory(self) -> &'static str {
@@ -41,6 +42,7 @@ impl Collection {
             Self::Uploads => "uploads",
             Self::Requests => "requests",
             Self::Reviews => "reviews",
+            Self::Scans => "scans",
         }
     }
 }

@@ -46,6 +46,9 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "operation.preview"
                 | "operation.reconcile"
                 | "operation.wait"
+                | "scan.start"
+                | "scan.resume"
+                | "scan.export"
                 | "jira.issue.create"
                 | "jira.link.create"
                 | "jira.link.delete"
@@ -193,6 +196,8 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "operation.reconcile"
             | "operation.preview"
             | "operation.wait"
+            | "scan.start"
+            | "scan.resume"
     )
 }
 
@@ -257,6 +262,10 @@ pub enum Action {
     Operation {
         #[command(subcommand)]
         action: OperationAction,
+    },
+    Scan {
+        #[command(subcommand)]
+        action: crate::scans::command::ScanAction,
     },
     Plan {
         #[command(subcommand)]
