@@ -96,7 +96,9 @@ Final run: 175 cases across the eight suites passed (79, 9, 7, 15, 40, 6, 8 and 
 
 `operation.reconcile` is recorded too (ok, OPERATION_ID_REUSED, POLICY_DENIED, RATE_LIMITED, VERSION_CONFLICT) but is not a Jira-prefixed command, so the gap check does not require it. Target failures are not one error code (Jira reports a missing or invisible target as 404, mapped to `PERMISSION_DENIED` for issue mutations and `REMOTE_UNAVAILABLE` for comment and attachment deletes), so the check does not enforce them; the suites' named target-drift, fingerprint, cursor-mismatch and project-mismatch cases cover them. `cargo fmt --all --check` and `cargo clippy -p craft-cli --all-targets --features synthetic-acceptance -- -D warnings` passed on the final source.
 
-Provider live, same day, read-only: `cargo test -p craft-live-conformance --test live_reads -- --ignored` with the stored account API token passed all 18 Jira provider reads it reached against the test site (and the six Confluence reads). Comment get, attachment get and link get were skipped because the earlier lifecycle cleanup left no comments, attachments or links on recent issues. No mock divergence was found. Host live was not rerun: the service-account state root under `target/live-state` was deleted outside this work on 16 November 2026 and must be provisioned again by the site owner.
+Provider live, same day, read-only: `cargo test -p craft-live-conformance --test live_reads -- --ignored` with the stored account API token passed all 18 Jira provider reads it reached against the test site (and the six Confluence reads). Comment get, attachment get and link get were skipped because the earlier lifecycle cleanup left no comments, attachments or links on recent issues. No mock divergence was found.
+
+Host live, same day: the service-account state root under `target/live-state` was deleted outside this work, then the site owner provisioned it again with a new 25-scope credential. With the owner's written approval in the project thread, the six Jira policies for the Jira profile were set (Confluence policies were not touched) and `python tools/live_host.py lifecycle --project <id> --issue-type <id>` reran with this branch's executable. Every step passed: create, comment create/get/update/delete, link types/create/list/get/delete (create again reported `relation_confirmed`, with the ID from the following list), assign/unassign, attachment upload (acknowledged, digest verified), list, get, download (digest matched), delete with an empty follow-up list, and deletion of all three issues. A follow-up `jira.issue.search` for `craft-test` summaries in the project returned no issues.
 
 ## Host lifecycle run
 
@@ -121,6 +123,6 @@ Every dependency of `jira-conformance` closed on 15 November 2026 ([foundation c
 ## Not covered
 
 - `jira.link.reconcile` and `operation.reconcile` have not met a real uncertain outcome live.
-- The full sandbox write lifecycle last ran live on 14 November 2026 (above). It was not rerun for the outcome qualification: it needs the service-account state provisioned again and the site owner's written approval.
+- The host lifecycle does not apply transitions; `jira.transition.apply` last passed live in the 14 November writes run.
 - Large sites, custom-field-heavy create screens, issue security levels and restricted visibility are not represented on the test site.
 - Gateway-rewritten continuation links are exercised only where the site returned more than one page (field search).
