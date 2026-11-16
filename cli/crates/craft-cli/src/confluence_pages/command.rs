@@ -262,6 +262,48 @@ pub struct SpaceCreateArgs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
+fn content_placement(text: &str) -> Result<pages::ContentPlacement, String> {
+    parse(text)
+}
+fn content_revision(text: &str) -> Result<pages::ContentRevision, String> {
+    parse(text)
+}
+/// Folder or whiteboard create in a space; `placement` names a parent page or folder, or root.
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentCreateArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub title: String,
+    #[arg(long, value_parser = content_placement, default_value = "{\"kind\":\"root\"}")]
+    pub placement: pages::ContentPlacement,
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContentTrashArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub id: String,
+    /// The reviewed version from the matching `get`.
+    #[arg(long, value_parser = content_revision, default_value = "{\"version\":0}")]
+    pub expected: pages::ContentRevision,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
@@ -273,6 +315,10 @@ pub enum PageWriteArgs {
     ContentStateClear(ContentStateClearArgs),
     AttachmentTrash(AttachmentTrashArgs),
     SpaceCreate(SpaceCreateArgs),
+    FolderCreate(ContentCreateArgs),
+    FolderTrash(ContentTrashArgs),
+    WhiteboardCreate(ContentCreateArgs),
+    WhiteboardTrash(ContentTrashArgs),
 }
 /// Maps a saved space allowance to the page-host write it permits; attachment transfer
 /// allowances belong to the upload host instead.
@@ -287,6 +333,10 @@ fn kind_of(operation: Operation) -> Option<PageWriteKind> {
         Operation::ContentStateSet => PageWriteKind::ContentStateSet,
         Operation::ContentStateClear => PageWriteKind::ContentStateClear,
         Operation::AttachmentTrash => PageWriteKind::AttachmentTrash,
+        Operation::FolderCreate => PageWriteKind::FolderCreate,
+        Operation::FolderTrash => PageWriteKind::FolderTrash,
+        Operation::WhiteboardCreate => PageWriteKind::WhiteboardCreate,
+        Operation::WhiteboardTrash => PageWriteKind::WhiteboardTrash,
         Operation::AttachmentUpload | Operation::AttachmentReplace => return None,
     })
 }
@@ -324,6 +374,10 @@ impl PageWriteArgs {
             Self::ContentStateClear(_) => Operation::ContentStateClear,
             Self::AttachmentTrash(_) => Operation::AttachmentTrash,
             Self::SpaceCreate(_) => return None,
+            Self::FolderCreate(_) => Operation::FolderCreate,
+            Self::FolderTrash(_) => Operation::FolderTrash,
+            Self::WhiteboardCreate(_) => Operation::WhiteboardCreate,
+            Self::WhiteboardTrash(_) => Operation::WhiteboardTrash,
         })
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
@@ -338,6 +392,10 @@ impl PageWriteArgs {
             CONTENT_STATE_CLEAR => Ok(Self::ContentStateClear(decode(&value)?)),
             ATTACHMENT_TRASH => Ok(Self::AttachmentTrash(decode(&value)?)),
             SPACE_CREATE => Ok(Self::SpaceCreate(decode(&value)?)),
+            FOLDER_CREATE => Ok(Self::FolderCreate(decode(&value)?)),
+            FOLDER_TRASH => Ok(Self::FolderTrash(decode(&value)?)),
+            WHITEBOARD_CREATE => Ok(Self::WhiteboardCreate(decode(&value)?)),
+            WHITEBOARD_TRASH => Ok(Self::WhiteboardTrash(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -353,6 +411,8 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => encoded(v),
             Self::AttachmentTrash(v) => encoded(v),
             Self::SpaceCreate(v) => encoded(v),
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => encoded(v),
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
@@ -367,6 +427,8 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => v.cloud_id.as_deref(),
             Self::AttachmentTrash(v) => v.cloud_id.as_deref(),
             Self::SpaceCreate(v) => v.cloud_id.as_deref(),
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.cloud_id.as_deref(),
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
@@ -381,6 +443,8 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => v.space_id.as_deref(),
             Self::AttachmentTrash(v) => v.space_id.as_deref(),
             Self::SpaceCreate(_) => Some(""),
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.space_id.as_deref(),
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
@@ -395,6 +459,8 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => &v.operation_id,
             Self::AttachmentTrash(v) => &v.operation_id,
             Self::SpaceCreate(v) => &v.operation_id,
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => &v.operation_id,
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
@@ -409,6 +475,8 @@ impl PageWriteArgs {
             Self::ContentStateClear(v) => v.apply,
             Self::AttachmentTrash(v) => v.apply,
             Self::SpaceCreate(v) => v.apply,
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.apply,
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -480,6 +548,18 @@ impl PageWriteArgs {
                     CraftError::field("/visibility", "expected_default_roles_or_private")
                 })?,
                 description: v.description.clone(),
+            }),
+            Self::FolderCreate(v) | Self::WhiteboardCreate(v) => {
+                encoded(&pages::ContentCreateInput {
+                    space_id: space.into(),
+                    title: v.title.clone(),
+                    placement: v.placement.clone(),
+                })
+            }
+            Self::FolderTrash(v) | Self::WhiteboardTrash(v) => encoded(&pages::ContentTrashInput {
+                space_id: space.into(),
+                id: v.id.clone(),
+                expected: v.expected.clone(),
             }),
         }
     }
@@ -563,6 +643,18 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             PageWriteArgs::SpaceCreate(v) => Self::Space {
                 action: crate::args::ConfluenceSpaceAction::Create(Box::new(v)),
             },
+            PageWriteArgs::FolderCreate(v) => Self::Folder {
+                action: crate::args::ConfluenceFolderAction::Create(Box::new(v)),
+            },
+            PageWriteArgs::FolderTrash(v) => Self::Folder {
+                action: crate::args::ConfluenceFolderAction::Trash(Box::new(v)),
+            },
+            PageWriteArgs::WhiteboardCreate(v) => Self::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Create(Box::new(v)),
+            },
+            PageWriteArgs::WhiteboardTrash(v) => Self::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Trash(Box::new(v)),
+            },
         }
     }
 }
@@ -603,6 +695,18 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Space {
                 action: crate::args::ConfluenceSpaceAction::Create(v),
             } => Ok(Self::SpaceCreate(*v)),
+            A::Folder {
+                action: crate::args::ConfluenceFolderAction::Create(v),
+            } => Ok(Self::FolderCreate(*v)),
+            A::Folder {
+                action: crate::args::ConfluenceFolderAction::Trash(v),
+            } => Ok(Self::FolderTrash(*v)),
+            A::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Create(v),
+            } => Ok(Self::WhiteboardCreate(*v)),
+            A::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Trash(v),
+            } => Ok(Self::WhiteboardTrash(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -622,6 +726,10 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             CONTENT_STATE_CLEAR,
             ATTACHMENT_TRASH,
             SPACE_CREATE,
+            FOLDER_CREATE,
+            FOLDER_TRASH,
+            WHITEBOARD_CREATE,
+            WHITEBOARD_TRASH,
         ],
     )
 }
@@ -640,6 +748,10 @@ pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
             CONTENT_STATE_CLEAR,
             ATTACHMENT_TRASH,
             SPACE_CREATE,
+            FOLDER_CREATE,
+            FOLDER_TRASH,
+            WHITEBOARD_CREATE,
+            WHITEBOARD_TRASH,
         ],
     )
 }
@@ -671,13 +783,15 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
         let version = match kind {
             PageWriteKind::Update | PageWriteKind::CommentUpdate => Value::from(2),
             PageWriteKind::Create | PageWriteKind::CommentCreate => Value::from(1),
-            PageWriteKind::SpaceCreate => Value::Null,
+            PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => Value::from(1),
             _ => Value::Null,
         };
         let status = match kind {
             PageWriteKind::Trash
             | PageWriteKind::CommentDelete
-            | PageWriteKind::AttachmentTrash => 204,
+            | PageWriteKind::AttachmentTrash
+            | PageWriteKind::FolderTrash
+            | PageWriteKind::WhiteboardTrash => 204,
             PageWriteKind::CommentCreate | PageWriteKind::SpaceCreate => 201,
             _ => 200,
         };
@@ -685,7 +799,7 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             command,
             "example".into(),
             json!({
-                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", "space" => "100", _ => "201"}}],"job":null},
+                "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", "space" => "100", "folder" | "whiteboard" => "401", _ => "201"}}],"job":null},
                 "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"credential_cache_update":null
             })
         ));
@@ -725,6 +839,14 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             ATTACHMENT_TRASH => {
                 d.input_schema = schema_for::<AttachmentTrashArgs>()?;
                 registry.register_typed::<AttachmentTrashArgs>(d)?;
+            }
+            FOLDER_CREATE | WHITEBOARD_CREATE => {
+                d.input_schema = schema_for::<ContentCreateArgs>()?;
+                registry.register_typed::<ContentCreateArgs>(d)?;
+            }
+            FOLDER_TRASH | WHITEBOARD_TRASH => {
+                d.input_schema = schema_for::<ContentTrashArgs>()?;
+                registry.register_typed::<ContentTrashArgs>(d)?;
             }
             _ => {
                 d.input_schema = schema_for::<SpaceCreateArgs>()?;

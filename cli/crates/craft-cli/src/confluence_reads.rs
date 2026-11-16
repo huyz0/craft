@@ -106,6 +106,8 @@ impl PreparedConfluenceRead {
                         | craft_provider_confluence::attachments::ATTACHMENT_GET
                         | craft_provider_confluence::attachments::ATTACHMENT_LIST
                         | craft_provider_confluence::attachment_download::DOWNLOAD
+                        | craft_provider_confluence::content::FOLDER_GET
+                        | craft_provider_confluence::content::WHITEBOARD_GET
                 )
             })
             || !policy.grant.id.strip_prefix("gr_").is_some_and(|suffix| {
@@ -170,6 +172,13 @@ impl PreparedConfluenceRead {
                     serde_json::from_value::<
                         craft_provider_confluence::attachments::AttachmentListInput,
                     >(operation.request().input.clone())
+                    .map_err(|_| internal())?,
+                ),
+                craft_provider_confluence::content::FOLDER_GET
+                | craft_provider_confluence::content::WHITEBOARD_GET => serde_json::to_value(
+                    serde_json::from_value::<craft_provider_confluence::content::ContentGetInput>(
+                        operation.request().input.clone(),
+                    )
                     .map_err(|_| internal())?,
                 ),
                 PAGE_GET | SPACE_GET => serde_json::to_value(
@@ -645,6 +654,8 @@ fn is_get(command: &str) -> bool {
             | craft_provider_confluence::content_state::CONTENT_STATE_GET
             | craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE
             | craft_provider_confluence::attachments::ATTACHMENT_GET
+            | craft_provider_confluence::content::FOLDER_GET
+            | craft_provider_confluence::content::WHITEBOARD_GET
     )
 }
 

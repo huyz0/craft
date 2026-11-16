@@ -233,10 +233,13 @@ pub enum ConfluenceReadArgs {
     PageGet(ConfluenceGetArgs),
     PageList(ConfluencePageListArgs),
     PageSearch(ConfluenceSearchArgs),
+    FolderGet(ConfluenceGetArgs),
+    WhiteboardGet(ConfluenceGetArgs),
 }
 pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
     use crate::args::{
-        ConfluenceAction as A, ConfluencePageAction as P, ConfluenceSpaceAction as S,
+        ConfluenceAction as A, ConfluenceFolderAction as F, ConfluencePageAction as P,
+        ConfluenceSpaceAction as S, ConfluenceWhiteboardAction as W,
     };
     match action {
         A::Comment {
@@ -306,11 +309,26 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::Page {
             action: P::Search(_),
         } => PAGE_SEARCH,
+        A::Folder { action: F::Get(_) } => craft_provider_confluence::content::FOLDER_GET,
+        A::Folder {
+            action: F::Create(_),
+        } => craft_provider_confluence::pages::FOLDER_CREATE,
+        A::Folder {
+            action: F::Trash(_),
+        } => craft_provider_confluence::pages::FOLDER_TRASH,
+        A::Whiteboard { action: W::Get(_) } => craft_provider_confluence::content::WHITEBOARD_GET,
+        A::Whiteboard {
+            action: W::Create(_),
+        } => craft_provider_confluence::pages::WHITEBOARD_CREATE,
+        A::Whiteboard {
+            action: W::Trash(_),
+        } => craft_provider_confluence::pages::WHITEBOARD_TRASH,
     }
 }
 pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value, CraftError> {
     use crate::args::{
-        ConfluenceAction as A, ConfluencePageAction as P, ConfluenceSpaceAction as S,
+        ConfluenceAction as A, ConfluenceFolderAction as F, ConfluencePageAction as P,
+        ConfluenceSpaceAction as S, ConfluenceWhiteboardAction as W,
     };
     match action {
         A::Comment {
@@ -377,6 +395,19 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         A::Page {
             action: P::Search(v),
         } => encoded(v),
+        A::Folder { action: F::Get(v) } | A::Whiteboard { action: W::Get(v) } => encoded(v),
+        A::Folder {
+            action: F::Create(v),
+        }
+        | A::Whiteboard {
+            action: W::Create(v),
+        } => encoded(v),
+        A::Folder {
+            action: F::Trash(v),
+        }
+        | A::Whiteboard {
+            action: W::Trash(v),
+        } => encoded(v),
     }
 }
 impl From<ConfluenceReadArgs> for crate::args::ConfluenceAction {
@@ -419,6 +450,12 @@ impl From<ConfluenceReadArgs> for crate::args::ConfluenceAction {
             ConfluenceReadArgs::PageSearch(v) => Self::Page {
                 action: P::Search(Box::new(v)),
             },
+            ConfluenceReadArgs::FolderGet(v) => Self::Folder {
+                action: crate::args::ConfluenceFolderAction::Get(Box::new(v)),
+            },
+            ConfluenceReadArgs::WhiteboardGet(v) => Self::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Get(Box::new(v)),
+            },
         }
     }
 }
@@ -457,6 +494,12 @@ impl TryFrom<crate::args::ConfluenceAction> for ConfluenceReadArgs {
             A::Page {
                 action: P::Search(v),
             } => Self::PageSearch(*v),
+            A::Folder {
+                action: crate::args::ConfluenceFolderAction::Get(v),
+            } => Self::FolderGet(*v),
+            A::Whiteboard {
+                action: crate::args::ConfluenceWhiteboardAction::Get(v),
+            } => Self::WhiteboardGet(*v),
             _ => return Err(CraftError::field("/command", "expected_confluence_read")),
         })
     }
@@ -493,6 +536,8 @@ impl ConfluenceReadArgs {
             Self::PageGet(_) => Operation::PageGet,
             Self::PageList(_) => Operation::PageList,
             Self::PageSearch(_) => Operation::PageSearch,
+            Self::FolderGet(_) => Operation::FolderGet,
+            Self::WhiteboardGet(_) => Operation::WhiteboardGet,
         }
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
@@ -521,6 +566,10 @@ impl ConfluenceReadArgs {
             PAGE_GET => Self::PageGet(decode(value)?),
             PAGE_LIST => Self::PageList(decode(value)?),
             PAGE_SEARCH => Self::PageSearch(decode(value)?),
+            craft_provider_confluence::content::FOLDER_GET => Self::FolderGet(decode(value)?),
+            craft_provider_confluence::content::WHITEBOARD_GET => {
+                Self::WhiteboardGet(decode(value)?)
+            }
             _ => return Err(CraftError::field("/command", "unsupported_confluence_read")),
         })
     }
@@ -532,7 +581,9 @@ impl ConfluenceReadArgs {
             Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => encoded(v),
             Self::AttachmentGet(v) => encoded(v),
             Self::AttachmentList(v) => encoded(v),
-            Self::SpaceGet(v) | Self::PageGet(v) => encoded(v),
+            Self::SpaceGet(v) | Self::PageGet(v) | Self::FolderGet(v) | Self::WhiteboardGet(v) => {
+                encoded(v)
+            }
             Self::SpaceList(v) => encoded(v),
             Self::PageList(v) => encoded(v),
             Self::PageSearch(v) => encoded(v),
@@ -546,7 +597,9 @@ impl ConfluenceReadArgs {
             Self::ContentStateGet(v) | Self::ContentStateAvailable(v) => v.cloud_id.as_deref(),
             Self::AttachmentGet(v) => v.cloud_id.as_deref(),
             Self::AttachmentList(v) => v.cloud_id.as_deref(),
-            Self::SpaceGet(v) | Self::PageGet(v) => v.cloud_id.as_deref(),
+            Self::SpaceGet(v) | Self::PageGet(v) | Self::FolderGet(v) | Self::WhiteboardGet(v) => {
+                v.cloud_id.as_deref()
+            }
             Self::SpaceList(v) => v.cloud_id.as_deref(),
             Self::PageList(v) => v.cloud_id.as_deref(),
             Self::PageSearch(v) => v.cloud_id.as_deref(),
@@ -589,6 +642,9 @@ impl ConfluenceReadArgs {
                 },
             ),
             Self::SpaceGet(v) | Self::PageGet(v) => encoded(&GetInput { id: v.id.clone() }),
+            Self::FolderGet(v) | Self::WhiteboardGet(v) => {
+                encoded(&craft_provider_confluence::content::ContentGetInput { id: v.id.clone() })
+            }
             Self::SpaceList(v) => encoded(&SpaceListInput {
                 key: v.key.clone(),
                 page_size: v.page_size,
@@ -612,7 +668,9 @@ impl ConfluenceReadArgs {
             | Self::CommentGet(_)
             | Self::ContentStateGet(_)
             | Self::ContentStateAvailable(_)
-            | Self::AttachmentGet(_) => (20, None),
+            | Self::AttachmentGet(_)
+            | Self::FolderGet(_)
+            | Self::WhiteboardGet(_) => (20, None),
             Self::AttachmentList(v) => (v.limit, v.cursor.clone()),
             Self::CommentList(v) => (v.limit, v.cursor.clone()),
             Self::CommentReplies(v) => (v.limit, v.cursor.clone()),
@@ -697,6 +755,8 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
         craft_provider_confluence::content_state::CONTENT_STATE_AVAILABLE,
         craft_provider_confluence::attachments::ATTACHMENT_GET,
         craft_provider_confluence::attachments::ATTACHMENT_LIST,
+        craft_provider_confluence::content::FOLDER_GET,
+        craft_provider_confluence::content::WHITEBOARD_GET,
     ] {
         let mut descriptor = native.descriptor(command)?.clone();
         match command {
@@ -725,7 +785,10 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
                 descriptor.input_schema = schema_for::<ConfluenceCommentGetArgs>()?;
                 registry.register_typed::<ConfluenceCommentGetArgs>(descriptor)?;
             }
-            SPACE_GET | PAGE_GET => {
+            SPACE_GET
+            | PAGE_GET
+            | craft_provider_confluence::content::FOLDER_GET
+            | craft_provider_confluence::content::WHITEBOARD_GET => {
                 descriptor.input_schema = schema_for::<ConfluenceGetArgs>()?;
                 registry.register_typed::<ConfluenceGetArgs>(descriptor)?;
             }

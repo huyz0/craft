@@ -2335,6 +2335,126 @@
           "conditions": []
         }
       ]
+    },
+    {
+      "command": "confluence.folder.get",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getFolderById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.folder.create",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createFolder",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.folder.trash",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteFolder",
+          "effect": "trash",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.whiteboard.get",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "read",
+      "recovery": "not_applicable",
+      "retry": "safe_read",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "getWhiteboardById",
+          "effect": "read",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.whiteboard.create",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "write",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "createWhiteboard",
+          "effect": "write",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
+    },
+    {
+      "command": "confluence.whiteboard.trash",
+      "owner_task": "confluence-folders-whiteboards",
+      "tier": "core",
+      "effect": "trash",
+      "recovery": "known_resource",
+      "retry": "reconcile_before_replay",
+      "conditions": [],
+      "variants": [
+        {
+          "spec": "confluence-v2",
+          "operation_id": "deleteWhiteboard",
+          "effect": "trash",
+          "fixed_query": {},
+          "fixed_body": {},
+          "required_headers": {},
+          "conditions": []
+        }
+      ]
     }
   ],
   "deferred": [

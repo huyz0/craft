@@ -17,6 +17,9 @@ fn failure(code: ErrorCode, state: RequestState) -> CraftError {
     error.next_action = "Retain the operation receipt and any known page ID. Reconcile the original operation before another write; matching content alone does not prove attribution.".into();
     error
 }
+pub(super) fn unknown() -> CraftError {
+    failure(ErrorCode::WriteOutcomeUnknown, RequestState::SentUnknown)
+}
 impl PreparedPageWrite {
     /// Interprets one response to this exact compiled write. Existing page identity alone is
     /// never evidence of an update. Incomplete successes retain known identities without replay.
@@ -28,10 +31,19 @@ impl PreparedPageWrite {
             error: None,
         };
         use PageWriteKind as K;
-        let deletion = matches!(self.kind, K::Trash | K::CommentDelete | K::AttachmentTrash);
+        let deletion = matches!(
+            self.kind,
+            K::Trash | K::CommentDelete | K::AttachmentTrash | K::FolderTrash | K::WhiteboardTrash
+        );
         let success = match self.kind {
-            K::Trash | K::CommentDelete | K::AttachmentTrash => 204,
+            K::Trash
+            | K::CommentDelete
+            | K::AttachmentTrash
+            | K::FolderTrash
+            | K::WhiteboardTrash => 204,
             K::CommentCreate | K::SpaceCreate => 201,
+            // The v2 reference documents 200 for these creates; 201 is accepted as the same effect.
+            K::FolderCreate | K::WhiteboardCreate if response.status == 201 => 201,
             _ => 200,
         };
         if deletion && response.status == 204 {
@@ -48,9 +60,16 @@ impl PreparedPageWrite {
         }
         if response.status != success || deletion {
             let refusal = match self.kind {
-                K::Create | K::SpaceCreate => matches!(response.status, 400 | 401 | 404 | 413),
+                K::Create | K::SpaceCreate | K::FolderCreate | K::WhiteboardCreate => {
+                    matches!(response.status, 400 | 401 | 404 | 413)
+                }
                 K::Update | K::CommentUpdate => matches!(response.status, 400 | 401 | 404 | 409),
-                K::Trash | K::CommentCreate | K::CommentDelete | K::AttachmentTrash => {
+                K::Trash
+                | K::CommentCreate
+                | K::CommentDelete
+                | K::AttachmentTrash
+                | K::FolderTrash
+                | K::WhiteboardTrash => {
                     matches!(response.status, 400 | 401 | 404)
                 }
                 K::ContentStateSet | K::ContentStateClear => {
@@ -86,6 +105,9 @@ impl PreparedPageWrite {
         }
         if self.kind == K::SpaceCreate {
             return self.interpret_space(raw, result);
+        }
+        if matches!(self.kind, K::FolderCreate | K::WhiteboardCreate) {
+            return self.interpret_content(raw, result);
         }
         if matches!(self.kind, K::ContentStateSet | K::ContentStateClear) {
             // The page identity is the compiled target; only the badge outcome needs evidence.

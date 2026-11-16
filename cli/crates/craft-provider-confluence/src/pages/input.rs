@@ -196,6 +196,10 @@ pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftEr
         CONTENT_STATE_CLEAR => parse::<ContentStateClearInput>(&request.input)?.validate(),
         ATTACHMENT_TRASH => parse::<AttachmentTrashInput>(&request.input)?.validate(),
         SPACE_CREATE => parse::<SpaceCreateInput>(&request.input)?.validate(),
+        FOLDER_CREATE | WHITEBOARD_CREATE => {
+            parse::<ContentCreateInput>(&request.input)?.validate()
+        }
+        FOLDER_TRASH | WHITEBOARD_TRASH => parse::<ContentTrashInput>(&request.input)?.validate(),
         _ => Err(invalid("/command", "unknown_confluence_page_write")),
     }
 }

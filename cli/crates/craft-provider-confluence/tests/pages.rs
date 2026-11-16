@@ -566,3 +566,177 @@ fn space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name() -
     }
     Ok(())
 }
+
+fn folder(id: &str, status: &str, version: u64) -> Value {
+    json!({"id":id,"type":"folder","status":status,"title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"version":{"number":version,"createdAt":"2026-01-01T00:00:00.000Z"},"createdAt":1794791026125u64,"directChildren":{"results":[],"meta":{"hasMore":false}}})
+}
+
+#[test]
+fn folder_and_whiteboard_create_bind_space_and_parent_then_confirm_type_title_and_parent()
+-> TestResult {
+    for (command, kind) in [(FOLDER_CREATE, "folder"), (WHITEBOARD_CREATE, "whiteboard")] {
+        let root = prepare(
+            command,
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"}}),
+        )?;
+        let write = prepare_content_create(&root, &space(), None)?;
+        assert_eq!(
+            write.call().body,
+            Some(json!({"spaceId":"100","title":"Plans"}))
+        );
+        assert!(write.call().query.is_empty());
+        let created = json!({"id":"401","type":kind,"status":"current","title":"Plans","spaceId":"100","parentId":"101","parentType":"page","version":{"number":1}});
+        for status in [200, 201] {
+            let done = write.interpret(&response(status, created.clone()));
+            assert_eq!(done.state, SubmissionState::Confirmed, "{command} {status}");
+            assert_eq!(done.resources[0].resource_type, kind);
+            assert_eq!(done.resources[0].id, "401");
+        }
+        let mut other_type = created.clone();
+        other_type["type"] = json!("page");
+        let lost = write.interpret(&response(200, other_type));
+        assert_eq!(lost.state, SubmissionState::Unknown);
+        assert!(lost.resources.is_empty());
+        let mut retitled = created.clone();
+        retitled["title"] = json!("Other");
+        let kept = write.interpret(&response(200, retitled));
+        assert_eq!(kept.state, SubmissionState::Unknown);
+        assert_eq!(kept.resources.len(), 1);
+        let mut elsewhere = created.clone();
+        elsewhere["spaceId"] = json!("999");
+        assert!(
+            write
+                .interpret(&response(200, elsewhere))
+                .resources
+                .is_empty()
+        );
+        assert_eq!(
+            write.interpret(&response(400, json!({}))).state,
+            SubmissionState::Failed
+        );
+        assert_eq!(
+            write.interpret(&response(500, json!({}))).state,
+            SubmissionState::Unknown
+        );
+        // Root placement never takes parent evidence.
+        assert!(prepare_content_create(&root, &space(), Some(&page())).is_err());
+
+        let under_page = prepare(
+            command,
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"page","id":"101"}}),
+        )?;
+        let write = prepare_content_create(&under_page, &space(), Some(&page()))?;
+        assert_eq!(
+            write.call().body,
+            Some(json!({"spaceId":"100","title":"Plans","parentId":"101"}))
+        );
+        assert_eq!(
+            write.interpret(&response(200, created.clone())).state,
+            SubmissionState::Confirmed
+        );
+        let mut reparented = created.clone();
+        reparented["parentId"] = json!("102");
+        assert_eq!(
+            write.interpret(&response(200, reparented)).state,
+            SubmissionState::Unknown
+        );
+        assert!(prepare_content_create(&under_page, &space(), None).is_err());
+        let mut foreign = page();
+        foreign.body["spaceId"] = json!("200");
+        assert!(prepare_content_create(&under_page, &space(), Some(&foreign)).is_err());
+
+        let under_folder = prepare(
+            command,
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"folder","id":"400"}}),
+        )?;
+        let parent = response(200, folder("400", "current", 3));
+        assert!(prepare_content_create(&under_folder, &space(), Some(&parent)).is_ok());
+        let trashed = response(200, folder("400", "trashed", 3));
+        assert!(prepare_content_create(&under_folder, &space(), Some(&trashed)).is_err());
+        // A page cannot stand in for a folder parent.
+        assert!(prepare_content_create(&under_folder, &space(), Some(&page())).is_err());
+
+        for bad in [
+            json!({"space_id":"100","title":" ","placement":{"kind":"root"}}),
+            json!({"space_id":"0100","title":"Plans","placement":{"kind":"root"}}),
+            json!({"space_id":"100","title":"Plans"}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"page","id":"x"}}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"kanban-board"}),
+            json!({"space_id":"100","title":" Plans","placement":{"kind":"root"}}),
+            json!({"space_id":"100","title":"x".repeat(256),"placement":{"kind":"root"}}),
+        ] {
+            assert!(prepare(command, bad).is_err(), "{command}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn folder_and_whiteboard_trash_recheck_the_reviewed_version_and_send_one_delete() -> TestResult {
+    for (command, kind) in [(FOLDER_TRASH, "folder"), (WHITEBOARD_TRASH, "whiteboard")] {
+        let op = prepare(
+            command,
+            json!({"space_id":"100","id":"400","expected":{"version":3}}),
+        )?;
+        assert_eq!(op.effect(), craft_core::contracts::EffectClass::Trash);
+        let mut raw = folder("400", "current", 3);
+        raw["type"] = json!(kind);
+        let write = prepare_content_trash(&op, &response(200, raw.clone()))?;
+        assert!(write.call().query.is_empty());
+        assert!(write.call().body.is_none());
+        assert_eq!(
+            write.call().path_parameters.get("id").map(String::as_str),
+            Some("400")
+        );
+        let done = write.interpret(&response(204, Value::Null));
+        assert_eq!(done.state, SubmissionState::Confirmed);
+        assert_eq!(done.resources[0].resource_type, kind);
+        assert_eq!(
+            write.interpret(&response(404, json!({}))).state,
+            SubmissionState::Failed
+        );
+        assert_eq!(
+            write.interpret(&response(200, json!({}))).state,
+            SubmissionState::Unknown
+        );
+        let mut newer = raw.clone();
+        newer["version"] = json!({"number":4});
+        let stale = prepare_content_trash(&op, &response(200, newer));
+        assert!(matches!(stale, Err(e) if e.code == craft_core::error::ErrorCode::VersionConflict));
+        let mut trashed = raw.clone();
+        trashed["status"] = json!("trashed");
+        assert!(prepare_content_trash(&op, &response(200, trashed)).is_err());
+        let mut moved = raw.clone();
+        moved["spaceId"] = json!("200");
+        assert!(prepare_content_trash(&op, &response(200, moved)).is_err());
+        let mut parent = raw.clone();
+        parent["directChildren"]["results"] =
+            json!([{"id":"402","type":"page","status":"current","title":"Child"}]);
+        let busy = prepare_content_trash(&op, &response(200, parent));
+        assert!(matches!(busy, Err(e) if e.code == craft_core::error::ErrorCode::VersionConflict));
+        let mut paged = raw.clone();
+        paged["directChildren"]["meta"]["hasMore"] = json!(true);
+        assert!(prepare_content_trash(&op, &response(200, paged)).is_err());
+        let mut unlisted = raw.clone();
+        unlisted
+            .as_object_mut()
+            .ok_or("object")?
+            .remove("directChildren");
+        assert!(prepare_content_trash(&op, &response(200, unlisted)).is_err());
+        let mut wrong_type = raw;
+        wrong_type["type"] = json!(if kind == "folder" {
+            "whiteboard"
+        } else {
+            "folder"
+        });
+        assert!(prepare_content_trash(&op, &response(200, wrong_type)).is_err());
+        assert!(
+            prepare(
+                command,
+                json!({"space_id":"100","id":"400","expected":{"version":0}})
+            )
+            .is_err()
+        );
+    }
+    Ok(())
+}

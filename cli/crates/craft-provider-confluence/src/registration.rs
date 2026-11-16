@@ -29,6 +29,8 @@ pub(crate) fn is_get(command: &str) -> bool {
             | crate::content_state::CONTENT_STATE_GET
             | crate::content_state::CONTENT_STATE_AVAILABLE
             | crate::attachments::ATTACHMENT_GET
+            | crate::content::FOLDER_GET
+            | crate::content::WHITEBOARD_GET
     )
 }
 pub fn projection(command: &str) -> ProjectionContract {
@@ -52,6 +54,9 @@ pub fn projection(command: &str) -> ProjectionContract {
         crate::attachments::ATTACHMENT_GET | crate::attachments::ATTACHMENT_LIST
     ) {
         return crate::attachments::projection(command);
+    }
+    if crate::content::ContentKind::from_get(command).is_some() {
+        return crate::content::projection();
     }
     let (required, defaults) = if is_space(command) {
         (
@@ -90,6 +95,9 @@ pub fn response_schema_for(command: &str) -> Result<Value, CraftError> {
         }
         crate::attachments::ATTACHMENT_GET | crate::attachments::ATTACHMENT_LIST => {
             crate::attachments::response_schema_for(command)
+        }
+        crate::content::FOLDER_GET | crate::content::WHITEBOARD_GET => {
+            crate::content::response_schema_for()
         }
         SPACE_GET => response_schema::<GetData<SpaceSummary>>(),
         SPACE_LIST => response_schema::<ListData<SpaceSummary>>(),
@@ -249,7 +257,8 @@ impl ProviderModule for ConfluenceContext {
         }
         crate::comments::register(registry)?;
         crate::content_state::register(registry)?;
-        crate::attachments::register(registry)
+        crate::attachments::register(registry)?;
+        crate::content::register(registry)
     }
 }
 struct Handler;

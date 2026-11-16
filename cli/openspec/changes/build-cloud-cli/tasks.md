@@ -954,6 +954,24 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Evidence:** docs/evidence/confluence-space-writes.md
 
+### confluence-folders-whiteboards
+
+- [ ] Deliver this task.
+
+**Goal:** Organize space content with folders and whiteboards without confusing them with pages.
+
+**Spec:** cloud-providers / Native Confluence resources
+
+**Depends on:** confluence-context, confluence-pages, provider-reconciliation
+
+**Build:** Implement v2 folder and whiteboard get, create and trash. Create binds the space and an optional current parent page or folder in it; trash rechecks the reviewed version and never purges. Whiteboard templates, private creation and drawing content stay out of scope.
+
+**Verify:** Test type mismatch, foreign or trashed parent, stale version, missing scope or allowance and uncertain create; sandbox-check create, nesting and trash.
+
+**Done when:** A folder or whiteboard write cannot target another content type or space, and uncertain creates keep known IDs without replay.
+
+**Evidence:** docs/evidence/confluence-folders-whiteboards.md
+
 ### confluence-conformance
 
 - [ ] Deliver this task.
