@@ -568,7 +568,7 @@ fn space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name() -
 }
 
 fn folder(id: &str, status: &str, version: u64) -> Value {
-    json!({"id":id,"type":"folder","status":status,"title":"Plans","spaceId":"100","parentId":null,"parentType":null,"version":{"number":version},"createdAt":"2026-01-01T00:00:00.000Z"})
+    json!({"id":id,"type":"folder","status":status,"title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"version":{"number":version,"createdAt":"2026-01-01T00:00:00.000Z"},"createdAt":1794791026125u64})
 }
 
 #[test]

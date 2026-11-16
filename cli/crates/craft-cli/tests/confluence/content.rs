@@ -6,7 +6,7 @@ use craft_runtime::journal::NativeJournal;
 const KINDS: [(&str, &str); 2] = [("folder", "folders"), ("whiteboard", "whiteboards")];
 
 fn native_item(kind: &str, id: &str, version: u64) -> Value {
-    json!({"id":id,"type":kind,"status":"current","title":"Plans","spaceId":"100","parentId":null,"parentType":null,"position":1,"authorId":"private-sentinel","ownerId":"private-sentinel","createdAt":"2026-01-01T00:00:00.000Z","version":{"number":version},"_links":{"base":"https://untrusted.invalid"}})
+    json!({"id":id,"type":kind,"status":"current","title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"authorId":"private-sentinel","ownerId":"private-sentinel","createdAt":1794791026125u64,"version":{"number":version},"_links":{"base":"https://untrusted.invalid"}})
 }
 fn options(setup: &Setup) -> craft_cli::profiles::InvocationOptions<'_> {
     craft_cli::profiles::InvocationOptions {
@@ -131,7 +131,7 @@ fn folder_and_whiteboard_get_check_type_and_omit_private_fields() -> TestResult 
                 assert_eq!(data["item"]["id"], "401");
                 assert_eq!(data["item"]["space_id"], "100");
                 assert_eq!(data["item"]["version"], 2);
-                assert!(data["item"]["parent_id"].is_null());
+                assert_eq!(data["item"]["parent_id"], "101");
                 let text = data.to_string();
                 assert!(!text.contains("private-sentinel") && !text.contains("untrusted.invalid"));
             }

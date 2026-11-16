@@ -84,7 +84,6 @@ pub struct ContentSummary {
     pub parent_id: Option<String>,
     pub parent_type: Option<String>,
     pub version: u32,
-    pub created_at: Option<String>,
 }
 
 fn malformed() -> CraftError {
@@ -104,7 +103,8 @@ fn bounded<'a>(raw: &'a Value, key: &str, max: usize) -> Result<Option<&'a str>,
     }
 }
 /// Normalizes one folder or whiteboard of the expected kind. Any status is reported; writes check
-/// `current` themselves.
+/// `current` themselves. `createdAt` is not read: the test site returns epoch milliseconds where
+/// the reference documents a string.
 pub fn observe(raw: &Value, kind: ContentKind) -> Result<ContentSummary, CraftError> {
     let required = |key, max| bounded(raw, key, max)?.ok_or_else(malformed);
     let id = required("id", 19)?;
@@ -130,7 +130,6 @@ pub fn observe(raw: &Value, kind: ContentKind) -> Result<ContentSummary, CraftEr
         parent_id: parent_id.map(Into::into),
         parent_type: bounded(raw, "parentType", 32)?.map(Into::into),
         version: version as u32,
-        created_at: bounded(raw, "createdAt", 64)?.map(Into::into),
     })
 }
 pub(crate) fn route(kind: ContentKind) -> NativeRoute {
@@ -158,7 +157,7 @@ pub fn get_call(kind: ContentKind, id: &str) -> NativeCall {
         body: None,
     }
 }
-const FIELDS: [&str; 8] = [
+const FIELDS: [&str; 7] = [
     "id",
     "space_id",
     "status",
@@ -166,7 +165,6 @@ const FIELDS: [&str; 8] = [
     "parent_id",
     "parent_type",
     "version",
-    "created_at",
 ];
 pub(crate) fn projection() -> ProjectionContract {
     let fields: Vec<String> = FIELDS.map(String::from).to_vec();
@@ -184,7 +182,7 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
     let target = json!({"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":"site","id":"00000000-1111-2222-3333-444444444444"});
     for kind in ContentKind::ALL {
         let command = kind.get_command();
-        let item = json!({"id":"401","space_id":"100","status":"current","title":"Plans","parent_id":null,"parent_type":null,"version":1,"created_at":"2026-01-01T00:00:00.000Z"});
+        let item = json!({"id":"401","space_id":"100","status":"current","title":"Plans","parent_id":null,"parent_type":null,"version":1});
         let descriptor = OperationDescriptor {
             id: command.into(),
             provider: "confluence".into(),

@@ -19,4 +19,16 @@ Composed host with mock TLS servers (`craft-cli --features synthetic-acceptance 
 
 ## Live test site
 
-Not run yet. It needs the CraftTest credential to carry `read:folder`, `write:folder`, `delete:folder`, `read:whiteboard`, `write:whiteboard` and `delete:whiteboard` (all `:confluence`), the new operations in the local cf-test policies, and the site owner's approval for the writes. Then `python tools/live_host.py content --space <id>`.
+Run on 16 November 2026 with the site owner's written approval, through the production host with the CraftTest profile and new credential `craft-granular-5` (25 scopes: the 18 of `craft-granular-4`, the six folder and whiteboard scopes and `read:content.metadata:confluence`), in the onboarding space. `python tools/live_host.py content --space <id>`:
+
+| Command | Result |
+| --- | --- |
+| `confluence.folder.create` at root | first run: HTTP 200 but `sent_unknown`, because the live response returns `createdAt` as epoch milliseconds where the reference documents a string. Craft no longer reads `createdAt`, and the mocks now mirror the live shape. After the fix: confirmed; Confluence filed the folder under the space homepage |
+| `confluence.folder.create` inside a folder | confirmed with the parent folder |
+| `confluence.folder.get` | pass, current and trashed items |
+| `confluence.folder.trash` with a stale version | `VERSION_CONFLICT`, nothing sent |
+| `confluence.folder.trash` (nested, then root) | confirmed (204); a later get shows `trashed` |
+| `confluence.whiteboard.create` (root and inside a folder) | refused: the service account gets HTTP 404 from the create route. Craft recorded `failed`, and no whiteboard was created. The site owner's account token creates whiteboards with the same body (response shape matches folders), so the gap is specific to the service account or OAuth path; the cause is not established |
+| `confluence.whiteboard.get`, `confluence.whiteboard.trash` | pass on a whiteboard created with the owner's account token; trash confirmed (204) |
+
+The unknown folder from the first run was read with `folder get` and trashed. All `craft-test` folders and whiteboards from these runs are in the space trash; the v2 routes have no purge.

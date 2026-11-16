@@ -18033,7 +18033,7 @@
         "state_root": "supported",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
+      "default_projection_digest": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
@@ -18080,8 +18080,7 @@
             "title",
             "parent_id",
             "parent_type",
-            "version",
-            "created_at"
+            "version"
           ],
           "default_selected": [
             "id",
@@ -18090,8 +18089,7 @@
             "title",
             "parent_id",
             "parent_type",
-            "version",
-            "created_at"
+            "version"
           ],
           "item_pointer": "/item",
           "mode": "local"
@@ -18103,7 +18101,6 @@
           "data": {
             "credential_cache_update": null,
             "item": {
-              "created_at": "2026-01-01T00:00:00.000Z",
               "id": "401",
               "parent_id": null,
               "parent_type": null,
@@ -18131,12 +18128,6 @@
             "ContentSummary": {
               "additionalProperties": false,
               "properties": {
-                "created_at": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
                 "id": {
                   "type": "string"
                 },
@@ -18580,14 +18571,13 @@
         "get"
       ],
       "selectable_fields": {
-        "created_at": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "parent_id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "parent_type": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "space_id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "status": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "title": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "version": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375"
+        "id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "parent_id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "parent_type": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "space_id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "status": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "title": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "version": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0"
       }
     },
     "confluence.folder.trash": {
@@ -27544,7 +27534,7 @@
         "state_root": "supported",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
+      "default_projection_digest": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
@@ -27591,8 +27581,7 @@
             "title",
             "parent_id",
             "parent_type",
-            "version",
-            "created_at"
+            "version"
           ],
           "default_selected": [
             "id",
@@ -27601,8 +27590,7 @@
             "title",
             "parent_id",
             "parent_type",
-            "version",
-            "created_at"
+            "version"
           ],
           "item_pointer": "/item",
           "mode": "local"
@@ -27614,7 +27602,6 @@
           "data": {
             "credential_cache_update": null,
             "item": {
-              "created_at": "2026-01-01T00:00:00.000Z",
               "id": "401",
               "parent_id": null,
               "parent_type": null,
@@ -27642,12 +27629,6 @@
             "ContentSummary": {
               "additionalProperties": false,
               "properties": {
-                "created_at": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
                 "id": {
                   "type": "string"
                 },
@@ -28091,14 +28072,13 @@
         "get"
       ],
       "selectable_fields": {
-        "created_at": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "parent_id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "parent_type": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "space_id": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "status": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "title": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375",
-        "version": "sha256:e75be71e43f3625e37e2910b61ed63c4493d144cbe096ca0db4d3b00d5fac375"
+        "id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "parent_id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "parent_type": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "space_id": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "status": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "title": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0",
+        "version": "sha256:af60b0c8f5cfab3bf77a9fee11a25d70d8fe7905f074604cd00c50d261e3edc0"
       }
     },
     "confluence.whiteboard.trash": {
