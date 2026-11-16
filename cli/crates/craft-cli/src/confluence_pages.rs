@@ -62,15 +62,8 @@ enum Intent {
     ContentCreate(PageWriteKind, ContentCreateInput),
     ContentTrash(PageWriteKind, ContentTrashInput),
 }
-fn content_kind(kind: PageWriteKind) -> ContentKind {
-    if matches!(
-        kind,
-        PageWriteKind::FolderCreate | PageWriteKind::FolderTrash
-    ) {
-        ContentKind::Folder
-    } else {
-        ContentKind::Whiteboard
-    }
+fn content_kind(kind: PageWriteKind) -> Result<ContentKind, CraftError> {
+    pages::content_kind(kind).ok_or_else(denied)
 }
 impl Intent {
     fn decode(kind: PageWriteKind, input: &Value) -> Result<Self, CraftError> {
@@ -373,7 +366,7 @@ impl PreparedPagePublication {
             }
             Intent::ContentTrash(kind, input) => access.check_operation(
                 &self.registry,
-                &self.read_operation(content_kind(*kind).get_command(), &input.id, None, None)?,
+                &self.read_operation(content_kind(*kind)?.get_command(), &input.id, None, None)?,
             )?,
         }
         Ok(())
@@ -427,6 +420,10 @@ impl PreparedPagePublication {
                 ("get-draft".into(), "false".into()),
                 ("include-version".into(), "true".into()),
             ]);
+        }
+        if matches!(command, FOLDER_GET | WHITEBOARD_GET) {
+            // Trash refuses non-empty items, so every content read lists direct children.
+            query.insert("include-direct-children".into(), "true".into());
         }
         if command == COMMENT_GET || command == ATTACHMENT_GET {
             query.insert("include-version".into(), "true".into());
@@ -703,7 +700,7 @@ impl PreparedPagePublication {
                     tls,
                     control,
                     ReadSpec {
-                        command: content_kind(*kind).get_command(),
+                        command: content_kind(*kind)?.get_command(),
                         id: &input.id,
                         page_id: None,
                         representation: None,

@@ -568,7 +568,7 @@ fn space_create_requires_an_empty_exact_key_lookup_and_confirms_key_and_name() -
 }
 
 fn folder(id: &str, status: &str, version: u64) -> Value {
-    json!({"id":id,"type":"folder","status":status,"title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"version":{"number":version,"createdAt":"2026-01-01T00:00:00.000Z"},"createdAt":1794791026125u64})
+    json!({"id":id,"type":"folder","status":status,"title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"version":{"number":version,"createdAt":"2026-01-01T00:00:00.000Z"},"createdAt":1794791026125u64,"directChildren":{"results":[],"meta":{"hasMore":false}}})
 }
 
 #[test]
@@ -662,6 +662,8 @@ fn folder_and_whiteboard_create_bind_space_and_parent_then_confirm_type_title_an
             json!({"space_id":"100","title":"Plans"}),
             json!({"space_id":"100","title":"Plans","placement":{"kind":"page","id":"x"}}),
             json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"kanban-board"}),
+            json!({"space_id":"100","title":" Plans","placement":{"kind":"root"}}),
+            json!({"space_id":"100","title":"x".repeat(256),"placement":{"kind":"root"}}),
         ] {
             assert!(prepare(command, bad).is_err(), "{command}");
         }
@@ -707,6 +709,20 @@ fn folder_and_whiteboard_trash_recheck_the_reviewed_version_and_send_one_delete(
         let mut moved = raw.clone();
         moved["spaceId"] = json!("200");
         assert!(prepare_content_trash(&op, &response(200, moved)).is_err());
+        let mut parent = raw.clone();
+        parent["directChildren"]["results"] =
+            json!([{"id":"402","type":"page","status":"current","title":"Child"}]);
+        let busy = prepare_content_trash(&op, &response(200, parent));
+        assert!(matches!(busy, Err(e) if e.code == craft_core::error::ErrorCode::VersionConflict));
+        let mut paged = raw.clone();
+        paged["directChildren"]["meta"]["hasMore"] = json!(true);
+        assert!(prepare_content_trash(&op, &response(200, paged)).is_err());
+        let mut unlisted = raw.clone();
+        unlisted
+            .as_object_mut()
+            .ok_or("object")?
+            .remove("directChildren");
+        assert!(prepare_content_trash(&op, &response(200, unlisted)).is_err());
         let mut wrong_type = raw;
         wrong_type["type"] = json!(if kind == "folder" {
             "whiteboard"

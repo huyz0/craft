@@ -25,8 +25,8 @@ pub use content_state_writes::{
 pub use content_writes::{
     ContentCreateInput, ContentPlacement, ContentRevision, ContentTrashInput, FOLDER_CREATE,
     FOLDER_CREATE_ROUTE, FOLDER_TRASH, FOLDER_TRASH_ROUTE, WHITEBOARD_CREATE,
-    WHITEBOARD_CREATE_ROUTE, WHITEBOARD_TRASH, WHITEBOARD_TRASH_ROUTE, prepare_content_create,
-    prepare_content_trash,
+    WHITEBOARD_CREATE_ROUTE, WHITEBOARD_TRASH, WHITEBOARD_TRASH_ROUTE, content_kind,
+    prepare_content_create, prepare_content_trash,
 };
 use craft_core::contracts::{CanonicalRequest, EffectClass, ResourceRef};
 use craft_core::error::{CraftError, ErrorCode};

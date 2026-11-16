@@ -6,7 +6,7 @@ use craft_runtime::journal::NativeJournal;
 const KINDS: [(&str, &str); 2] = [("folder", "folders"), ("whiteboard", "whiteboards")];
 
 fn native_item(kind: &str, id: &str, version: u64) -> Value {
-    json!({"id":id,"type":kind,"status":"current","title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"authorId":"private-sentinel","ownerId":"private-sentinel","createdAt":1794791026125u64,"version":{"number":version},"_links":{"base":"https://untrusted.invalid"}})
+    json!({"id":id,"type":kind,"status":"current","title":"Plans","spaceId":"100","parentId":"101","parentType":"page","position":1270,"authorId":"private-sentinel","ownerId":"private-sentinel","createdAt":1794791026125u64,"version":{"number":version},"directChildren":{"results":[],"meta":{"hasMore":false}},"_links":{"base":"https://untrusted.invalid"}})
 }
 fn options(setup: &Setup) -> craft_cli::profiles::InvocationOptions<'_> {
     craft_cli::profiles::InvocationOptions {
@@ -186,6 +186,7 @@ fn folder_and_whiteboard_writes_read_space_parent_and_revision_then_send_once() 
             "create_lost",
             "trash",
             "trash_stale",
+            "trash_not_empty",
             "unscoped",
             "no_allowance",
         ] {
@@ -213,12 +214,13 @@ fn folder_and_whiteboard_writes_read_space_parent_and_revision_then_send_once() 
                     reply(created)?
                 });
             }
-            if mode == "trash" || mode == "trash_stale" {
-                replies.push(reply(native_item(
-                    kind,
-                    "401",
-                    if mode == "trash_stale" { 3 } else { 2 },
-                ))?);
+            if mode.starts_with("trash") {
+                let mut item = native_item(kind, "401", if mode == "trash_stale" { 3 } else { 2 });
+                if mode == "trash_not_empty" {
+                    item["directChildren"]["results"] =
+                        json!([{"id":"402","type":"page","status":"current","title":"Child"}]);
+                }
+                replies.push(reply(item)?);
                 if mode == "trash" {
                     replies.push(Reply::json(204, b"", &[]));
                 }
@@ -304,7 +306,7 @@ fn folder_and_whiteboard_writes_read_space_parent_and_revision_then_send_once() 
                     if mode == "create_in_folder" {
                         assert!(
                             requests.iter().any(|r| r.method == "GET"
-                                && r.target.ends_with("/wiki/api/v2/folders/400"))
+                                && r.target.contains("/wiki/api/v2/folders/400?"))
                         );
                     }
                 }
@@ -332,8 +334,14 @@ fn folder_and_whiteboard_writes_read_space_parent_and_revision_then_send_once() 
                             .ends_with(&format!("/wiki/api/v2/{collection}/401"))
                     );
                     assert!(!sends[0].target.contains("purge"));
+                    assert!(requests.iter().any(|r| {
+                        r.method == "GET"
+                            && r.target
+                                .contains(&format!("/wiki/api/v2/{collection}/401?"))
+                            && r.target.contains("include-direct-children=true")
+                    }));
                 }
-                "trash_stale" => {
+                "trash_stale" | "trash_not_empty" => {
                     assert_eq!(
                         result.envelope.error.ok_or("err")?.code,
                         ErrorCode::VersionConflict

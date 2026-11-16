@@ -141,11 +141,25 @@ pub(crate) fn route(kind: ContentKind) -> NativeRoute {
             .map(|p| RouteSegment::Literal(p.into()))
             .chain([RouteSegment::Parameter("id".into())])
             .collect(),
-        query_parameters: vec![],
+        query_parameters: vec!["include-direct-children".into()],
         repeated_query_parameters: vec![],
         continuation_parameters: vec![],
         response_max_bytes: 262_144,
     }
+}
+/// Whether a folder or whiteboard response lists any direct child. Requires the read to send
+/// `include-direct-children=true`; a missing or truncated listing is not evidence of emptiness.
+pub fn has_children(raw: &Value) -> Result<bool, CraftError> {
+    let children = raw.get("directChildren").ok_or_else(malformed)?;
+    let results = children
+        .get("results")
+        .and_then(Value::as_array)
+        .ok_or_else(malformed)?;
+    let more = children
+        .pointer("/meta/hasMore")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    Ok(more || !results.is_empty())
 }
 /// The native single-item read used by readers and write hosts alike.
 pub fn get_call(kind: ContentKind, id: &str) -> NativeCall {

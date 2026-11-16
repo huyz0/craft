@@ -16,7 +16,7 @@ Every write except space create needs an enabled `confluence-write` policy for t
 | `confluence.attachment.trash` | DELETE attachment, no `purge` | page, then the attachment matching the reviewed version and file ID | HTTP 204 |
 | `confluence.space.create` | POST space (v2) | exact-key space lookup with no results | HTTP 201 with numeric ID, same key and name |
 | `confluence.folder.create`, `confluence.whiteboard.create` | POST folder or whiteboard (v2) | current space; a named parent page or folder current in that space | HTTP 200 (or 201) with that type, space, title and parent |
-| `confluence.folder.trash`, `confluence.whiteboard.trash` | DELETE folder or whiteboard, no purge | the current item at the reviewed version | HTTP 204 |
+| `confluence.folder.trash`, `confluence.whiteboard.trash` | DELETE folder or whiteboard, no purge | the current, empty item at the reviewed version | HTTP 204 |
 
 ## Space create
 
@@ -28,9 +28,9 @@ Its authority is a site-level `confluence-admin` policy listing `confluence.spac
 
 `confluence folder get` and `confluence whiteboard get` take a numeric `id` and return its space, title, status, parent ID and type, and version. Each needs its own `confluence-read` allowance and `read:folder:confluence` or `read:whiteboard:confluence`. Author and owner account IDs are not returned, and whiteboard drawing content has no API.
 
-`create` takes `space_id`, `title` and `placement`: `{"kind":"root"}`, `{"kind":"page","id":…}` or `{"kind":"folder","id":…}`. Before sending, Craft reads the space and the named parent and refuses one that is not current in that space or is not of the named type. Root placement sends no `parentId`; on the test site Confluence then files the item under the space homepage. Whiteboards start blank: templates and private creation are not exposed. On the test site the CraftTest service account gets HTTP 404 from whiteboard create while folder create, whiteboard get and trash work; an account token can create whiteboards. A create is confirmed only when the response has the requested type, space, title and, when named, parent; a different type or space keeps no resource and stays unknown.
+`create` takes `space_id`, a `title` of at most 255 characters without surrounding spaces, and `placement`: `{"kind":"root"}`, `{"kind":"page","id":…}` or `{"kind":"folder","id":…}`. Before sending, Craft reads the space and the named parent and refuses one that is not current in that space or is not of the named type. Root placement sends no `parentId`; on the test site Confluence then files the item under the space homepage. Whiteboards start blank: templates and private creation are not exposed. On the test site the CraftTest service account gets HTTP 404 from whiteboard create while folder create, whiteboard get and trash work; an account token can create whiteboards. A create is confirmed only when the response has the requested type, space, title and, when named, parent; a different type or space keeps no resource and stays unknown.
 
-`trash` takes `id` and `expected` (`{"version":…}` from the matching get) and refuses a newer version or an item that is no longer current. The v2 routes move the item to the trash and offer no purge. Scopes are `write:folder:confluence` and `delete:folder:confluence`, or the whiteboard equivalents, plus `read:space:confluence` and the parent's read scope for create.
+`trash` takes `id` and `expected` (`{"version":…}` from the matching get) and refuses a newer version, an item that is no longer current or in another space, and an item that still has direct children: native trash would move the whole subtree with it, so trash or move the children first. The evidence read asks for `include-direct-children`. The v2 routes move the item to the trash and offer no purge. Scopes are `write:folder:confluence` and `delete:folder:confluence`, or the whiteboard equivalents, plus `read:space:confluence` and the parent's read scope for create.
 
 ## Page update and editor drafts
 

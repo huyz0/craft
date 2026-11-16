@@ -2,7 +2,7 @@
 //! parent page or folder when one is named; trash rechecks the reviewed version. Purge is not
 //! offered, and whiteboard templates and private creation are not exposed.
 use super::*;
-use crate::content::{ContentKind, observe};
+use crate::content::{ContentKind, has_children, observe};
 use craft_core::storage::SubmissionState;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,8 @@ pub const FOLDER_TRASH_ROUTE: &str = "confluence-folder-trash";
 pub const WHITEBOARD_CREATE_ROUTE: &str = "confluence-whiteboard-create";
 pub const WHITEBOARD_TRASH_ROUTE: &str = "confluence-whiteboard-trash";
 
-/// Where new content goes. `root` sends no parent; Confluence chooses the space-level position.
+/// Where new content goes. `root` sends no parent, and Confluence files the item under the space
+/// homepage.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ContentPlacement {
@@ -51,7 +52,10 @@ impl ContentCreateInput {
         if !numeric(&self.space_id) || self.placement.parent_id().is_some_and(|id| !numeric(id)) {
             return Err(invalid("/input", "expected_numeric_space_and_parent_id"));
         }
-        if !text(&self.title, 255) {
+        if !text(&self.title, usize::MAX)
+            || self.title.chars().count() > 255
+            || self.title.trim() != self.title
+        {
             return Err(invalid("/title", "expected_bounded_nonempty_title"));
         }
         Ok(())
@@ -80,7 +84,7 @@ impl ContentTrashInput {
         Ok(())
     }
 }
-pub(super) fn content_kind(kind: PageWriteKind) -> Option<ContentKind> {
+pub fn content_kind(kind: PageWriteKind) -> Option<ContentKind> {
     use PageWriteKind as K;
     match kind {
         K::FolderCreate | K::FolderTrash => Some(ContentKind::Folder),
@@ -177,13 +181,24 @@ pub fn prepare_content_trash(
         return Err(malformed());
     }
     let observed = observe(&item.body, content)?;
-    if observed.id != input.id || observed.space_id != input.space_id {
+    if observed.id != input.id {
         return Err(malformed());
     }
-    if observed.status != "current" || observed.version != input.expected.version {
+    if observed.space_id != input.space_id
+        || observed.status != "current"
+        || observed.version != input.expected.version
+    {
         return Err(CraftError::new(
             ErrorCode::VersionConflict,
             "The item changed since it was reviewed. Read it again before trashing it.",
+        ));
+    }
+    // Native trash also trashes everything inside; only empty items are trashed, so nothing
+    // unreviewed moves with it.
+    if has_children(&item.body)? {
+        return Err(CraftError::new(
+            ErrorCode::VersionConflict,
+            "The item is not empty. Trash or move its children first; trashing it would also trash them.",
         ));
     }
     let call = NativeCall {

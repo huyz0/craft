@@ -17126,7 +17126,7 @@
         "input_schema": {
           "$defs": {
             "ContentPlacement": {
-              "description": "Where new content goes. `root` sends no parent; Confluence chooses the space-level position.",
+              "description": "Where new content goes. `root` sends no parent, and Confluence files the item under the space\nhomepage.",
               "oneOf": [
                 {
                   "additionalProperties": false,
@@ -18518,7 +18518,9 @@
                 "value": "id"
               }
             ],
-            "query_parameters": [],
+            "query_parameters": [
+              "include-direct-children"
+            ],
             "response_max_bytes": 262144
           }
         ],
@@ -26627,7 +26629,7 @@
         "input_schema": {
           "$defs": {
             "ContentPlacement": {
-              "description": "Where new content goes. `root` sends no parent; Confluence chooses the space-level position.",
+              "description": "Where new content goes. `root` sends no parent, and Confluence files the item under the space\nhomepage.",
               "oneOf": [
                 {
                   "additionalProperties": false,
@@ -28019,7 +28021,9 @@
                 "value": "id"
               }
             ],
-            "query_parameters": [],
+            "query_parameters": [
+              "include-direct-children"
+            ],
             "response_max_bytes": 262144
           }
         ],

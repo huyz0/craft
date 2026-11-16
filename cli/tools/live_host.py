@@ -555,6 +555,9 @@ def content_lifecycle(state_root, space):
     def get(kind, ident):
         out = step(f"confluence.{kind}.get", run(state_root, "cf-test", f"confluence.{kind}.get", {"id": ident}))
         item = (out.get("data") or {}).get("item") or {}
+        if not item.get("version"):
+            raise SystemExit("
+".join(report + [f"stopping: no reviewed version for {kind} {ident}"]))
         report.append(f"  {kind} {ident}: status={item.get('status')} parent={item.get('parent_type')}:{item.get('parent_id')} version={item.get('version')}")
         return item
 
@@ -570,11 +573,16 @@ def content_lifecycle(state_root, space):
     nested = created(step("confluence.folder.create in folder", run(state_root, "cf-test", "confluence.folder.create", {
         "operation_id": f"craft-test-{stamp}-folder-nested", "apply": True, "space_id": space,
         "title": f"craft-test nested folder {stamp}", "placement": {"kind": "folder", "id": folder}})), "folder")
+    if nested:
+        item = get("folder", folder)
+        step("confluence.folder.trash non-empty", run(state_root, "cf-test", "confluence.folder.trash", {
+            "operation_id": f"craft-test-{stamp}-folder-nonempty", "apply": True, "space_id": space, "id": folder,
+            "expected": {"version": item["version"]}}), expect_ok=False, expect_code="VERSION_CONFLICT")
     for kind, ident, suffix in [("whiteboard", board, "whiteboard"), ("folder", nested, "folder-nested")]:
         if not ident:
             continue
         item = get(kind, ident)
-        version = item.get("version") or 1
+        version = item["version"]
         step(f"confluence.{kind}.trash stale version", run(state_root, "cf-test", f"confluence.{kind}.trash", {
             "operation_id": f"craft-test-{stamp}-{suffix}-stale", "apply": True, "space_id": space, "id": ident,
             "expected": {"version": version + 1}}), expect_ok=False, expect_code="VERSION_CONFLICT")
@@ -585,7 +593,7 @@ def content_lifecycle(state_root, space):
     item = get("folder", folder)
     step("confluence.folder.trash root", run(state_root, "cf-test", "confluence.folder.trash", {
         "operation_id": f"craft-test-{stamp}-folder-trash", "apply": True, "space_id": space, "id": folder,
-        "expected": {"version": item.get("version") or 1}}))
+        "expected": {"version": item["version"]}}))
     get("folder", folder)
     return report
 
@@ -667,6 +675,8 @@ def main():
         elif args.command == "space":
             report = space_create(args.state_root)
         elif args.command == "content":
+            if not args.space:
+                sys.exit("content needs --space")
             report = content_lifecycle(args.state_root, args.space)
         elif args.command == "scans":
             report = scans(args.state_root, [tuple(item.split("=", 1)) for item in args.wait])
