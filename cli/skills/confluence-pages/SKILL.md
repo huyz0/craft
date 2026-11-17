@@ -33,6 +33,7 @@ Everything here was checked on a live Confluence Cloud site: published through C
 - Pick the panel color by the message, not the section. A summary whose headline is "at risk" goes in the yellow caution panel, not the blue info panel. Use a lozenge only for a state that applies now; never add one for a hypothetical ("would turn OFF TRACK").
 - Show each fact once and in one form. If severity is a lozenge in the summary, make it a lozenge everywhere. Don't restate a diagram as a table of its boxes; a short numbered walk-through of the flow reads better.
 - Don't invent specifics the brief didn't give (extra causes, hosts, dates). When the page needs a value you don't have, write it as an assumption ("Proposed: …") or leave a clearly marked gap.
+- Give every action item and open question an owner (mention) and a date, and state each fact once: don't repeat the same duration or status in a properties table, a summary and a section.
 - Size every table's columns to their content ([tables](references/tables.md)). In key/value and time/event tables the label column is narrow (80 to 220px) and the text column gets the rest; a 50/50 split was the most common defect in review.
 
 ## Element chooser
