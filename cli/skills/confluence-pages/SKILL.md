@@ -66,6 +66,12 @@ Confluence stores a page's width in two page properties, `content-appearance-pub
 | `full_width` | Content grows with the window up to 1800px. |
 | `max` | Content spans the whole window with no cap. |
 
+```json
+{"operation_id": "widen-plan-1", "apply": true, "space_id": "229380", "page_id": "123456", "width": "full_width"}
+```
+
+It needs `confluence.page.width.set` in the space's confluence-write policy. It writes the published property first, then the draft, and never resends. On `PARTIAL_APPLY` (published confirmed, draft not) or an uncertain result, run it again with a new operation ID: it re-reads both properties and writes both at their next version.
+
 Use `fixed` for prose: long lines are hard to read. Use `full_width` for pages built around wide tables, roadmaps or two- and three-column layouts. Reserve `max` for dashboards and very wide tables. A body update keeps the width; you don't need to set it again after every edit.
 
 Table width is separate from page width (see [tables](references/tables.md)). A wide table on a fixed page can break out of the column, but a page full of wide tables reads better at `full_width`.
