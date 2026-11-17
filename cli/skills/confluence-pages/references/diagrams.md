@@ -23,6 +23,7 @@ Some sites have a Marketplace app that renders Mermaid. Find a page that already
    ```
 
    Size it to be read without zooming: render so the smallest text is at least 13px at the displayed width, and give a diagram with more than about six boxes `ac:width="760"` (the full fixed column). A blind review found a 10-box diagram with 9px subtitles unreadable at a 1280px window, while a larger one with 14px labels scored top marks.
+   A hand-written SVG has no automatic text layout. Budget about 7px per character at 12px and 8px at 14px, and make every box at least that wide plus 16px of padding; in testing, "durable, at-least-once" overflowed a 130px box. If a browser is available, open the SVG file locally and look at it before uploading.
 4. Keep the source next to it so the next editor can change it:
 
    ```xml
