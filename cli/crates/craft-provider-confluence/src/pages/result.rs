@@ -44,6 +44,8 @@ impl PreparedPageWrite {
             K::CommentCreate | K::SpaceCreate => 201,
             // The v2 reference documents 200 for these creates; 201 is accepted as the same effect.
             K::FolderCreate | K::WhiteboardCreate if response.status == 201 => 201,
+            // A property create may report 201; the confirmed body decides either way.
+            K::WidthSet if response.status == 201 && self.version == 0 => 201,
             _ => 200,
         };
         if deletion && response.status == 204 {
@@ -75,6 +77,7 @@ impl PreparedPageWrite {
                 K::ContentStateSet | K::ContentStateClear => {
                     matches!(response.status, 400 | 401 | 403 | 404)
                 }
+                K::WidthSet => matches!(response.status, 400 | 401 | 403 | 404 | 409),
             };
             result.state = if refusal {
                 SubmissionState::Failed
@@ -108,6 +111,25 @@ impl PreparedPageWrite {
         }
         if matches!(self.kind, K::FolderCreate | K::WhiteboardCreate) {
             return self.interpret_content(raw, result);
+        }
+        if self.kind == K::WidthSet {
+            // The page is the compiled target; it is reported only once the property is confirmed.
+            if self.width_confirmed(raw)
+                && let Some(id) = &self.id
+            {
+                result.resources.push(ResourceRef {
+                    resource_type: "page".into(),
+                    id: id.clone(),
+                    ..self.site.clone()
+                });
+                result.state = SubmissionState::Confirmed;
+            } else {
+                result.error = Some(failure(
+                    ErrorCode::WriteOutcomeUnknown,
+                    RequestState::SentUnknown,
+                ));
+            }
+            return result;
         }
         if matches!(self.kind, K::ContentStateSet | K::ContentStateClear) {
             // The page identity is the compiled target; only the badge outcome needs evidence.

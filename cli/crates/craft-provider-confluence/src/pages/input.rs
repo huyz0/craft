@@ -199,6 +199,7 @@ pub(super) fn validate_request(request: &CanonicalRequest) -> Result<(), CraftEr
         FOLDER_CREATE | WHITEBOARD_CREATE => parse::<ContentCreateInput>(&request.input)?
             .validate_for(request.command == WHITEBOARD_CREATE),
         FOLDER_TRASH | WHITEBOARD_TRASH => parse::<ContentTrashInput>(&request.input)?.validate(),
+        PAGE_WIDTH_SET => parse::<PageWidthSetInput>(&request.input)?.validate(),
         _ => Err(invalid("/command", "unknown_confluence_page_write")),
     }
 }

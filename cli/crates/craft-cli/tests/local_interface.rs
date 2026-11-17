@@ -55,6 +55,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "confluence.whiteboard.get",
         "confluence.whiteboard.create",
         "confluence.whiteboard.trash",
+        "confluence.page.width.set",
         "confluence.space.create",
         "confluence.attachment.upload",
         "confluence.attachment.replace",

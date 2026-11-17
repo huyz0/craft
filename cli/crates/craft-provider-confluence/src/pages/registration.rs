@@ -64,8 +64,8 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
         K::CommentUpdate | K::CommentDelete => {
             path.push(RouteSegment::Parameter("comment-id".into()))
         }
-        // Badge routes return above with their v1 shape.
-        K::ContentStateSet | K::ContentStateClear => {}
+        // Badge routes return above with their v1 shape; width declares its own property routes.
+        K::ContentStateSet | K::ContentStateClear | K::WidthSet => {}
     }
     NativeRoute {
         id: kind.route().into(),
@@ -75,7 +75,7 @@ pub(super) fn route(kind: PageWriteKind) -> NativeRoute {
             | K::SpaceCreate
             | K::FolderCreate
             | K::WhiteboardCreate => HttpMethod::Post,
-            K::Update | K::CommentUpdate => HttpMethod::Put,
+            K::Update | K::CommentUpdate | K::WidthSet => HttpMethod::Put,
             K::Trash
             | K::CommentDelete
             | K::ContentStateClear
@@ -175,6 +175,11 @@ impl ProviderModule for ConfluencePages {
                         "delete:whiteboard:confluence"
                     },
                 ),
+                PageWriteKind::WidthSet => (
+                    schema_for::<PageWidthSetInput>()?,
+                    json!({"space_id":"100","page_id":"101","width":"full_width"}),
+                    "write:page:confluence",
+                ),
                 PageWriteKind::AttachmentTrash => (
                     schema_for::<AttachmentTrashInput>()?,
                     json!({"space_id":"100","page_id":"101","id":"att301","expected":{"version":1,"file_id":"0b6f6a1c-file"}}),
@@ -204,6 +209,7 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::WhiteboardCreate => "Create a blank whiteboard in a space.",
                     PageWriteKind::FolderTrash => "Move a reviewed folder to the trash.",
                     PageWriteKind::WhiteboardTrash => "Move a reviewed whiteboard to the trash.",
+                    PageWriteKind::WidthSet => "Set the page display width for viewers and the editor.",
                     _ => "Prepare normal shared-page publication using verified context and a journaled host; publication is not approval.",
                 }.into(),
                 effect,
@@ -221,6 +227,7 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::SpaceCreate => "Global Create space permission; the v2 route needs role-based access control on the site.",
                     PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => "View the space and create content of this type in it.",
                     PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => "View the item and delete content of this type in its space.",
+                    PageWriteKind::WidthSet => "View and edit the page.",
                     _ => "Native Confluence space/content visibility and page creation or editing permissions.",
                 }.into()],
                 tenant_conditions:vec![match kind {
@@ -235,8 +242,9 @@ impl ProviderModule for ConfluencePages {
                     PageWriteKind::SpaceCreate => "Exact site/grant/actor under a site-level Confluence administration allowance; a fresh exact-key lookup must be empty.",
                     PageWriteKind::FolderCreate | PageWriteKind::WhiteboardCreate => "Exact site/space/grant/actor; the space, and a named parent page or folder, must be current in that space.",
                     PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => "Exact site/space/grant/actor; the item must be current in that space at the reviewed version. Trash is recoverable; purge is not offered.",
+                    PageWriteKind::WidthSet => "Exact site/space/grant/actor; the page must be current in that space. Writes content-appearance-published, then content-appearance-draft, each as a separately journaled step; the draft write is sent only after the published write is confirmed.",
                 }.into()],
-                routes:vec![route(kind)], retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
+                routes:if kind == PageWriteKind::WidthSet { width_writes::routes().to_vec() } else { vec![route(kind)] }, retry_class:RetryClass::ReconcileBeforeReplay, reconciliation:ReconciliationClass::KnownResource,
             };
             match kind {
                 PageWriteKind::Create => registry
@@ -279,9 +287,11 @@ impl ProviderModule for ConfluencePages {
                     descriptor,
                     Arc::new(Handler),
                 )?,
+                PageWriteKind::WidthSet => registry
+                    .register_typed_handler::<PageWidthSetInput>(descriptor, Arc::new(Handler))?,
             }
         }
-        Ok(())
+        width_writes::register_observe(registry)
     }
 }
 struct Handler;

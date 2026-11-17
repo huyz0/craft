@@ -102,6 +102,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "confluence.whiteboard.get"
                 | "confluence.whiteboard.create"
                 | "confluence.whiteboard.trash"
+                | "confluence.page.width.set"
                 | "jira.issue.get"
                 | "jira.issue.search"
                 | "jira.project.list"
@@ -190,6 +191,7 @@ pub fn accepts_profile_selection(command: &str) -> bool {
             | "confluence.whiteboard.get"
             | "confluence.whiteboard.create"
             | "confluence.whiteboard.trash"
+            | "confluence.page.width.set"
             | "jira.issue.get"
             | "jira.issue.search"
             | "jira.project.list"
@@ -495,6 +497,14 @@ pub enum ConfluencePageAction {
     Get(Box<crate::confluence_reads::command::ConfluenceGetArgs>),
     List(Box<crate::confluence_reads::command::ConfluencePageListArgs>),
     Search(Box<crate::confluence_reads::command::ConfluenceSearchArgs>),
+    Width {
+        #[command(subcommand)]
+        action: ConfluencePageWidthAction,
+    },
+}
+#[derive(Subcommand)]
+pub enum ConfluencePageWidthAction {
+    Set(Box<crate::confluence_pages::command::PageWidthSetArgs>),
 }
 
 #[derive(Subcommand)]

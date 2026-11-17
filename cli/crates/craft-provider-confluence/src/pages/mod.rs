@@ -7,6 +7,7 @@ mod input;
 mod registration;
 mod result;
 mod space_writes;
+mod width_writes;
 use crate::models::{numeric, text};
 pub use attachment_writes::{
     ATTACHMENT_TRASH, ATTACHMENT_TRASH_ROUTE, AttachmentRevision, AttachmentTrashInput,
@@ -44,6 +45,11 @@ pub use space_writes::{
     SPACE_CREATE, SPACE_CREATE_ROUTE, SpaceCreateInput, SpaceVisibility, prepare_space_create,
 };
 use std::collections::BTreeMap;
+pub use width_writes::{
+    PAGE_WIDTH_OBSERVE, PAGE_WIDTH_SET, PROPERTY_CREATE_ROUTE, PROPERTY_READ_ROUTE,
+    PROPERTY_UPDATE_ROUTE, PageWidth, PageWidthObserveInput, PageWidthSetInput, WidthProperty,
+    prepare_page_width_set, width_read_call,
+};
 
 pub const PAGE_CREATE: &str = "confluence.page.create";
 pub const PAGE_UPDATE: &str = "confluence.page.update";
@@ -70,6 +76,8 @@ pub enum PageWriteKind {
     FolderTrash,
     WhiteboardCreate,
     WhiteboardTrash,
+    /// Two journaled content-property writes; see `journal_steps`.
+    WidthSet,
 }
 impl PageWriteKind {
     pub fn command(self) -> &'static str {
@@ -88,6 +96,7 @@ impl PageWriteKind {
             Self::FolderTrash => FOLDER_TRASH,
             Self::WhiteboardCreate => WHITEBOARD_CREATE,
             Self::WhiteboardTrash => WHITEBOARD_TRASH,
+            Self::WidthSet => PAGE_WIDTH_SET,
         }
     }
     pub fn route(self) -> &'static str {
@@ -106,9 +115,19 @@ impl PageWriteKind {
             Self::FolderTrash => FOLDER_TRASH_ROUTE,
             Self::WhiteboardCreate => WHITEBOARD_CREATE_ROUTE,
             Self::WhiteboardTrash => WHITEBOARD_TRASH_ROUTE,
+            // Width sends a create or update per property; steps are named by property key.
+            Self::WidthSet => PROPERTY_UPDATE_ROUTE,
         }
     }
-    pub const ALL: [Self; 14] = [
+    /// The journal steps one operation of this kind may claim, in send order. Single-request
+    /// writes use their route; a width write claims one step per appearance property.
+    pub fn journal_steps(self) -> Vec<&'static str> {
+        match self {
+            Self::WidthSet => WidthProperty::ORDER.map(WidthProperty::key).to_vec(),
+            _ => vec![self.route()],
+        }
+    }
+    pub const ALL: [Self; 15] = [
         Self::Create,
         Self::Update,
         Self::Trash,
@@ -123,6 +142,7 @@ impl PageWriteKind {
         Self::FolderTrash,
         Self::WhiteboardCreate,
         Self::WhiteboardTrash,
+        Self::WidthSet,
     ];
     pub fn effect(self) -> EffectClass {
         match self {
@@ -243,7 +263,8 @@ pub struct PreparedPageWrite {
     site: ResourceRef,
     space_id: String,
     page_id: Option<String>,
-    /// A reply's parent comment, or the requested key for a space create.
+    /// A reply's parent comment, the requested key for a space create, or the content property
+    /// key for a width write.
     parent_id: Option<String>,
     id: Option<String>,
     title: String,

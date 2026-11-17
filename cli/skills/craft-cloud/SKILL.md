@@ -38,4 +38,6 @@ Read only the reference needed now:
 - [Recovery](references/recovery.md): failures, uncertain sends and existing runs.
 - [Whiteboards](references/whiteboards.md): create from templates, draw scenes by paste, read boards by copy.
 
+To write what goes inside a Confluence page (panels, lozenges, Jira links, tables, diagrams, page width), use the companion `confluence-pages` skill (`skills/confluence-pages`).
+
 Compatibility and unqualified host status are in [compatibility.json](compatibility.json). This development skill does not establish live provider or host support.

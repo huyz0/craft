@@ -309,6 +309,9 @@ pub fn action_command(action: &crate::args::ConfluenceAction) -> &'static str {
         A::Page {
             action: P::Search(_),
         } => PAGE_SEARCH,
+        A::Page {
+            action: P::Width { .. },
+        } => craft_provider_confluence::pages::PAGE_WIDTH_SET,
         A::Folder { action: F::Get(_) } => craft_provider_confluence::content::FOLDER_GET,
         A::Folder {
             action: F::Create(_),
@@ -394,6 +397,12 @@ pub fn action_arguments(action: &crate::args::ConfluenceAction) -> Result<Value,
         A::Page { action: P::List(v) } => encoded(v),
         A::Page {
             action: P::Search(v),
+        } => encoded(v),
+        A::Page {
+            action:
+                P::Width {
+                    action: crate::args::ConfluencePageWidthAction::Set(v),
+                },
         } => encoded(v),
         A::Folder { action: F::Get(v) } | A::Whiteboard { action: W::Get(v) } => encoded(v),
         A::Folder {

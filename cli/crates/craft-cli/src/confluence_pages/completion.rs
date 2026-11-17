@@ -36,7 +36,34 @@ pub struct PublicationData {
     pub editor_draft_policy: Option<pages::EditorDraftPolicy>,
     #[schemars(extend("const" = false))]
     pub editor_draft_preservation_verified: bool,
+    /// Present for width writes: the per-property outcome of the two appearance writes.
+    pub width: Option<PageWidthReceipt>,
     pub credential_cache_update: Option<CredentialCacheUpdate>,
+}
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PageWidthReceipt {
+    pub requested: pages::PageWidth,
+    /// Set only when both appearance properties were confirmed with the requested value.
+    pub confirmed: Option<pages::PageWidth>,
+    /// `content-appearance-published`: what viewers see.
+    pub published: RequestState,
+    /// `content-appearance-draft`: what the editor opens with; sent only after published is
+    /// confirmed.
+    pub draft: RequestState,
+}
+/// One claimed width-property step after its response was interpreted and recorded.
+pub(super) struct StepEvidence {
+    observed: pages::PageWriteObservation,
+    persisted: Result<JournalRecord, StoreError>,
+    pending_acknowledged: bool,
+    response: Option<(u16, Option<String>, Option<RetryAfter>)>,
+}
+impl StepEvidence {
+    /// Only a confirmed and durably recorded step allows the next property write.
+    pub(super) fn allows_next(&self) -> bool {
+        self.observed.state == SubmissionState::Confirmed && self.persisted.is_ok()
+    }
 }
 pub fn schema() -> Result<Value, CraftError> {
     response_schema::<PublicationData>()
@@ -44,11 +71,28 @@ pub fn schema() -> Result<Value, CraftError> {
 pub(super) struct Completion {
     binding: OperationBinding,
     command: String,
+    /// The first journal step; single-request writes have only this one.
     route: String,
+    /// Every journal step this operation may claim, in send order.
+    steps: Vec<String>,
+    width: Option<pages::PageWidth>,
     space_id: String,
     request_id: String,
     draft_policy: Option<pages::EditorDraftPolicy>,
     cache: Option<CredentialCacheUpdate>,
+}
+/// The whole operation from its steps in send order: uncertain if any step is, confirmed only if
+/// every step is, not sent if none was, and otherwise failed.
+fn overall(states: &[RequestState]) -> RequestState {
+    if states.contains(&RequestState::SentUnknown) {
+        RequestState::SentUnknown
+    } else if states.iter().all(|s| *s == RequestState::Confirmed) {
+        RequestState::Confirmed
+    } else if states.iter().all(|s| *s == RequestState::NotSent) {
+        RequestState::NotSent
+    } else {
+        RequestState::Failed
+    }
 }
 fn request_state(state: SubmissionState) -> RequestState {
     match state {
@@ -79,10 +123,18 @@ impl Completion {
             ));
         }
         let command = operation.request().command.clone();
-        let route = pages::PageWriteKind::from_command(&command)
-            .ok_or_else(denied)?
-            .route()
-            .to_string();
+        let kind = pages::PageWriteKind::from_command(&command).ok_or_else(denied)?;
+        let steps: Vec<String> = kind.journal_steps().into_iter().map(String::from).collect();
+        let route = steps.first().cloned().ok_or_else(denied)?;
+        let width = if kind == pages::PageWriteKind::WidthSet {
+            Some(
+                serde_json::from_value::<PageWidthSetInput>(operation.request().input.clone())
+                    .map_err(|_| denied())?
+                    .width,
+            )
+        } else {
+            None
+        };
         let draft_policy = (command == PAGE_UPDATE)
             .then_some(pages::EditorDraftPolicy::NativeReconciliationMayOverwrite);
         let resource = ResourceRef {
@@ -93,15 +145,20 @@ impl Completion {
         let journal = JournalRecord {
             binding: binding.clone(),
             revision: u64::MAX,
-            steps: BTreeMap::from([(
-                route.clone(),
-                JournalStep {
-                    request_digest: Some(format!("sha256:{}", "f".repeat(64))),
-                    state: SubmissionState::Unknown,
-                    confirmed_resources: vec![resource.clone()],
-                    job: None,
-                },
-            )]),
+            steps: steps
+                .iter()
+                .map(|step| {
+                    (
+                        step.clone(),
+                        JournalStep {
+                            request_digest: Some(format!("sha256:{}", "f".repeat(64))),
+                            state: SubmissionState::Unknown,
+                            confirmed_resources: vec![resource.clone()],
+                            job: None,
+                        },
+                    )
+                })
+                .collect(),
         };
         let data = PublicationData {
             receipt: OperationReceipt {
@@ -122,6 +179,12 @@ impl Completion {
             replay_authorized: false,
             editor_draft_policy: draft_policy,
             editor_draft_preservation_verified: false,
+            width: width.map(|requested| PageWidthReceipt {
+                requested,
+                confirmed: Some(requested),
+                published: RequestState::SentUnknown,
+                draft: RequestState::SentUnknown,
+            }),
             credential_cache_update: Some(CredentialCacheUpdate {
                 grant: GrantRef {
                     id: "g".repeat(512),
@@ -154,6 +217,8 @@ impl Completion {
             binding,
             command,
             route,
+            steps,
+            width,
             space_id: space_id.into(),
             request_id: request_id.into(),
             draft_policy,
@@ -206,6 +271,12 @@ impl Completion {
             replay_authorized: false,
             editor_draft_policy: self.draft_policy,
             editor_draft_preservation_verified: false,
+            width: self.width.map(|requested| PageWidthReceipt {
+                requested,
+                confirmed: None,
+                published: RequestState::NotSent,
+                draft: RequestState::NotSent,
+            }),
             credential_cache_update: self.cache.clone(),
         }
     }
@@ -256,21 +327,36 @@ impl Completion {
         } else {
             RequestState::NotSent
         };
-        let state = prior
-            .and_then(|p| p.steps.get(&self.route))
-            .map_or(initial, |s| {
-                if initial == RequestState::SentUnknown && s.state == SubmissionState::Prepared {
-                    initial
-                } else {
-                    request_state(s.state)
-                }
-            });
+        // Each step reads as its recorded state; a single-step write keeps its original rule.
+        let recorded: Vec<_> = self
+            .steps
+            .iter()
+            .map(|step| {
+                prior
+                    .and_then(|p| p.steps.get(step))
+                    .map_or(RequestState::NotSent, |s| request_state(s.state))
+            })
+            .collect();
+        let state = if prior.is_some_and(|p| self.steps.iter().any(|s| p.steps.contains_key(s))) {
+            let worst = overall(&recorded);
+            if initial == RequestState::SentUnknown && worst == RequestState::NotSent {
+                initial
+            } else {
+                worst
+            }
+        } else {
+            initial
+        };
         let mut data = self.data(state);
+        if let Some(width) = data.width.as_mut() {
+            width.published = recorded.first().copied().unwrap_or(RequestState::NotSent);
+            width.draft = recorded.get(1).copied().unwrap_or(RequestState::NotSent);
+        }
         if let Some(prior) = prior {
             self.retain_record(&mut data, prior);
             data.persistence = Persistence::Recorded;
-            data.reconciliation_required =
-                state != RequestState::NotSent || prior.steps.keys().any(|s| s != &self.route);
+            data.reconciliation_required = state != RequestState::NotSent
+                || prior.steps.keys().any(|s| !self.steps.contains(s));
         }
         error.details.write_state = state;
         self.result(data, Some(error), vec![])
@@ -395,5 +481,175 @@ impl Completion {
             error.details.write_state = data.receipt.request_state;
         }
         self.result(data, observed.error, warnings)
+    }
+}
+/// Width writes claim one journal step per appearance property under the same operation.
+impl Completion {
+    /// Interprets and records one claimed property step. Only this step's own response and
+    /// record decide its outcome; evidence from the other step never upgrades or downgrades it.
+    pub(super) fn record_step(
+        &self,
+        attempt: &MutationAttempt,
+        write: &PreparedPageWrite,
+    ) -> StepEvidence {
+        let step = write.width_property().unwrap_or_default();
+        let recognized = attempt.binding() == &self.binding
+            && attempt.command() == self.command
+            && attempt.route() == write.call().route
+            && attempt.step() == step
+            && self.steps.iter().any(|s| s == step);
+        let observed = match &attempt.response {
+            Ok(response) if recognized => write.interpret(response),
+            _ => pages::PageWriteObservation {
+                state: SubmissionState::Unknown,
+                resources: vec![],
+                version: None,
+                error: Some(failure(
+                    attempt
+                        .response
+                        .as_ref()
+                        .err()
+                        .map_or(ErrorCode::PolicyDenied, |e| e.code),
+                    RequestState::SentUnknown,
+                    "The claimed width property write lacks qualified response evidence.",
+                )),
+            },
+        };
+        let outcome = StepOutcome {
+            state: observed.state,
+            confirmed_resources: observed.resources.clone(),
+            job: None,
+        };
+        let persisted = attempt.record_outcome(&outcome).and_then(|record| {
+            record.validate()?;
+            if record.binding != self.binding
+                || record.steps.get(step).is_none_or(|s| {
+                    s.state != outcome.state
+                        || outcome
+                            .confirmed_resources
+                            .iter()
+                            .any(|r| !s.confirmed_resources.contains(r))
+                })
+            {
+                return Err(StoreError::Conflict);
+            }
+            Ok(record)
+        });
+        StepEvidence {
+            observed,
+            persisted,
+            pending_acknowledged: attempt.pending_evidence.is_ok(),
+            response: attempt
+                .response
+                .as_ref()
+                .ok()
+                .map(|r| (r.status, r.request_id.clone(), r.retry_after)),
+        }
+    }
+    /// Builds one receipt from the claimed steps in send order. `stopped` is the error that kept
+    /// a later step from being claimed, if any; that step stays not sent.
+    pub(super) fn finish_steps(
+        self,
+        steps: Vec<StepEvidence>,
+        stopped: Option<CraftError>,
+    ) -> CommandResult {
+        // An unacknowledged claim of the next step may already have been sent.
+        let stopped_unknown = stopped
+            .as_ref()
+            .is_some_and(|e| e.code == ErrorCode::WriteOutcomeUnknown);
+        let states: Vec<_> = (0..self.steps.len())
+            .map(|i| match steps.get(i) {
+                Some(s) => request_state(s.observed.state),
+                None if i == steps.len() && stopped_unknown => RequestState::SentUnknown,
+                None => RequestState::NotSent,
+            })
+            .collect();
+        let state = overall(&states);
+        let mut data = self.data(state);
+        let mut warnings = vec![];
+        let mut error = None;
+        for evidence in &steps {
+            match &evidence.persisted {
+                Ok(record) => {
+                    self.retain_record(&mut data, record);
+                    data.persistence = Persistence::Recorded;
+                }
+                Err(store) => {
+                    data.persistence = if *store == StoreError::OutcomeUnknown {
+                        Persistence::Uncertain
+                    } else {
+                        Persistence::Unrecorded
+                    };
+                    warnings.push("Final local recording was not acknowledged. Retain the remote evidence and inspect the journal before another page write.".into());
+                    error.get_or_insert_with(|| {
+                        failure(
+                            ErrorCode::Internal,
+                            state,
+                            "A width property write was observed but its local receipt was not durably acknowledged.",
+                        )
+                    });
+                }
+            }
+            if !evidence.pending_acknowledged {
+                warnings.push("The initial uncertainty update was not acknowledged. Inspect final persistence and retain this receipt.".into());
+            }
+            if let Some((status, request_id, retry_after)) = &evidence.response {
+                data.http_status = Some(*status);
+                data.provider_request_id = request_id.clone();
+                data.retry_after = *retry_after;
+            }
+        }
+        // The first unconfirmed step explains the stop; a later step was never claimed.
+        if let Some(step_error) = steps
+            .iter()
+            .find(|s| s.observed.state != SubmissionState::Confirmed)
+            .and_then(|s| s.observed.error.clone())
+        {
+            error = Some(step_error);
+        }
+        let confirmed = states
+            .iter()
+            .filter(|s| **s == RequestState::Confirmed)
+            .count();
+        if confirmed > 0 && confirmed < states.len() {
+            // Viewers may see the new width while the editor still opens with the old one.
+            let mut partial = failure(
+                ErrorCode::PartialApply,
+                state,
+                "Only some page appearance properties were confirmed.",
+            );
+            partial.next_action = "Retain this receipt and do not replay this operation. A new operation ID re-reads both properties and rewrites them.".into();
+            error = Some(partial);
+        } else if error.is_none()
+            && let Some(stopped) = stopped
+        {
+            error = Some(stopped);
+        }
+        data.receipt.request_state = state;
+        for evidence in &steps {
+            for r in &evidence.observed.resources {
+                if !data.receipt.confirmed_resources.contains(r) {
+                    data.receipt.confirmed_resources.push(r.clone());
+                }
+            }
+        }
+        if error.is_none() && data.receipt.confirmed_resources.len() != 1 {
+            error = Some(failure(
+                ErrorCode::PartialApply,
+                state,
+                "Additional recorded resource evidence requires inspection.",
+            ));
+        }
+        if let Some(width) = data.width.as_mut() {
+            width.published = states.first().copied().unwrap_or(RequestState::NotSent);
+            width.draft = states.get(1).copied().unwrap_or(RequestState::NotSent);
+            width.confirmed =
+                (state == RequestState::Confirmed && error.is_none()).then_some(width.requested);
+        }
+        data.reconciliation_required = error.is_some();
+        if let Some(error) = error.as_mut() {
+            error.details.write_state = state;
+        }
+        self.result(data, error, warnings)
     }
 }

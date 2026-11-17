@@ -114,6 +114,9 @@ impl ProviderModule for CloudCommands {
                 "confluence.content-state.set" => {
                     register!(crate::confluence_pages::command::ContentStateSetArgs)
                 }
+                "confluence.page.width.set" => {
+                    register!(crate::confluence_pages::command::PageWidthSetArgs)
+                }
                 "confluence.content-state.clear" => {
                     register!(crate::confluence_pages::command::ContentStateClearArgs)
                 }

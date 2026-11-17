@@ -25,9 +25,10 @@ use craft_provider_confluence::pages::{
     CONTENT_STATE_CLEAR, CONTENT_STATE_SET, CommentCreateInput, CommentDeleteInput,
     CommentUpdateInput, ConfluencePages, ContentCreateInput, ContentPlacement,
     ContentStateClearInput, ContentStateSetInput, ContentTrashInput, FOLDER_CREATE, FOLDER_TRASH,
-    PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE, PageCreateInput, PagePlacement, PageTrashInput,
-    PageUpdateInput, PageWriteKind, PreparedPageWrite, SPACE_CREATE, SpaceCreateInput,
-    WHITEBOARD_CREATE, WHITEBOARD_TRASH,
+    PAGE_CREATE, PAGE_TRASH, PAGE_UPDATE, PAGE_WIDTH_OBSERVE, PAGE_WIDTH_SET, PageCreateInput,
+    PagePlacement, PageTrashInput, PageUpdateInput, PageWidthSetInput, PageWriteKind,
+    PreparedPageWrite, SPACE_CREATE, SpaceCreateInput, WHITEBOARD_CREATE, WHITEBOARD_TRASH,
+    WidthProperty,
 };
 use craft_provider_confluence::{ConfluenceContext, PAGE_GET, SPACE_GET, SPACE_LIST};
 use craft_runtime::auth::{ServiceOAuthClient, VerifiedServiceAccess};
@@ -61,6 +62,7 @@ enum Intent {
     /// Folder or whiteboard create; the kind selects the native type.
     ContentCreate(PageWriteKind, ContentCreateInput),
     ContentTrash(PageWriteKind, ContentTrashInput),
+    WidthSet(PageWidthSetInput),
 }
 fn content_kind(kind: PageWriteKind) -> Result<ContentKind, CraftError> {
     pages::content_kind(kind).ok_or_else(denied)
@@ -84,6 +86,7 @@ impl Intent {
             PageWriteKind::FolderTrash | PageWriteKind::WhiteboardTrash => {
                 Self::ContentTrash(kind, decode(input)?)
             }
+            PageWriteKind::WidthSet => Self::WidthSet(decode(input)?),
         })
     }
     fn kind(&self) -> PageWriteKind {
@@ -99,6 +102,7 @@ impl Intent {
             Self::AttachmentTrash(_) => PageWriteKind::AttachmentTrash,
             Self::SpaceCreate(_) => PageWriteKind::SpaceCreate,
             Self::ContentCreate(kind, _) | Self::ContentTrash(kind, _) => *kind,
+            Self::WidthSet(_) => PageWriteKind::WidthSet,
         }
     }
     fn space_id(&self) -> &str {
@@ -114,6 +118,7 @@ impl Intent {
             Self::AttachmentTrash(i) => &i.space_id,
             Self::ContentCreate(_, i) => &i.space_id,
             Self::ContentTrash(_, i) => &i.space_id,
+            Self::WidthSet(i) => &i.space_id,
             // Site-level: no existing space binds this write; authority is the site policy.
             Self::SpaceCreate(_) => "",
         }
@@ -261,6 +266,19 @@ impl PreparedPagePublication {
             preconditions: None,
         })
     }
+    fn width_operation(
+        &self,
+        page_id: &str,
+        property: WidthProperty,
+    ) -> Result<PreparedOperation, CraftError> {
+        self.registry.prepare(CanonicalRequest {
+            command: PAGE_WIDTH_OBSERVE.into(),
+            target: self.binding.target.clone(),
+            input: json!({"page_id":page_id,"key":property}),
+            selection: Selection::default(),
+            preconditions: None,
+        })
+    }
     fn check_access(&self, access: &VerifiedServiceAccess) -> Result<(), CraftError> {
         if access.tenant() != &self.binding.target.tenant_ref()
             || access.grant() != &self.binding.grant
@@ -368,6 +386,18 @@ impl PreparedPagePublication {
                 &self.registry,
                 &self.read_operation(content_kind(*kind)?.get_command(), &input.id, None, None)?,
             )?,
+            Intent::WidthSet(PageWidthSetInput { page_id, .. }) => {
+                access.check_operation(
+                    &self.registry,
+                    &self.read_operation(PAGE_GET, page_id, None, None)?,
+                )?;
+                for property in WidthProperty::ORDER {
+                    access.check_operation(
+                        &self.registry,
+                        &self.width_operation(page_id, property)?,
+                    )?;
+                }
+            }
         }
         Ok(())
     }
@@ -380,12 +410,12 @@ impl PreparedPagePublication {
         })
     }
     fn check_prior(&self, prior: Option<&JournalRecord>) -> Result<(), CraftError> {
-        let route = self.intent.kind().route();
+        let steps = self.intent.kind().journal_steps();
         if prior.is_some_and(|p| {
             p.binding != self.binding
-                || p.steps
-                    .iter()
-                    .any(|(step, s)| step != route || s.state != SubmissionState::Prepared)
+                || p.steps.iter().any(|(step, s)| {
+                    !steps.contains(&step.as_str()) || s.state != SubmissionState::Prepared
+                })
         }) {
             return Err(CraftError::new(
                 ErrorCode::OperationIdReused,
@@ -476,7 +506,76 @@ impl PreparedPagePublication {
         }
         Ok(response)
     }
+    /// Compiles the writes in send order: one for most intents, one per appearance property for
+    /// a width write.
     fn qualify(
+        &self,
+        access: &VerifiedServiceAccess,
+        tls: &TlsPolicy,
+        control: &InvocationControl,
+        check_policy: &impl Fn() -> Result<(), CraftError>,
+    ) -> Result<Vec<PreparedPageWrite>, CraftError> {
+        let Intent::WidthSet(PageWidthSetInput { page_id, .. }) = &self.intent else {
+            return Ok(vec![self.qualify_one(
+                access,
+                tls,
+                control,
+                check_policy,
+            )?]);
+        };
+        let page = self.page_evidence(access, tls, control, page_id, check_policy)?;
+        let published = self.read_width(
+            access,
+            tls,
+            control,
+            page_id,
+            WidthProperty::Published,
+            check_policy,
+        )?;
+        let draft = self.read_width(
+            access,
+            tls,
+            control,
+            page_id,
+            WidthProperty::Draft,
+            check_policy,
+        )?;
+        pages::prepare_page_width_set(&self.operation, &page, &published, &draft)
+    }
+    /// Reads one appearance property by key under the same policy and access rechecks as `read`.
+    fn read_width(
+        &self,
+        access: &VerifiedServiceAccess,
+        tls: &TlsPolicy,
+        control: &InvocationControl,
+        page_id: &str,
+        property: WidthProperty,
+        check_policy: &impl Fn() -> Result<(), CraftError>,
+    ) -> Result<NativeResponse, CraftError> {
+        check_policy()?;
+        self.check_access(access)?;
+        let operation = self.width_operation(page_id, property)?;
+        let mut context =
+            access.read_context(&self.registry, &operation, tls.clone(), control.clone())?;
+        let response = context.invoke(&pages::width_read_call(page_id, property))?;
+        check_policy()?;
+        self.check_access(access)?;
+        if response.status != 200 {
+            let mut error = CraftError::new(
+                if response.status == 429 {
+                    ErrorCode::RateLimited
+                } else {
+                    ErrorCode::RemoteUnavailable
+                },
+                "Required current page appearance evidence was not returned; no width write was sent.",
+            );
+            error.next_action =
+                "Read the page with the same service identity before retrying preparation.".into();
+            return Err(error);
+        }
+        Ok(response)
+    }
+    fn qualify_one(
         &self,
         access: &VerifiedServiceAccess,
         tls: &TlsPolicy,
@@ -709,6 +808,7 @@ impl PreparedPagePublication {
                 )?;
                 pages::prepare_content_trash(&self.operation, &item)
             }
+            Intent::WidthSet(_) => Err(denied()),
         }
     }
     fn page_evidence(
@@ -766,23 +866,30 @@ impl PreparedPagePublication {
             }
         };
         self.completion.cache_success(&access);
-        let mut write = None;
-        let result = (|| {
+        let qualified = (|| {
             control.check()?;
             self.check_access(&access)?;
             check_policy()?;
-            // Preserve the original observation age across every read and the journal claim wait.
+            // Preserve the original observation age across every read and every journal claim
+            // wait, including a width write's second property step.
             let freshness = Freshness::capture(access.clock());
-            write = Some(self.qualify(&access, &tls, &control, &check_policy)?);
-            let frozen = write.as_ref().ok_or_else(denied)?;
+            let writes = self.qualify(&access, &tls, &control, &check_policy)?;
+            Ok((freshness, writes))
+        })();
+        let (freshness, writes) = match qualified {
+            Ok(qualified) => qualified,
+            Err(error) => return self.completion.claim_failure(error, prior.as_ref()),
+        };
+        // Claims and sends one compiled write under its own journal step.
+        let send = |write: &PreparedPageWrite, step: &str| {
             freshness.check()?;
             check_policy()?;
             let mutation = access.prepare_mutation(
                 &self.registry,
                 &self.operation,
-                tls,
-                control,
-                frozen.call(),
+                tls.clone(),
+                control.clone(),
+                write.call(),
             )?;
             mutation.send_checked(
                 &journal,
@@ -792,21 +899,55 @@ impl PreparedPagePublication {
                     grant: access.grant(),
                     actor: access.identity().actor(),
                 },
-                &frozen.call().route,
+                step,
                 || {
                     self.check_access(&access)?;
-                    if frozen.operation_digest() != self.operation.digest() {
+                    if write.operation_digest() != self.operation.digest() {
                         return Err(denied());
                     }
                     freshness.check()?;
                     check_policy()
                 },
             )
-        })();
-        match (result, write) {
-            (Ok(attempt), Some(write)) => self.completion.finish(&attempt, &write),
-            (Err(error), _) => self.completion.claim_failure(error, prior.as_ref()),
-            _ => self.completion.before_send(denied(), prior.as_ref()),
+        };
+        if !matches!(self.intent, Intent::WidthSet(_)) {
+            let Ok([write]) = <[PreparedPageWrite; 1]>::try_from(writes) else {
+                return self.completion.before_send(denied(), prior.as_ref());
+            };
+            return match send(&write, &write.call().route) {
+                Ok(attempt) => self.completion.finish(&attempt, &write),
+                Err(error) => self.completion.claim_failure(error, prior.as_ref()),
+            };
         }
+        // Each property step is claimed only after the previous one is confirmed and recorded;
+        // an uncertain or refused step stops the operation and nothing is ever resent.
+        let mut evidence = Vec::new();
+        let mut stopped = None;
+        for write in &writes {
+            let Some(step) = write.width_property() else {
+                stopped = Some(denied());
+                break;
+            };
+            match send(write, step) {
+                Ok(attempt) => {
+                    let recorded = self.completion.record_step(&attempt, write);
+                    let next = recorded.allows_next();
+                    evidence.push(recorded);
+                    if !next {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    stopped = Some(error);
+                    break;
+                }
+            }
+        }
+        if evidence.is_empty() {
+            return self
+                .completion
+                .claim_failure(stopped.unwrap_or_else(denied), prior.as_ref());
+        }
+        self.completion.finish_steps(evidence, stopped)
     }
 }
