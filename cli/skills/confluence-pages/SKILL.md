@@ -86,6 +86,15 @@ Table width is separate from page width (see [tables](references/tables.md)). A 
 - Read-back is normalized: Confluence adds `ac:macro-id`, `ac:schema-version`, `containerLevel` parameters and may wrap the body in `ac:layout`. Don't diff read-back against what you sent; check that each element survived.
 - ADF `date` timestamps are milliseconds since the epoch at UTC midnight. A local-midnight timestamp can show the previous day.
 - An ADF Jira `inlineCard` is stored as a `jira` macro; both render the same live issue chip.
+- A panel's `title` parameter is plain text. Date elements, mentions or lozenges put there are silently dropped; put them in the panel body.
+- A Jira smart link already shows the issue's live status. Don't add a hand-set lozenge next to it that repeats (and can contradict) that status.
+
+## Craft details that trip up page writes
+
+- `confluence.page.update` takes `space_id`, `id`, a fresh `expected` revision and the new body under `changes.body`; without `space_id` it fails with `TARGET_AMBIGUOUS`.
+- `confluence.attachment.upload` needs `file_root` as an absolute path (on Windows, `D:\\...`); a relative root is refused.
+- `schema` and `input validate` are local commands and reject `--state-root`/`--profile`; pass those only to cloud commands.
+- `page get` returns no body unless you ask for `body_storage` or `body_atlas_doc_format` in `--fields`. Large bodies need a higher `--max-bytes`.
 
 ## Learn from existing pages
 

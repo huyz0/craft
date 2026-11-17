@@ -30,17 +30,19 @@ Make the column widths add up to the table width. A good allocation:
 
    | Content | Width (px) |
    | --- | --- |
-   | Row number, short ID, checkbox, emoji | 80 (the rendered minimum) |
-   | Issue key (`PROJ-1234`) or inline Jira chip without summary | 110 to 130 |
-   | Status lozenge | 120 to 150 (longest lozenge text × ~8 + 40) |
-   | Date | 120 to 130 |
-   | Person mention | 150 to 180 |
+   | Row number, short ID, checkbox, emoji, time (`09:14`) | 80 (the rendered minimum) |
+   | Status lozenge | 110 to 150 (longest lozenge text × 8 + 40) |
+   | Date element | 140 (125 wrapped "Nov 30, 2026" onto two lines in testing) |
+   | Person mention | 160 to 180 |
    | Number, money, percentage | 90 to 110 |
+   | Jira smart link with summary and status | 220 to 260 |
+   | Key label in a two-column key/value table | 160 to 220 (the value column gets the rest, never 50/50) |
+   | Code identifiers (`jira:issue_created`) | longest identifier × 9 + 30, because code does not wrap at word boundaries (170 split an 18-character event name mid-word) |
 
 2. **Share the rest by text length.** For each remaining column, measure the longest cell in characters, capped at about 60 (long text wraps anyway), with a floor of the header's length. Split the remaining width in proportion to those measures, with a minimum of 120px each.
 3. **Round to whole pixels** and put any rounding remainder on the widest text column so the total matches exactly.
 
-Example on a fixed page (760px): columns ID, Summary, Owner, Status, Due. Fixed: ID 80, Owner 160, Status 130, Due 120 = 490. Summary gets 760 − 490 = 270.
+Example on a fixed page (760px): columns ID, Summary, Owner, Status, Due. Fixed: ID 80, Owner 160, Status 130, Due 140 = 510. Summary gets 760 − 510 = 250.
 
 If the fixed columns alone take more than about 60% of the table, the table is too dense for a fixed page: widen the table (and the page), drop a column, or move detail to a second table.
 
