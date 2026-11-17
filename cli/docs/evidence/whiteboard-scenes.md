@@ -15,6 +15,14 @@ With the site owner's approval and signed-in browser session, in the test space:
 - All 45 stamp sprite identifiers (taken from the editor's stamp message keys) pasted and rendered their images. A Smart Link record with a Jira work item URL unfurled into a card showing the item key, summary and status.
 - A paste dispatched before any real pointer click on the canvas did nothing at first and was applied later, after the next click, which duplicated content when the paste had been retried.
 
+## Labels, groups, rotation and stacking (17 November 2026)
+
+- Connector labels are separate `pathLabel` records that reference their path by `sourcePathIndex` and sit at `proportion` (0 to 1) along it; a pasted label rendered on its connector.
+- Group elements (context menu Group elements, Ctrl+G) copy as a `group` record with `children` IDs and `childrenIndices`. A pasted group needs `position` and `size` as well; without them the members pasted ungrouped. With them, clicking a member selected the whole group.
+- `rotation` is radians: a pasted 45 came back as 45 mod 2 pi (1.0177) and drew a turned shape, while 0.785 drew a 45 degree turn. Scenes now take degrees (positive is clockwise) and Craft converts; earlier encodes passed the value through unconverted.
+- Stacking follows array order for boxes (a later shape drew above an earlier overlapping one); copies list connectors after boxes. The context menu offers Bring to front and Send to back.
+- Confluence whiteboards have no frame element; sections are the only container.
+
 ## Live end-to-end run
 
 `craft whiteboard encode` output for a 13-element scene (section, three shapes, two stickies, five connectors, an attached stamp and a text block) was pasted into a new board after a canvas click. Copying the pasted group back and comparing it with the encoded records found the same 13 records apart from key order, one constant placement offset, every connector bound to the intended elements (Start to Build, Build to Green?, Green? to Ship it and to Fix and retry, Fix and retry back to Build) and the stamp attached to its sticky. A 31-element demo scene (three sections, flowchart, architecture icons, retro stickies with stamps, an ADF legend) then pasted with all nine connectors bound.

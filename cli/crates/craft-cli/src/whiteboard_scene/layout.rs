@@ -59,7 +59,7 @@ pub fn layout(scene: &Scene, options: &Options) -> Scene {
     let edges = edges(&scene);
     let mut sizes = Vec::new();
     let positions = match options.algorithm {
-        Algorithm::Layered => layered(&scene, &nodes, &edges, options),
+        Algorithm::Layered => layered(&scene, &nodes, &edges, &members, options),
         Algorithm::Tree => tree(&scene, &nodes, &edges, options),
         Algorithm::Grid => grid(&scene, &nodes, &members, options, &mut sizes),
     };
@@ -134,6 +134,7 @@ fn layered(
     scene: &Scene,
     nodes: &[usize],
     edges: &[(usize, usize)],
+    members: &HashMap<usize, usize>,
     options: &Options,
 ) -> Vec<(usize, (f64, f64))> {
     if nodes.is_empty() {
@@ -192,6 +193,27 @@ fn layered(
                 ready.insert(w);
             }
         }
+    }
+    // Sections are tiers: all nodes of a section share one layer (the earliest any of them
+    // reached), and no two sections or loose layers share a layer, so each section becomes one
+    // column (or row) that its refitted box can wrap without overlapping another.
+    let tiered = (0..n).any(|v| members.contains_key(&nodes[v]));
+    if tiered {
+        let mut tier: BTreeMap<usize, usize> = BTreeMap::new();
+        for v in 0..n {
+            if let Some(section) = members.get(&nodes[v]) {
+                let entry = tier.entry(*section).or_insert(layer[v]);
+                *entry = (*entry).min(layer[v]);
+            }
+        }
+        let key = |v: usize| match members.get(&nodes[v]) {
+            Some(section) => (tier[section], 0, *section),
+            None => (layer[v], 1, usize::MAX),
+        };
+        let keys: std::collections::BTreeSet<(usize, usize, usize)> = (0..n).map(key).collect();
+        let rank: HashMap<(usize, usize, usize), usize> =
+            keys.into_iter().enumerate().map(|(r, k)| (k, r)).collect();
+        layer = (0..n).map(|v| rank[&key(v)]).collect();
     }
     let depth = layer.iter().copied().max().unwrap_or(0) + 1;
     // Long edges get one placeholder per skipped layer so ordering and spacing keep a lane free
@@ -265,25 +287,81 @@ fn layered(
             layers[l] = keyed.into_iter().map(|(_, _, v)| v).collect();
         }
     }
-    let layer_gap = options.gap * 1.5;
+    // Cross-axis centers: start packed and centered, then pull each node toward the mean of its
+    // neighbours in the adjacent layer (alternating directions) while keeping order and spacing,
+    // so chains run straight instead of zigzagging.
+    let total = virtual_layer.len();
+    let mut center = vec![0.0f64; total];
+    for members in &layers {
+        let span: f64 = members.iter().map(|v| lane(*v).1).sum::<f64>()
+            + options.gap * members.len().saturating_sub(1) as f64;
+        let mut cursor = -span / 2.0;
+        for v in members {
+            let across = lane(*v).1;
+            center[*v] = cursor + across / 2.0;
+            cursor += across + options.gap;
+        }
+    }
+    for pass in 0..8 {
+        let downward = pass % 2 == 0;
+        let order: Vec<usize> = if downward {
+            (1..depth).collect()
+        } else {
+            (0..depth.saturating_sub(1)).rev().collect()
+        };
+        for l in order {
+            let members = &layers[l];
+            let desired: Vec<f64> = members
+                .iter()
+                .map(|v| {
+                    let neighbours = if downward { &pred[*v] } else { &succ[*v] };
+                    if neighbours.is_empty() {
+                        center[*v]
+                    } else {
+                        neighbours.iter().map(|w| center[*w]).sum::<f64>() / neighbours.len() as f64
+                    }
+                })
+                .collect();
+            let half: Vec<f64> = members.iter().map(|v| lane(*v).1 / 2.0).collect();
+            let count = members.len();
+            let mut forward = desired.clone();
+            for i in 1..count {
+                forward[i] = forward[i].max(forward[i - 1] + half[i - 1] + options.gap + half[i]);
+            }
+            let mut backward = desired.clone();
+            for i in (0..count.saturating_sub(1)).rev() {
+                backward[i] =
+                    backward[i].min(backward[i + 1] - half[i + 1] - options.gap - half[i]);
+            }
+            let mut placed: Vec<f64> = (0..count)
+                .map(|i| (forward[i] + backward[i]) / 2.0)
+                .collect();
+            for i in 1..count {
+                placed[i] = placed[i].max(placed[i - 1] + half[i - 1] + options.gap + half[i]);
+            }
+            for (i, v) in members.iter().enumerate() {
+                center[*v] = placed[i];
+            }
+        }
+    }
+    let layer_gap = options.gap * 1.5 + if tiered { SECTION_PADDING * 2.0 } else { 0.0 };
     let mut result = Vec::new();
     let mut main = 0.0;
     for members in &layers {
         let thickness = members.iter().map(|v| lane(*v).0).fold(0.0, f64::max);
-        let span: f64 = members.iter().map(|v| lane(*v).1).sum::<f64>()
-            + options.gap * members.len().saturating_sub(1) as f64;
-        let mut cross = -span / 2.0;
         for v in members {
-            let (along, across) = lane(*v);
             if *v >= n {
-                cross += across + options.gap;
                 continue;
             }
+            let (along, across) = lane(*v);
             result.push((
                 nodes[*v],
-                to_xy(main + (thickness - along) / 2.0, cross, options.direction),
+                to_xy(
+                    main + (thickness - along) / 2.0,
+                    center[*v] - across / 2.0,
+                    options.direction,
+                ),
             ));
-            cross += across + options.gap;
         }
         main += thickness + layer_gap;
     }

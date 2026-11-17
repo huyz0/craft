@@ -26,7 +26,7 @@ A scene is a JSON file that `whiteboard.encode` turns into editor clipboard reco
 ## Workflow
 
 1. Write the elements with ids and rough sizes; positions can be zero when a layout will place them.
-2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `tree` (mind maps, org charts, breakdowns) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, and spreads connector ends along each side so lines do not stack.
+2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `tree` (mind maps, org charts, breakdowns) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, keeps chains straight, and spreads connector ends along each side so lines do not stack. With `layered`, each section is a tier: its members share one column (or row with `direction` `down`), which suits architecture tiers and swimlanes. Layout moves shapes, stickies, links and sections only; add or move titles, legends and free text afterwards, then check again.
 3. Check: `whiteboard.check` (also part of the layout result) reports overlaps, elements straddling a section edge, connectors crossing or running through elements, shared anchor points, text that will not fit its box, low text contrast, too many colors, uneven or off-grid spacing, text sitting on a connector instead of a label, and unlabelled decision exits. Fix warnings; consider notes. The score is 100 minus 10 per warning and 2 per note.
 4. Encode and paste ([whiteboards](whiteboards.md)).
 
