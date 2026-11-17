@@ -244,6 +244,13 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
                 "board_written",
             ],
         ),
+        "whiteboard.layout" => ("", &["moved_count"], &["moved_count", "report", "scene"]),
+        "whiteboard.preview" => ("", &["element_count"], &["element_count", "svg"]),
+        "whiteboard.check" => (
+            "",
+            &["warning_count", "info_count", "score"],
+            &["warning_count", "info_count", "score", "findings"],
+        ),
         "whiteboard.decode" => (
             "",
             &["element_count", "raw_count", "private_fields_removed"],
