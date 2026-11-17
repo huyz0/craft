@@ -87,3 +87,5 @@ python tools/plan.py selftest
 These commands read/validate the plan and scan implementation files for prohibited planning labels. They do not execute Craft or certify Rust behavior. Use `next` and `show` instead of loading the whole ledger. Run `python tools/dependencies.py` to compare the locked source/license inventory; [dependency choices](docs/dependencies.md) distinguish qualified dependencies from future native candidates.
 
 Planning labels belong in planning records only. Never put milestone/task identifiers into source, comments, tests, fixtures, configuration, logs, error codes, package/module names, public schemas, or commit subjects. Use semantic names that describe the behavior. Provider resource IDs and runtime request/operation IDs are legitimate domain data.
+
+- [Install a release](docs/install.md), [changelog](CHANGELOG.md) and [skills qualification](docs/evidence/skills-qualification.md)
