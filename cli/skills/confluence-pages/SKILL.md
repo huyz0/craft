@@ -29,7 +29,11 @@ Everything here was checked on a live Confluence Cloud site: published through C
 - Link Jira issues as smart links, not bare keys, so readers see live status.
 - Mention people with real @mentions (account IDs), never by typing "@name". A mention notifies that person when the page is published, so only mention people who should be notified.
 - Use date elements for deadlines and dates people act on, so they render in each reader's locale.
-- Hide long logs, raw data, alternatives considered and appendix material in expands. Never hide the decision, the risk or the ask.
+- Use expands only for secondary material: long logs, raw payloads, diagram source, appendix data. Anything the reader was asked to review stays visible: the decision, the risk, the ask, and the alternatives with why each was rejected. A blind review marked a design doc down for hiding its alternatives in an expand.
+- Pick the panel color by the message, not the section. A summary whose headline is "at risk" goes in the yellow caution panel, not the blue info panel. Use a lozenge only for a state that applies now; never add one for a hypothetical ("would turn OFF TRACK").
+- Show each fact once and in one form. If severity is a lozenge in the summary, make it a lozenge everywhere. Don't restate a diagram as a table of its boxes; a short numbered walk-through of the flow reads better.
+- Don't invent specifics the brief didn't give (extra causes, hosts, dates). When the page needs a value you don't have, write it as an assumption ("Proposed: …") or leave a clearly marked gap.
+- Size every table's columns to their content ([tables](references/tables.md)). In key/value and time/event tables the label column is narrow (80 to 220px) and the text column gets the rest; a 50/50 split was the most common defect in review.
 
 ## Element chooser
 

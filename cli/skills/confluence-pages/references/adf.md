@@ -72,7 +72,7 @@ Any storage macro maps to an `extension` (block) or `inlineExtension` (inline) w
 ## Expand
 
 ```json
-{"type": "expand", "attrs": {"title": "Alternatives considered"}, "content": [ … ]}
+{"type": "expand", "attrs": {"title": "Sample webhook payload"}, "content": [ … ]}
 ```
 
 Inside an `expand`, a nested collapsible must be `nestedExpand`, not `expand`.

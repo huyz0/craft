@@ -33,6 +33,7 @@ Make the column widths add up to the table width. A good allocation:
    | Row number, short ID, checkbox, emoji, time (`09:14`) | 80 (the rendered minimum) |
    | Status lozenge | 110 to 150 (longest lozenge text × 8 + 40) |
    | Date element | 140 (125 wrapped "Nov 30, 2026" onto two lines in testing) |
+   | Date range (two date elements and a dash) | 300 |
    | Person mention | 160 to 180 |
    | Number, money, percentage | 90 to 110 |
    | Jira smart link with summary and status | 220 to 260 |
@@ -48,6 +49,8 @@ If the fixed columns alone take more than about 60% of the table, the table is t
 
 ## Readability rules
 
+- Never split a two-column table 50/50. A label, time or "#" column holding short tokens takes 10 to 25% of the width.
+- Code identifiers and smart links break mid-word when squeezed (`issue.fields.summar` / `y`, `Ta` / `sk 1`). Size their columns from the table above, shorten them, or move long lists of field names out of the table into a code block.
 - Put a header row (`<th>`) first. Keep header text short; it sets the minimum column width.
 - One fact per cell. Use lozenges for state, date elements for dates, mentions for people and smart links for issues, so the table stays live and scannable.
 - Left-align text and right-align numbers (`<td style="text-align: right;">`, or the `alignment` mark on paragraphs in ADF).

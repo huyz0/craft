@@ -97,7 +97,7 @@ The table is live: it shows current status and a count with a Refresh link. `ser
 ## Expand
 
 ```xml
-<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">Alternatives considered</ac:parameter><ac:rich-text-body><p>…</p></ac:rich-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">Full error log (2,400 lines)</ac:parameter><ac:rich-text-body><p>…</p></ac:rich-text-body></ac:structured-macro>
 ```
 
 Expands can nest. The title is what readers scan, so make it say what is inside.

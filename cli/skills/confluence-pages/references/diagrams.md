@@ -22,6 +22,7 @@ Some sites have a Marketplace app that renders Mermaid. Find a page that already
    <ac:image ac:align="center" ac:layout="center" ac:width="600" ac:alt="Release flow: plan, review, create tickets"><ri:attachment ri:filename="flow.svg" /></ac:image>
    ```
 
+   Size it to be read without zooming: render so the smallest text is at least 13px at the displayed width, and give a diagram with more than about six boxes `ac:width="760"` (the full fixed column). A blind review found a 10-box diagram with 9px subtitles unreadable at a 1280px window, while a larger one with 14px labels scored top marks.
 4. Keep the source next to it so the next editor can change it:
 
    ```xml
