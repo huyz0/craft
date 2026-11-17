@@ -96,6 +96,7 @@ fn typed(
             let (text, adf) = content(map)?;
             Element::Shape(Shape {
                 id,
+                section: None,
                 shape: ShapeKind::from_code(u16::try_from(map.get("shape")?.as_u64()?).ok()?)?,
                 x,
                 y,
@@ -120,6 +121,7 @@ fn typed(
             let (text, adf) = content(map)?;
             Element::Sticky(Sticky {
                 id,
+                section: None,
                 x,
                 y,
                 w: not_default(w, STICKY_SIZE),
@@ -276,6 +278,7 @@ fn typed(
             let (w, h) = vector(map.get("size")?)?;
             Element::Link(Link {
                 id,
+                section: None,
                 url: map.get("url")?.as_str()?.to_owned(),
                 x: round(cx - w / 2.0),
                 y: round(cy - h / 2.0),

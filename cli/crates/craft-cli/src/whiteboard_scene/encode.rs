@@ -56,6 +56,14 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
             _ => Ok(found),
         }
     };
+    for (index, element) in scene.elements.iter().enumerate() {
+        if let Some(section) = element.section() {
+            let named = ids.get(section).map(|found| &scene.elements[*found]);
+            if !matches!(named, Some(Element::Section(_))) {
+                return Err(field(index, "section", "unknown_section_reference"));
+            }
+        }
+    }
     let mut records = Vec::with_capacity(scene.elements.len());
     let mut connectors = 0;
     for (index, element) in scene.elements.iter().enumerate() {

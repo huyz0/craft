@@ -82629,7 +82629,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:56e7dd063e5491506a477e556b9e712300cd57e654135b32f3adc4136add4bd6",
+      "default_projection_digest": "sha256:752745e95566218115dda11b19672e02e420e7c8e41a445d39b38cdfb45a026f",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -82907,6 +82907,13 @@
                         "null"
                       ]
                     },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "shape": {
                       "$ref": "#/$defs/ShapeKind"
                     },
@@ -83003,6 +83010,13 @@
                       "format": "double",
                       "type": [
                         "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
                         "null"
                       ]
                     },
@@ -83466,6 +83480,13 @@
                     "kind": {
                       "const": "link",
                       "type": "string"
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "url": {
                       "type": "string"
@@ -84108,13 +84129,13 @@
         "decode"
       ],
       "selectable_fields": {
-        "element_count": "sha256:f8cbdf141ca224c7808a530e26a9f9f1da2ffd8cb5c8876940a0896851aff034",
-        "private_fields_removed": "sha256:f8cbdf141ca224c7808a530e26a9f9f1da2ffd8cb5c8876940a0896851aff034",
-        "raw_count": "sha256:f8cbdf141ca224c7808a530e26a9f9f1da2ffd8cb5c8876940a0896851aff034",
-        "scene": "sha256:34cefca98673cc86bba997e2bd207cb31f124a9ff738472c55ba8dc75f71d101",
-        "scene.elements": "sha256:8b3914b5572b4eb4fef57092698b0f12873c7510eadd4d475d471ee0d32736b1",
-        "scene.format": "sha256:725962e4ebc9e326379740f2f845c8ec39482f85c3774803eb52a093f6f8fd2b",
-        "warnings": "sha256:f80cc432a7dda82df71abfb741e2bdf286923ff3c336d1498b3247c7dbd93b74"
+        "element_count": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "private_fields_removed": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "raw_count": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "scene": "sha256:de05275743d46872ec3f9aee9849a9bd1056ae4a4f817f955f3874e7652952ed",
+        "scene.elements": "sha256:225a7f5b0a42543f24a65086d9be74e21c9537912dfbe038535618dc5ff992ec",
+        "scene.format": "sha256:520b5757f4b098b12a7f6ca59f27d8a7622faf956e18d3cc2a462f5a824ee552",
+        "warnings": "sha256:9c4188f08d3188ec04a8e99f1007c6caac59f1b168dc911dc2566c3ab8c023d8"
       }
     },
     "whiteboard.encode": {
@@ -84484,7 +84505,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:ddec2c8b6546b2c9e4b62ac2e1b1a0d5605199800b1c9c9dd67315664e5bdbba",
+      "default_projection_digest": "sha256:b0b7aae4ca3ab09436372251ccb13d3273f8253eb14a92800865143e81b640db",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -84542,12 +84563,14 @@
               "type": "string"
             },
             "gap": {
-              "default": 80,
-              "description": "Gap between elements in pixels; a multiple of 8 keeps the 8 px grid.",
+              "description": "Gap between elements in pixels (default 24 for grid, 80 otherwise); a multiple of 8 keeps\nthe 8 px grid.",
               "format": "uint16",
               "maximum": 400,
               "minimum": 8,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           "required": [
@@ -84814,6 +84837,13 @@
                         "null"
                       ]
                     },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "shape": {
                       "$ref": "#/$defs/ShapeKind"
                     },
@@ -84910,6 +84940,13 @@
                       "format": "double",
                       "type": [
                         "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
                         "null"
                       ]
                     },
@@ -85373,6 +85410,13 @@
                     "kind": {
                       "const": "link",
                       "type": "string"
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "url": {
                       "type": "string"
@@ -86128,9 +86172,7 @@
             "min": 1
           },
           "choices": null,
-          "defaults": [
-            "80"
-          ],
+          "defaults": [],
           "delimiter": null,
           "long": "gap",
           "long_aliases": null,
@@ -86144,19 +86186,19 @@
         "layout"
       ],
       "selectable_fields": {
-        "moved_count": "sha256:507158d0169d3cee859143783095f041b692147a4be2611fe279188ee5982cfd",
-        "report": "sha256:b9f9ec69d9d03c86d295be26fb84671de11466f0d03e98169129dba802d51e47",
-        "report.findings": "sha256:2a77f924a2c7bd892e9f8830cee16baaf5f6c617310027ec01dd631f0b4ebd5a",
-        "report.findings.code": "sha256:8411ab391715c99aedba79516a92776c3ca2777b5e5d3b66bf703a148e0fedda",
-        "report.findings.elements": "sha256:29289b68615cb75771524269a5601baddbd909f5fb1f44ac91fec958e615df3a",
-        "report.findings.message": "sha256:ce3030ac6b78dbb18dfb248e26b716f7613c4f835bfd0e58db6e9428b640eef6",
-        "report.findings.severity": "sha256:b97eaf2805fbb9cc1623625e6d01ada57097fc20b1d3a1ae375dccf7cf1e58cb",
-        "report.info_count": "sha256:3d03569b92167c19def8dc59606e72a57ce2774e915c4bdad75d503064e5b58c",
-        "report.score": "sha256:f10d51b214e0473f523fb76b3bce478982a49096c0a8791c1d011e8fc5f20e20",
-        "report.warning_count": "sha256:4c7065f6ad4aacdd5eda3dc4f1cc73bb9dd4027475eaac7c5bbecf489c8b0e37",
-        "scene": "sha256:a0ae7dc51e664a3cb938b667600780609b1fbfdf024bf7a44d0e5cb7c19a6263",
-        "scene.elements": "sha256:c81b4a25f75cb9bd2a4cd38e2f8fac1f9973af8252a37f76737e5e2e546fc0ba",
-        "scene.format": "sha256:7a490f4e8165b2f2cedf60c31013ad5ce6201879885cea7b5c5595919209babc"
+        "moved_count": "sha256:67a2c911c435d50a61c2c6373fec8b23ebe0ecbca093a19db3fa1a9751cea7f0",
+        "report": "sha256:0a5371891217dd13859b7f0412e1f9a2aef7823772b684de153fdfa21d54b3a7",
+        "report.findings": "sha256:0ccb29d7ee26e9529da07eb2ddb0adf43d809d5fa017785b5f48114f5b2c85ed",
+        "report.findings.code": "sha256:8649a7d67122720d46f1b3e32d6b5056493ae00d9c3135f57abeb3c9dd175b43",
+        "report.findings.elements": "sha256:841f62a1bd66585b9ec1c49ec76175c985a9503561e4e1ad5f1cfe361be32be2",
+        "report.findings.message": "sha256:90cc6661a5523b1823c5071428b512cfe197fe4673a39ed7b886e5092d539344",
+        "report.findings.severity": "sha256:b7312aadd6fb07cb496aaa20d4c232debce19fee1dc0a4f22f54868038122ee4",
+        "report.info_count": "sha256:ca91b3950b424c1e7b0d3985f6a249d3e356d4209ec3d3544a2402bbfcd1eb17",
+        "report.score": "sha256:fb434ce251dbf7e89f0e24b8ca819bc87959586f89fd4f7059e9d427e899dc8e",
+        "report.warning_count": "sha256:ec8f17079ee70fd65d4140d69c8d60b559db39f2f571b4accaa96d56ec4ec7a7",
+        "scene": "sha256:d1667892544d07fda7caf2c98edfb38e1305aed8990a15491d7d73b4b821ad1f",
+        "scene.elements": "sha256:59a80ba7fdaec2ee808f15e7132915071e4d364a94a3fb2bd8b25cc1ee9ccf22",
+        "scene.format": "sha256:1b96e3be6d2a697a7bec05c6a8abc7a99eb82010a653eb069e537c79da9cc25e"
       }
     },
     "whiteboard.preview": {

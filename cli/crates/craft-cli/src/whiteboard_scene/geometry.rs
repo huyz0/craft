@@ -74,9 +74,14 @@ pub fn section_members(scene: &Scene) -> HashMap<usize, usize> {
             _ => None,
         })
         .collect();
+    let named = ids(scene);
     let mut members = HashMap::new();
     for (index, element) in scene.elements.iter().enumerate() {
         if matches!(element, Element::Section(_)) {
+            continue;
+        }
+        if let Some(section) = element.section().and_then(|id| named.get(id)) {
+            members.insert(index, *section);
             continue;
         }
         let Some(bounds) = rect(element) else {

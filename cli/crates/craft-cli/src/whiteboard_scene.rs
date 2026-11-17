@@ -84,20 +84,17 @@ pub struct WhiteboardLayoutArgs {
     #[arg(long, value_enum, default_value = "right")]
     #[serde(default)]
     pub direction: layout::Direction,
-    /// Gap between elements in pixels; a multiple of 8 keeps the 8 px grid.
-    #[arg(long, default_value_t = 80)]
-    #[serde(default = "default_gap")]
+    /// Gap between elements in pixels (default 24 for grid, 80 otherwise); a multiple of 8 keeps
+    /// the 8 px grid.
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(range(min = 8, max = 400))]
-    pub gap: u16,
+    pub gap: Option<u16>,
     /// Grid columns (default 2 inside sections, otherwise the square root of the count).
     #[arg(long)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(range(min = 1, max = 50))]
     pub columns: Option<u16>,
-}
-
-fn default_gap() -> u16 {
-    80
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -171,9 +168,14 @@ pub fn execute(
         WhiteboardAction::Layout(args) => {
             let (_, scene) = parse_scene(&source)?;
             encode::encode(&scene)?;
-            if !(8..=400).contains(&args.gap)
-                || args.columns.is_some_and(|c| !(1..=50).contains(&c))
-            {
+            let gap = args
+                .gap
+                .unwrap_or(if args.algorithm == layout::Algorithm::Grid {
+                    24
+                } else {
+                    80
+                });
+            if !(8..=400).contains(&gap) || args.columns.is_some_and(|c| !(1..=50).contains(&c)) {
                 return Err(CraftError::field("/gap", "layout_option_out_of_range"));
             }
             let laid = layout::layout(
@@ -181,7 +183,7 @@ pub fn execute(
                 &layout::Options {
                     algorithm: args.algorithm,
                     direction: args.direction,
-                    gap: f64::from(args.gap),
+                    gap: f64::from(gap),
                     columns: args.columns.map(usize::from),
                 },
             );

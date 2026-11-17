@@ -25,8 +25,8 @@ A scene is a JSON file that `whiteboard.encode` turns into editor clipboard reco
 
 ## Workflow
 
-1. Write the elements with ids and rough sizes; positions can be zero when a layout will place them.
-2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `radial` (mind maps: the root in the middle, branches around it), `tree` (org charts, breakdowns, decision trees) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, keeps chains straight, and sets every connector's sides (facing the other end, along the flow) and spreads ends that share a side so lines do not stack. Set `route` per connector; layout leaves it alone. With `layered`, each section is a tier: its members share one column (or row with `direction` `down`), which suits architecture tiers and swimlanes. Layout moves shapes, stickies, links and sections only; add or move titles, legends and free text afterwards, then check again.
+1. Write the elements with ids and sizes. When a layout will place them, positions can be zero, and `section` (a section id on a shape, sticky or link) says which section each belongs to.
+2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `radial` (mind maps: the root in the middle, branches around it), `tree` (org charts, breakdowns, decision trees) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, keeps chains straight, and sets every connector's sides (facing the other end, along the flow) and spreads ends that share a side so lines do not stack. Set `route` per connector; layout leaves it alone. With `grid`, sections sit side by side and end level, with 24 px between stickies by default. Decisions get their exits from separate corners (top, forward, bottom). With `layered`, each section is a tier: its members share one column (or row with `direction` `down`), which suits architecture tiers and swimlanes. Layout moves shapes, stickies, links and sections only; add or move titles, legends and free text afterwards, then check again.
 3. Check: `whiteboard.check` (also part of the layout result) reports overlaps, elements straddling a section edge, connectors crossing or running through elements, shared anchor points, text that will not fit its box, low text contrast, too many colors, uneven or off-grid spacing, text sitting on a connector instead of a label, and unlabelled decision exits. Fix warnings; consider notes. The score is 100 minus 10 per warning and 2 per note.
 4. Look: `whiteboard.preview` returns an approximate SVG of the scene (fonts, icons and the editor's line routing differ). Render or view it when you can, and judge balance, crowding and readability before pasting.
 5. Encode and paste ([whiteboards](whiteboards.md)).
@@ -51,8 +51,8 @@ Every kind takes an optional `id` (letters, digits, `-`, `_`, `.`, `:`; at most 
 
 | Kind | Required | Optional (default) |
 | --- | --- | --- |
-| `shape` | `shape`, `x`, `y`, `w`, `h` | `fill` (`gray-subtle`), `filled` (true; false draws the outline only), `text` or `adf`, `align` (`center`), `valign` (`middle`), `font_scale` (1), `rotation` (0) |
-| `sticky` | `x`, `y` | `w`, `h` (144), `color` (`yellow-subtle`), `text` or `adf`, `align` (`center`), `valign` (`middle`), `font_scale`, `rotation` |
+| `shape` | `shape`, `x`, `y`, `w`, `h` | `section`, `fill` (`gray-subtle`), `filled` (true; false draws the outline only), `text` or `adf`, `align` (`center`), `valign` (`middle`), `font_scale` (1), `rotation` (0) |
+| `sticky` | `x`, `y` | `section`, `w`, `h` (144), `color` (`yellow-subtle`), `text` or `adf`, `align` (`center`), `valign` (`middle`), `font_scale`, `rotation` |
 | `text` | `x`, `y`, `w` | `text` or `adf`, `color` (`default-text`), `align` (`left`), `font_scale`, `rotation` |
 | `section` | `x`, `y`, `w`, `h` | `title`, `color` (`white`), `shadow` (false) |
 | `connector` | `from`, `to` (element ids) | `from_side`, `to_side` (`auto`), `route` (`elbow`), `start_cap` (`none`), `end_cap` (`arrow`), `color` (`gray-bold`), `stroke` (`thin`), `dash` (`solid`) |
@@ -60,7 +60,7 @@ Every kind takes an optional `id` (letters, digits, `-`, `_`, `.`, `:`; at most 
 | `line` | `x1`, `y1`, `x2`, `y2` | `route` (`straight`), caps, `color`, `stroke`, `dash` as for connectors |
 | `stamp` | `sprite` and either `on` (a shape or sticky id) or `x`, `y` | `size` (60) |
 | `group` | `members` (two or more box ids) | |
-| `link` | `url` (http or https), `x`, `y` | `w` (280), `h` (306) |
+| `link` | `url` (http or https), `x`, `y` | `section`, `w` (280), `h` (306) |
 | `raw` | `element` (an editor record) | `id` |
 
 ## Text belongs on things

@@ -239,7 +239,8 @@ pub fn check(scene: &Scene) -> Report {
             _ => continue,
         };
         if let Some(fill) = fill {
-            fills.insert(fill.name());
+            // Strengths of one hue read as one color family.
+            fills.insert(fill.name().split('-').next().unwrap_or_default());
         }
         let scale = scale.unwrap_or(1.0);
         if scale < 0.75 {
@@ -302,7 +303,7 @@ pub fn check(scene: &Scene) -> Report {
             Severity::Info,
             vec![],
             format!(
-                "{} fill colors are in use; keep to about five and explain them in a legend.",
+                "{} hues are in use for fills; keep to about five and explain them in a legend.",
                 fills.len()
             ),
         );

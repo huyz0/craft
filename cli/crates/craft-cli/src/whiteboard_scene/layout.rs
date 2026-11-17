@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::geometry::*;
 use super::scene::*;
+use super::vocabulary::ShapeKind;
 
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ValueEnum,
@@ -647,9 +648,13 @@ fn grid(
             let h = inner_h + SECTION_TITLE + SECTION_PADDING;
             result.push((*section, (section_x, 0.0)));
             sizes.push((*section, w, h));
-            section_x += w + options.gap * 2.0;
+            section_x += w + (options.gap * 2.0).max(64.0);
             tallest = tallest.max(h);
         }
+    }
+    // Sections side by side end level, which reads as one board rather than ragged columns.
+    for size in sizes.iter_mut() {
+        size.2 = tallest;
     }
     result
 }
@@ -768,6 +773,61 @@ fn spread_anchors(scene: &mut Scene, options: &Options) {
                 } else {
                     item.to_side = Some(value)
                 }
+            }
+        }
+    }
+    diamond_exits(scene, options);
+}
+
+/// A decision's exits leave from its corners: towards a target above, ahead or below it uses
+/// the top, forward or bottom corner, so Yes and No branches separate visibly. Exits that would
+/// share a corner keep the spread points.
+fn diamond_exits(scene: &mut Scene, options: &Options) {
+    if matches!(options.algorithm, Algorithm::Grid | Algorithm::Radial) {
+        return;
+    }
+    let ids = ids(scene);
+    let mut exits: BTreeMap<usize, Vec<(usize, SideName)>> = BTreeMap::new();
+    for (index, element) in scene.elements.iter().enumerate() {
+        let Element::Connector(item) = element else {
+            continue;
+        };
+        let (Some(&from), Some(&to)) = (ids.get(item.from.as_str()), ids.get(item.to.as_str()))
+        else {
+            continue;
+        };
+        let Element::Shape(shape) = &scene.elements[from] else {
+            continue;
+        };
+        if !matches!(shape.shape, ShapeKind::Diamond | ShapeKind::Decision) {
+            continue;
+        }
+        let (Some(a), Some(b)) = (rect(&scene.elements[from]), rect(&scene.elements[to])) else {
+            continue;
+        };
+        let (cross, half) = match options.direction {
+            Direction::Right => (b.center().1 - a.center().1, a.h / 2.0),
+            Direction::Down => (b.center().0 - a.center().0, a.w / 2.0),
+        };
+        let side = match (options.direction, cross) {
+            (Direction::Right, c) if c < -half => SideName::Top,
+            (Direction::Right, c) if c > half => SideName::Bottom,
+            (Direction::Right, _) => SideName::Right,
+            (Direction::Down, c) if c < -half => SideName::Left,
+            (Direction::Down, c) if c > half => SideName::Right,
+            (Direction::Down, _) => SideName::Bottom,
+        };
+        exits.entry(from).or_default().push((index, side));
+    }
+    for (_, list) in exits {
+        let distinct: std::collections::BTreeSet<u8> =
+            list.iter().map(|(_, side)| *side as u8).collect();
+        if list.len() < 2 || distinct.len() != list.len() {
+            continue;
+        }
+        for (connector, side) in list {
+            if let Element::Connector(item) = &mut scene.elements[connector] {
+                item.from_side = Some(Side::Named(side));
             }
         }
     }
