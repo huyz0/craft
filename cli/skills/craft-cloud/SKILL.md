@@ -36,5 +36,6 @@ Read only the reference needed now:
 - [Writes](references/writes.md): preview, apply, policy and receipts.
 - [Plan review](references/plan-review.md): shared draft page through reviewed tickets.
 - [Recovery](references/recovery.md): failures, uncertain sends and existing runs.
+- [Whiteboards](references/whiteboards.md): create from templates, draw scenes by paste, read boards by copy.
 
 Compatibility and unqualified host status are in [compatibility.json](compatibility.json). This development skill does not establish live provider or host support.

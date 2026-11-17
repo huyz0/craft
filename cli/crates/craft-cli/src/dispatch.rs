@@ -165,6 +165,7 @@ pub fn command_id(action: &Action) -> &'static str {
             crate::args::DesignAction::PageCreate(_) => crate::planning_publication::DESIGN_CREATE,
             crate::args::DesignAction::PageGet(_) => crate::planning_read::DESIGN_GET,
         },
+        Action::Whiteboard { action } => action.command(),
         Action::Auth { action } => match action {
             crate::args::AuthAction::Status(_) => "auth.status",
             crate::args::AuthAction::Doctor(_) => "auth.doctor",
@@ -252,6 +253,7 @@ fn reads_stdin(action: &Action) -> bool {
         | Action::Design {
             action: crate::args::DesignAction::PageCreate(args),
         } => args.source.file == "-",
+        Action::Whiteboard { action } => action.file() == "-",
         _ => false,
     }
 }
@@ -623,6 +625,16 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 }
             },
         },
+        Action::Whiteboard { action } => Action::Whiteboard {
+            action: match action {
+                crate::whiteboard_scene::WhiteboardAction::Encode(_) => {
+                    crate::whiteboard_scene::WhiteboardAction::Encode(decode(input)?)
+                }
+                crate::whiteboard_scene::WhiteboardAction::Decode(_) => {
+                    crate::whiteboard_scene::WhiteboardAction::Decode(decode(input)?)
+                }
+            },
+        },
         Action::Auth { action } => Action::Auth {
             action: match action {
                 crate::args::AuthAction::Status(_) => {
@@ -791,6 +803,10 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
             crate::args::DesignAction::Render(args) => value(args),
             crate::args::DesignAction::PageCreate(args) => value(args),
             crate::args::DesignAction::PageGet(args) => value(args),
+        },
+        Action::Whiteboard { action } => match action {
+            crate::whiteboard_scene::WhiteboardAction::Encode(args)
+            | crate::whiteboard_scene::WhiteboardAction::Decode(args) => value(args),
         },
         Action::Auth { action } => match action {
             crate::args::AuthAction::Status(arguments)
@@ -1791,6 +1807,9 @@ fn execute_data(
         }
         action @ (Action::Plan { .. } | Action::Design { .. }) => {
             return crate::planning::execute(action, projection, control);
+        }
+        Action::Whiteboard { action } => {
+            return crate::whiteboard_scene::execute(action, projection, control);
         }
         Action::Auth { action } => {
             return crate::auth::execute(action, projection, options, control);

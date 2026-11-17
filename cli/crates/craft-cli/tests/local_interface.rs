@@ -114,6 +114,8 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "scan.start",
         "scan.resume",
         "scan.export",
+        "whiteboard.encode",
+        "whiteboard.decode",
     ];
     for command in commands {
         let body = envelope(&invoke(&["schema", "--command", command], None)?)?;
@@ -1623,5 +1625,43 @@ fn malformed_download_flags_and_json_leave_state_unopened_and_stdout_as_one_enve
     )?;
     assert_eq!(envelope(&unknown)?["ok"], false);
     assert!(!root.exists());
+    Ok(())
+}
+
+#[test]
+fn whiteboard_scenes_encode_and_decode_through_stdin_without_network()
+-> Result<(), Box<dyn std::error::Error>> {
+    let scene = br#"{"format":"craft.whiteboard.scene.v1","elements":[
+        {"kind":"sticky","id":"a","x":0,"y":0,"text":"Idea"},
+        {"kind":"shape","id":"b","shape":"diamond","x":300,"y":0,"w":160,"h":160,"fill":"yellow"},
+        {"kind":"connector","from":"a","to":"b"}]}"#;
+    let encoded = envelope(&invoke(
+        &["whiteboard", "encode", "--file", "-"],
+        Some(scene),
+    )?)?;
+    assert_eq!(encoded["ok"], true, "{encoded}");
+    assert_eq!(encoded["data"]["board_written"], false);
+    assert_eq!(encoded["data"]["connector_count"], 1);
+    let html = encoded["data"]["clipboard_html"].as_str().ok_or("html")?;
+    let decoded = envelope(&invoke(
+        &["whiteboard", "decode", "--file", "-"],
+        Some(html.as_bytes()),
+    )?)?;
+    assert_eq!(decoded["ok"], true, "{decoded}");
+    let elements = decoded["data"]["scene"]["elements"]
+        .as_array()
+        .ok_or("elements")?;
+    assert_eq!(elements.len(), 3);
+    assert_eq!(elements[2]["kind"], "connector");
+    assert_eq!(
+        (elements[2]["from"].clone(), elements[2]["to"].clone()),
+        (json!("e1"), json!("e2"))
+    );
+    let refused = invoke(
+        &["whiteboard", "encode", "--file", "-"],
+        Some(br#"{"format":"craft.whiteboard.scene.v1","elements":[{"kind":"sticky","x":0,"y":0,"color":"blue-bold"}]}"#),
+    )?;
+    assert_eq!(refused.status.code(), Some(10));
+    assert_eq!(envelope(&refused)?["ok"], false);
     Ok(())
 }

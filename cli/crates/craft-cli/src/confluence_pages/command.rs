@@ -285,6 +285,14 @@ pub struct ContentCreateArgs {
     pub title: String,
     #[arg(long, value_parser = content_placement, default_value = "{\"kind\":\"root\"}")]
     pub placement: pages::ContentPlacement,
+    /// Whiteboard only: start from a built-in template such as `flow-chart`.
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
+    /// Whiteboard only, with `template`: template language such as `en-US`.
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
 }
 #[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -554,6 +562,8 @@ impl PageWriteArgs {
                     space_id: space.into(),
                     title: v.title.clone(),
                     placement: v.placement.clone(),
+                    template: v.template.clone(),
+                    locale: v.locale.clone(),
                 })
             }
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => encoded(&pages::ContentTrashInput {

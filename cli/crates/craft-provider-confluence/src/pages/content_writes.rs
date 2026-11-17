@@ -1,6 +1,7 @@
 //! Folder and whiteboard create and trash in an allowed space. Create reads the space, and the
 //! parent page or folder when one is named; trash rechecks the reviewed version. Purge is not
-//! offered, and whiteboard templates and private creation are not exposed.
+//! offered, and private creation is not exposed. A whiteboard may start from a built-in
+//! template; its drawing content is otherwise only reachable through the editor.
 use super::*;
 use crate::content::{ContentKind, has_children, observe};
 use craft_core::storage::SubmissionState;
@@ -46,9 +47,98 @@ pub struct ContentCreateInput {
     #[schemars(length(min = 1, max = 255))]
     pub title: String,
     pub placement: ContentPlacement,
+    /// Whiteboard only: a built-in template key such as `flow-chart` or `kanban-board`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 1, max = 64), regex(pattern = "^[0-9a-z][0-9a-z-]*$"))]
+    pub template: Option<String>,
+    /// Whiteboard only, with `template`: the template language such as `en-US`. Confluence
+    /// otherwise uses the caller's locale.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 5, max = 5), regex(pattern = "^[a-z]{2}-[A-Z]{2}$"))]
+    pub locale: Option<String>,
 }
+
+/// Template keys the pinned v2 specification enumerates for whiteboard create.
+pub const WHITEBOARD_TEMPLATES: &[&str] = &[
+    "2x2-prioritization",
+    "4ls-retro",
+    "annual-calendar",
+    "brainwriting",
+    "concept-map",
+    "crazy-8s",
+    "daily-sync",
+    "disruptive-brainstorm",
+    "dot-voting",
+    "elevator-pitch",
+    "flow-chart",
+    "gap-analysis",
+    "ice-breakers",
+    "incident-postmortem",
+    "journey-mapping-kit",
+    "kanban-board",
+    "lean-coffee",
+    "network-of-teams",
+    "org-chart",
+    "pi-planning",
+    "prioritization",
+    "prioritization-experiment",
+    "product-roadmap",
+    "product-vision-board",
+    "rice",
+    "sailboat-retro",
+    "service-blueprint",
+    "simple-retrospective",
+    "sprint-planning",
+    "sticky-note-pack",
+    "swimlanes",
+    "team-formation-guide",
+    "timeline",
+    "timeline-workflow",
+    "user-story-map",
+    "workflow",
+    "vision-board",
+    "venn-diagram",
+    "storyboard",
+    "action-plan",
+    "root-cause-analysis",
+    "executive-summary",
+    "stakeholder-mapping",
+    "annual-calendar-2025-2026",
+    "health-monitor",
+    "okr-planning",
+    "swot-analysis",
+    "poker-planning",
+    "fishbone-diagram",
+    "risk-assessment",
+    "bounded-context",
+    "hopes-and-fears",
+    "swimlane-vertical",
+];
+/// Template languages the pinned v2 specification enumerates.
+pub const WHITEBOARD_LOCALES: &[&str] = &[
+    "de-DE", "cs-CZ", "ko-KR", "fr-FR", "it-IT", "ja-JP", "nl-NL", "nb-NO", "da-DK", "sv-SE",
+    "fi-FI", "ru-RU", "pl-PL", "tr-TR", "hu-HU", "en-GB", "en-US", "pt-BR", "zh-CN", "zh-TW",
+    "es-ES",
+];
+
 impl ContentCreateInput {
-    pub(super) fn validate(&self) -> Result<(), CraftError> {
+    /// Templates exist only for whiteboards, and a locale only selects a template's language.
+    pub(super) fn validate_for(&self, whiteboard: bool) -> Result<(), CraftError> {
+        self.validate()?;
+        match (&self.template, &self.locale) {
+            (None, None) => Ok(()),
+            _ if !whiteboard => Err(invalid("/template", "templates_are_whiteboard_only")),
+            (None, Some(_)) => Err(invalid("/locale", "locale_requires_template")),
+            (Some(template), _) if !WHITEBOARD_TEMPLATES.contains(&template.as_str()) => {
+                Err(invalid("/template", "unknown_whiteboard_template"))
+            }
+            (_, Some(locale)) if !WHITEBOARD_LOCALES.contains(&locale.as_str()) => {
+                Err(invalid("/locale", "unknown_template_locale"))
+            }
+            _ => Ok(()),
+        }
+    }
+    fn validate(&self) -> Result<(), CraftError> {
         if !numeric(&self.space_id) || self.placement.parent_id().is_some_and(|id| !numeric(id)) {
             return Err(invalid("/input", "expected_numeric_space_and_parent_id"));
         }
@@ -110,6 +200,7 @@ pub fn prepare_content_create(
         .ok_or_else(|| CraftError::field("/command", "expected_content_create"))?;
     validate_operation(operation, kind.command())?;
     let input: ContentCreateInput = input::parse(&operation.request().input)?;
+    input.validate_for(kind == PageWriteKind::WhiteboardCreate)?;
     let s = current(space)?;
     if string(s, "id")? != input.space_id {
         return Err(malformed());
@@ -137,6 +228,12 @@ pub fn prepare_content_create(
     let mut body = json!({"spaceId":input.space_id,"title":input.title});
     if let Some(id) = input.placement.parent_id() {
         body["parentId"] = json!(id);
+    }
+    if let Some(template) = &input.template {
+        body["templateKey"] = json!(template);
+    }
+    if let Some(locale) = &input.locale {
+        body["locale"] = json!(locale);
     }
     let call = NativeCall {
         route: kind.route().into(),

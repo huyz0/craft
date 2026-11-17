@@ -661,13 +661,25 @@ fn folder_and_whiteboard_create_bind_space_and_parent_then_confirm_type_title_an
             json!({"space_id":"0100","title":"Plans","placement":{"kind":"root"}}),
             json!({"space_id":"100","title":"Plans"}),
             json!({"space_id":"100","title":"Plans","placement":{"kind":"page","id":"x"}}),
-            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"kanban-board"}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template_key":"kanban-board"}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"no-such-template"}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"locale":"en-US"}),
+            json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"flow-chart","locale":"xx-XX"}),
             json!({"space_id":"100","title":" Plans","placement":{"kind":"root"}}),
             json!({"space_id":"100","title":"x".repeat(256),"placement":{"kind":"root"}}),
         ] {
             assert!(prepare(command, bad).is_err(), "{command}");
         }
     }
+    // Built-in templates are a whiteboard feature; a folder never sends a template key.
+    let templated = json!({"space_id":"100","title":"Plans","placement":{"kind":"root"},"template":"flow-chart","locale":"en-US"});
+    let op = prepare(WHITEBOARD_CREATE, templated.clone())?;
+    let write = prepare_content_create(&op, &space(), None)?;
+    assert_eq!(
+        write.call().body,
+        Some(json!({"spaceId":"100","title":"Plans","templateKey":"flow-chart","locale":"en-US"}))
+    );
+    assert!(prepare(FOLDER_CREATE, templated).is_err());
     Ok(())
 }
 

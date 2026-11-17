@@ -233,6 +233,28 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
                 "tickets_created",
             ],
         ),
+        "whiteboard.encode" => (
+            "",
+            &["element_count", "scene_digest", "board_written"],
+            &[
+                "element_count",
+                "connector_count",
+                "scene_digest",
+                "clipboard_html",
+                "board_written",
+            ],
+        ),
+        "whiteboard.decode" => (
+            "",
+            &["element_count", "raw_count", "private_fields_removed"],
+            &[
+                "element_count",
+                "raw_count",
+                "private_fields_removed",
+                "warnings",
+                "scene",
+            ],
+        ),
         "plan.render" | "design.render" => (
             "",
             &[
@@ -357,6 +379,7 @@ pub fn local_registry() -> Result<Registry, CraftError> {
     let mut registry = Registry::default();
     crate::local_artifacts::register(&mut registry)?;
     crate::planning::register(&mut registry)?;
+    crate::whiteboard_scene::register(&mut registry)?;
     register::<crate::args::OperationGetArgs, crate::operations::OperationData>(
         &mut registry,
         "operation.get",
