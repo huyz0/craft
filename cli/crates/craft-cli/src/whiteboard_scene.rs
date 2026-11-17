@@ -7,8 +7,11 @@
 //! content becomes a scene when copied HTML is decoded.
 
 mod base64;
+pub mod check;
 mod decode;
 mod encode;
+mod geometry;
+pub mod layout;
 pub mod scene;
 mod text;
 pub mod vocabulary;
@@ -31,11 +34,15 @@ use scene::Scene;
 
 pub const ENCODE: &str = "whiteboard.encode";
 pub const DECODE: &str = "whiteboard.decode";
+pub const LAYOUT: &str = "whiteboard.layout";
+pub const CHECK: &str = "whiteboard.check";
 
 #[derive(Subcommand)]
 pub enum WhiteboardAction {
     Encode(WhiteboardFileArgs),
     Decode(WhiteboardFileArgs),
+    Layout(WhiteboardLayoutArgs),
+    Check(WhiteboardFileArgs),
 }
 
 impl WhiteboardAction {
@@ -43,14 +50,58 @@ impl WhiteboardAction {
         match self {
             WhiteboardAction::Encode(_) => ENCODE,
             WhiteboardAction::Decode(_) => DECODE,
+            WhiteboardAction::Layout(_) => LAYOUT,
+            WhiteboardAction::Check(_) => CHECK,
         }
     }
 
     pub fn file(&self) -> &str {
         match self {
-            WhiteboardAction::Encode(args) | WhiteboardAction::Decode(args) => &args.file,
+            WhiteboardAction::Encode(args)
+            | WhiteboardAction::Decode(args)
+            | WhiteboardAction::Check(args) => &args.file,
+            WhiteboardAction::Layout(args) => &args.file,
         }
     }
+}
+
+#[derive(Args, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WhiteboardLayoutArgs {
+    #[arg(long, default_value = "", help = "Scene JSON, or - for stdin")]
+    #[schemars(length(min = 1, max = 2048))]
+    pub file: String,
+    /// `layered` for flows and dependencies, `tree` for mind maps and hierarchies, `grid` for
+    /// sticky boards (per section).
+    #[arg(long, value_enum, default_value = "layered")]
+    #[serde(default)]
+    pub algorithm: layout::Algorithm,
+    #[arg(long, value_enum, default_value = "right")]
+    #[serde(default)]
+    pub direction: layout::Direction,
+    /// Gap between elements in pixels; a multiple of 8 keeps the 8 px grid.
+    #[arg(long, default_value_t = 80)]
+    #[serde(default = "default_gap")]
+    #[schemars(range(min = 8, max = 400))]
+    pub gap: u16,
+    /// Grid columns (default 2 inside sections, otherwise the square root of the count).
+    #[arg(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(range(min = 1, max = 50))]
+    pub columns: Option<u16>,
+}
+
+fn default_gap() -> u16 {
+    80
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LayoutData {
+    pub moved_count: usize,
+    /// Checks run on the laid-out scene.
+    pub report: check::Report,
+    pub scene: Scene,
 }
 
 #[derive(Args, Serialize, Deserialize, JsonSchema)]
@@ -95,6 +146,36 @@ pub fn execute(
     let source = crate::dispatch::read_source(action.file(), control)?;
     let data = match action {
         WhiteboardAction::Encode(_) => encode_data(&source)?,
+        WhiteboardAction::Check(_) => to_value(check::check(&parse_scene(&source)?.1))?,
+        WhiteboardAction::Layout(args) => {
+            let (_, scene) = parse_scene(&source)?;
+            encode::encode(&scene)?;
+            if !(8..=400).contains(&args.gap)
+                || args.columns.is_some_and(|c| !(1..=50).contains(&c))
+            {
+                return Err(CraftError::field("/gap", "layout_option_out_of_range"));
+            }
+            let laid = layout::layout(
+                &scene,
+                &layout::Options {
+                    algorithm: args.algorithm,
+                    direction: args.direction,
+                    gap: f64::from(args.gap),
+                    columns: args.columns.map(usize::from),
+                },
+            );
+            let moved_count = scene
+                .elements
+                .iter()
+                .zip(&laid.elements)
+                .filter(|(before, after)| before != after)
+                .count();
+            to_value(LayoutData {
+                moved_count,
+                report: check::check(&laid),
+                scene: laid,
+            })?
+        }
         WhiteboardAction::Decode(_) => {
             let decoded = decode::decode(decode::records(&source)?);
             serde_json::to_value(DecodeData {
@@ -115,7 +196,12 @@ pub fn execute(
     Ok(DispatchOutput { data, page: None })
 }
 
-fn encode_data(source: &[u8]) -> Result<serde_json::Value, CraftError> {
+fn to_value<T: Serialize>(data: T) -> Result<serde_json::Value, CraftError> {
+    serde_json::to_value(data)
+        .map_err(|_| CraftError::new(ErrorCode::Internal, "Cannot encode whiteboard data."))
+}
+
+fn parse_scene(source: &[u8]) -> Result<(serde_json::Value, Scene), CraftError> {
     let value = craft_core::input::parse_object(source)?;
     // Serde names the offending variant or field, which is what an author needs to fix it.
     let scene: Scene = serde_json::from_value(value.clone()).map_err(|error| {
@@ -124,6 +210,11 @@ fn encode_data(source: &[u8]) -> Result<serde_json::Value, CraftError> {
             format!("Invalid whiteboard scene: {error}."),
         )
     })?;
+    Ok((value, scene))
+}
+
+fn encode_data(source: &[u8]) -> Result<serde_json::Value, CraftError> {
+    let (value, scene) = parse_scene(source)?;
     let encoded = encode::encode(&scene)?;
     serde_json::to_value(EncodeData {
         element_count: encoded.records.len(),
@@ -183,5 +274,32 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
             scene: decoded.scene,
         })
         .map_err(|_| CraftError::new(ErrorCode::Internal, "Cannot encode example."))?,
+    )?;
+    let laid = layout::layout(
+        &example,
+        &layout::Options {
+            algorithm: layout::Algorithm::Layered,
+            direction: layout::Direction::Right,
+            gap: 80.0,
+            columns: None,
+        },
+    );
+    crate::catalog::register::<WhiteboardLayoutArgs, LayoutData>(
+        registry,
+        LAYOUT,
+        "Lay out a whiteboard scene file deterministically (layered, tree or grid); no network.",
+        json!({"file":"scene.json","algorithm":"layered"}),
+        to_value(LayoutData {
+            moved_count: 2,
+            report: check::check(&laid),
+            scene: laid,
+        })?,
+    )?;
+    crate::catalog::register::<WhiteboardFileArgs, check::Report>(
+        registry,
+        CHECK,
+        "Check a whiteboard scene file for overlaps, crossings, spacing, contrast and fit.",
+        json!({"file":"scene.json"}),
+        to_value(check::check(&example))?,
     )
 }

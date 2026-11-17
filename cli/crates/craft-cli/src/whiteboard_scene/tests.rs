@@ -371,3 +371,216 @@ fn every_named_vocabulary_value_round_trips_through_its_code() -> TestResult {
     assert_eq!(Cap::ALL.len(), 14);
     Ok(())
 }
+
+#[test]
+fn labels_groups_and_rotation_use_the_editor_encodings() -> TestResult {
+    let scene = scene(json!([
+        {"kind":"shape","id":"a","shape":"rectangle","x":0,"y":0,"w":200,"h":100,"rotation":90},
+        {"kind":"shape","id":"b","shape":"rectangle","x":400,"y":0,"w":200,"h":100},
+        {"kind":"connector","id":"ab","from":"a","to":"b"},
+        {"kind":"label","on":"ab","text":"HTTPS","at":0.25},
+        {"kind":"group","members":["a","b"]},
+    ]))?;
+    let records = encode::encode(&scene)?.records;
+    let rotation = records[0]["rotation"].as_f64().ok_or("rotation")?;
+    assert!(
+        (rotation - std::f64::consts::FRAC_PI_2).abs() < 1e-9,
+        "degrees become radians"
+    );
+    assert_eq!(records[3]["type"], "pathLabel");
+    assert_eq!(
+        (
+            records[3]["sourcePathIndex"].clone(),
+            records[3]["proportion"].clone()
+        ),
+        (json!(2), json!(0.25))
+    );
+    assert_eq!(records[4]["childrenIndices"], json!([0, 1]));
+    assert_eq!(records[4]["children"].as_array().map(Vec::len), Some(2));
+    assert_eq!(
+        records[4]["size"],
+        json!({"x":600.0,"y":100.0,"type":"Vector2"})
+    );
+    assert_eq!(
+        records[4]["position"],
+        json!({"x":300.0,"y":50.0,"type":"Vector2"})
+    );
+    let decoded = decode::decode(records).scene;
+    let Element::Shape(shape) = &decoded.elements[0] else {
+        panic!("shape")
+    };
+    assert_eq!(shape.rotation, Some(90.0));
+    let Element::Label(label) = &decoded.elements[3] else {
+        panic!("label")
+    };
+    assert_eq!(
+        (label.on.as_str(), label.text.as_deref(), label.at),
+        ("e3", Some("HTTPS"), Some(0.25))
+    );
+    let Element::Group(group) = &decoded.elements[4] else {
+        panic!("group")
+    };
+    assert_eq!(group.members, vec!["e1".to_owned(), "e2".to_owned()]);
+    for (elements, path, expected) in [
+        (
+            json!([{"kind":"sticky","id":"s","x":0,"y":0},{"kind":"label","on":"s","text":"x"}]),
+            "/elements/1/on",
+            "labels_attach_to_connectors_or_lines",
+        ),
+        (
+            json!([{"kind":"sticky","id":"s","x":0,"y":0},{"kind":"sticky","id":"t","x":0,"y":0},{"kind":"connector","id":"c","from":"s","to":"t"},{"kind":"label","on":"c","at":2}]),
+            "/elements/3/at",
+            "label_position_outside_path",
+        ),
+        (
+            json!([{"kind":"sticky","id":"s","x":0,"y":0},{"kind":"group","members":["s"]}]),
+            "/elements/1/members",
+            "group_needs_two_members",
+        ),
+        (
+            json!([{"kind":"sticky","id":"s","x":0,"y":0},{"kind":"group","members":["s","s"]}]),
+            "/elements/1/members",
+            "duplicate_group_member",
+        ),
+        (
+            json!([{"kind":"shape","shape":"ellipse","x":0,"y":0,"w":1,"h":1,"rotation":400}]),
+            "/elements/0/rotation",
+            "rotation_out_of_range",
+        ),
+    ] {
+        let error = encode::encode(&self::scene(elements.clone())?)
+            .err()
+            .ok_or("accepted")?;
+        assert_eq!(
+            rule(error),
+            (path.to_owned(), expected.to_owned()),
+            "{elements}"
+        );
+    }
+    Ok(())
+}
+
+fn options(algorithm: super::layout::Algorithm) -> super::layout::Options {
+    super::layout::Options {
+        algorithm,
+        direction: super::layout::Direction::Right,
+        gap: 80.0,
+        columns: None,
+    }
+}
+
+fn codes(scene: &Scene) -> Vec<String> {
+    super::check::check(scene)
+        .findings
+        .into_iter()
+        .map(|finding| finding.code)
+        .collect()
+}
+
+#[test]
+fn layered_layout_is_deterministic_keeps_lanes_for_long_edges_and_checks_clean() -> TestResult {
+    let shape = |id: &str| json!({"kind":"shape","id":id,"shape":"rounded_rectangle","x":0,"y":0,"w":200,"h":96,"text":id});
+    let scene = scene(json!([
+        shape("start"), shape("check"), shape("pay"), shape("wait"), shape("ship"),
+        {"kind":"connector","id":"a","from":"start","to":"check"},
+        {"kind":"connector","id":"b","from":"check","to":"pay"},
+        {"kind":"label","on":"b","text":"Yes"},
+        {"kind":"connector","id":"c","from":"check","to":"wait"},
+        {"kind":"label","on":"c","text":"No"},
+        {"kind":"connector","from":"wait","to":"pay"},
+        {"kind":"connector","from":"pay","to":"ship"},
+        {"kind":"connector","from":"ship","to":"start"},
+    ]))?;
+    let first = super::layout::layout(&scene, &options(super::layout::Algorithm::Layered));
+    let second = super::layout::layout(&scene, &options(super::layout::Algorithm::Layered));
+    assert_eq!(first, second, "same input, same output");
+    let report = super::check::check(&first);
+    assert_eq!(report.warning_count, 0, "{:?}", report.findings);
+    let position = |id: &str| {
+        first.elements.iter().find_map(|element| match element {
+            Element::Shape(item) if item.id.as_deref() == Some(id) => Some((item.x, item.y)),
+            _ => None,
+        })
+    };
+    let (check, pay, wait) = (
+        position("check").ok_or("check")?,
+        position("pay").ok_or("pay")?,
+        position("wait").ok_or("wait")?,
+    );
+    assert!(check.0 < wait.0 && wait.0 < pay.0, "layers follow the flow");
+    assert_ne!(
+        wait.1, pay.1,
+        "the long edge check to pay keeps its own lane"
+    );
+    for element in &first.elements {
+        if let Element::Shape(item) = element {
+            assert_eq!(
+                (item.x % 8.0, item.y % 8.0),
+                (0.0, 0.0),
+                "snapped to the 8 px grid"
+            );
+        }
+    }
+    encode::encode(&first)?;
+    Ok(())
+}
+
+#[test]
+fn grid_layout_fills_sections_and_tree_layout_puts_parents_before_children() -> TestResult {
+    let sticky = |id: &str, x: i32| json!({"kind":"sticky","id":id,"x":x,"y":100,"text":id});
+    let board = scene(json!([
+        {"kind":"section","id":"good","x":0,"y":0,"w":1000,"h":400,"title":"Good"},
+        {"kind":"section","id":"bad","x":1100,"y":0,"w":1000,"h":400,"title":"Bad"},
+        sticky("g1", 10), sticky("g2", 400), sticky("g3", 700),
+        sticky("b1", 1150), sticky("b2", 1500),
+    ]))?;
+    let laid = super::layout::layout(&board, &options(super::layout::Algorithm::Grid));
+    let members = super::geometry::section_members(&laid);
+    assert_eq!(members.len(), 5, "every sticky stays inside its section");
+    assert!(
+        !codes(&laid)
+            .iter()
+            .any(|code| code == "overlap" || code == "section_overlap")
+    );
+
+    let node =
+        |id: &str| json!({"kind":"shape","id":id,"shape":"ellipse","x":0,"y":0,"w":160,"h":80});
+    let map = scene(json!([
+        node("root"), node("a"), node("b"), node("a1"),
+        {"kind":"connector","from":"root","to":"a"},
+        {"kind":"connector","from":"root","to":"b"},
+        {"kind":"connector","from":"a","to":"a1"},
+    ]))?;
+    let tree = super::layout::layout(&map, &options(super::layout::Algorithm::Tree));
+    let x = |id: &str| {
+        tree.elements.iter().find_map(|element| match element {
+            Element::Shape(item) if item.id.as_deref() == Some(id) => Some(item.x),
+            _ => None,
+        })
+    };
+    assert!(x("root") < x("a") && x("a") < x("a1"));
+    assert_eq!(super::check::check(&tree).warning_count, 0);
+    Ok(())
+}
+
+#[test]
+fn check_reports_overlap_contrast_shared_anchors_and_overflow() -> TestResult {
+    let board = scene(json!([
+        {"kind":"shape","id":"a","shape":"rectangle","x":0,"y":0,"w":200,"h":100,"fill":"blue-boldest","text":"A"},
+        {"kind":"shape","id":"b","shape":"rectangle","x":100,"y":50,"w":200,"h":100},
+        {"kind":"shape","id":"c","shape":"rectangle","x":600,"y":0,"w":80,"h":40,"text":"This label is far too long to fit in such a small box"},
+        {"kind":"shape","id":"d","shape":"rectangle","x":600,"y":300,"w":200,"h":100},
+        {"kind":"connector","from":"c","to":"d","from_side":"bottom","to_side":"top"},
+        {"kind":"connector","from":"c","to":"d","from_side":"bottom","to_side":"top"},
+    ]))?;
+    let found = codes(&board);
+    for expected in ["overlap", "low_contrast", "shared_anchor", "text_overflow"] {
+        assert!(
+            found.iter().any(|code| code == expected),
+            "{expected} in {found:?}"
+        );
+    }
+    let report = super::check::check(&board);
+    assert!(report.score < 100 && report.warning_count >= 4);
+    Ok(())
+}

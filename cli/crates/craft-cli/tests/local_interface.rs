@@ -116,6 +116,8 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "scan.export",
         "whiteboard.encode",
         "whiteboard.decode",
+        "whiteboard.layout",
+        "whiteboard.check",
     ];
     for command in commands {
         let body = envelope(&invoke(&["schema", "--command", command], None)?)?;

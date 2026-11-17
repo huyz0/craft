@@ -246,6 +246,31 @@ fn typed(
                 size: not_default(round(size), STAMP_SIZE),
             })
         }
+        "pathLabel" => {
+            let on = reference("sourcePathIndex")?;
+            let (text, adf) = content(map)?;
+            Element::Label(Label {
+                id,
+                on,
+                text,
+                adf,
+                at: not_default(map.get("proportion")?.as_f64()?, 0.5),
+                color: not_default(color(map.get("color")?)?, Color::DefaultText),
+                font_scale: scale(map)?,
+            })
+        }
+        "group" => {
+            let members = map
+                .get("childrenIndices")?
+                .as_array()?
+                .iter()
+                .map(|value| {
+                    let index = usize::try_from(value.as_u64()?).ok()?;
+                    (index < count).then(|| format!("e{}", index + 1))
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Element::Group(Group { id, members })
+        }
         "smartLink" => {
             let (cx, cy) = vector(map.get("position")?)?;
             let (w, h) = vector(map.get("size")?)?;
@@ -325,11 +350,10 @@ fn scale(map: &Map<String, Value>) -> Option<Option<f64>> {
     Some(not_default(map.get("fontScale")?.as_f64()?, 1.0))
 }
 
+/// Radians in the record, degrees in the scene.
 fn turn(map: &Map<String, Value>) -> Option<Option<f64>> {
-    Some(not_default(
-        map.get("rotation").and_then(Value::as_f64).unwrap_or(0.0),
-        0.0,
-    ))
+    let radians = map.get("rotation").and_then(Value::as_f64).unwrap_or(0.0);
+    Some(not_default(round(radians.to_degrees()), 0.0))
 }
 
 /// Top-left box from the center-based basis fields.

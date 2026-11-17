@@ -34,6 +34,8 @@ pub enum Element {
     Line(Line),
     Stamp(Stamp),
     Link(Link),
+    Label(Label),
+    Group(Group),
     /// An editor element the scene vocabulary does not model, kept verbatim.
     Raw(Raw),
 }
@@ -66,7 +68,7 @@ pub struct Shape {
     pub valign: Option<VerticalAlign>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_scale: Option<f64>,
-    /// Degrees. Default 0.
+    /// Degrees clockwise, at most 360 either way. Default 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotation: Option<f64>,
 }
@@ -255,6 +257,36 @@ pub struct Link {
     pub h: Option<f64>,
 }
 
+/// Text carried by a connector or line, drawn on the path and moving with it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Label {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// The connector or line id.
+    pub on: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adf: Option<Value>,
+    /// Position along the path, 0 at the start and 1 at the end. Default 0.5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<Color>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_scale: Option<f64>,
+}
+
+/// Elements selected, moved and resized together (the editor's Group elements, Ctrl+G).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Group {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub members: Vec<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Raw {
@@ -275,6 +307,8 @@ impl Element {
             Element::Line(item) => item.id.as_deref(),
             Element::Stamp(item) => item.id.as_deref(),
             Element::Link(item) => item.id.as_deref(),
+            Element::Label(item) => item.id.as_deref(),
+            Element::Group(item) => item.id.as_deref(),
             Element::Raw(item) => item.id.as_deref(),
         }
     }
