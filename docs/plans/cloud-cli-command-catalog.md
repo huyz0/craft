@@ -65,7 +65,7 @@ Custom-field administration, user/group administration, workflow editing, and pe
 | `space create` | POST `/wiki/api/v2/spaces` on RBAC tenants; POST `/wiki/rest/api/space` as a separately verified legacy adapter | Core, Conditional adapter; global create-space permission. Resolve adapter before writing. [A31, A32] |
 | `space update`, `space delete` | PUT/DELETE `/wiki/rest/api/space/{spaceKey}` | Privileged; update metadata, not permissions. Deletion is permanent and asynchronous. [A32] |
 | `folder get`, `folder create`, `folder trash` | GET/DELETE `/wiki/api/v2/folders/{id}`; POST `/wiki/api/v2/folders` | Core; space and optional page or folder parent, version-checked trash, no purge. |
-| `whiteboard get`, `whiteboard create`, `whiteboard trash` | GET/DELETE `/wiki/api/v2/whiteboards/{id}`; POST `/wiki/api/v2/whiteboards` | Core; metadata only (drawing content has no API), no template or private create, no purge. |
+| `whiteboard get`, `whiteboard create`, `whiteboard trash` | GET/DELETE `/wiki/api/v2/whiteboards/{id}`; POST `/wiki/api/v2/whiteboards` | Core; metadata only (drawing content has no API), built-in template on create, no private create, no purge. |
 
 Native unpublished-draft discard is a separate destructive lifecycle operation and is deferred. The factory's plan draft remains a normal published review page. A page being published, archived, trashed, or carrying a badge does not establish human approval.
 

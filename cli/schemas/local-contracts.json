@@ -17198,6 +17198,13 @@
                 "null"
               ]
             },
+            "locale": {
+              "description": "Whiteboard only, with `template`: template language such as `en-US`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "operation_id": {
               "type": "string"
             },
@@ -17205,6 +17212,13 @@
               "$ref": "#/$defs/ContentPlacement"
             },
             "space_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "template": {
+              "description": "Whiteboard only: start from a built-in template such as `flow-chart`.",
               "type": [
                 "string",
                 "null"
@@ -17950,6 +17964,21 @@
           "short": null,
           "short_aliases": null
         },
+        "locale": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "locale",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
         "operation_id": {
           "action": "Set",
           "arity": {
@@ -17994,6 +18023,21 @@
           "defaults": [],
           "delimiter": null,
           "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "template": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "template",
           "long_aliases": null,
           "required": false,
           "short": null,
@@ -26701,6 +26745,13 @@
                 "null"
               ]
             },
+            "locale": {
+              "description": "Whiteboard only, with `template`: template language such as `en-US`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "operation_id": {
               "type": "string"
             },
@@ -26708,6 +26759,13 @@
               "$ref": "#/$defs/ContentPlacement"
             },
             "space_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "template": {
+              "description": "Whiteboard only: start from a built-in template such as `flow-chart`.",
               "type": [
                 "string",
                 "null"
@@ -27453,6 +27511,21 @@
           "short": null,
           "short_aliases": null
         },
+        "locale": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "locale",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
         "operation_id": {
           "action": "Set",
           "arity": {
@@ -27497,6 +27570,21 @@
           "defaults": [],
           "delimiter": null,
           "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "template": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "template",
           "long_aliases": null,
           "required": false,
           "short": null,
@@ -82125,6 +82213,1777 @@
         "contract": "sha256:ba0b354af5b61a2bf7e45ab08662b23ab3149947383df65fbc492708cbbeb266",
         "product": "sha256:ba0b354af5b61a2bf7e45ab08662b23ab3149947383df65fbc492708cbbeb266",
         "version": "sha256:e430e7c322b24c7d02d76fccbb77be59308d5161bb0e0d0172884abf9e93571a"
+      }
+    },
+    "whiteboard.decode": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:e743c57e080e078648cbf04cfb0f48238caa499a312d99d0c49123b27fb7c2c4",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Decode copied whiteboard clipboard HTML into a scene; no network.",
+        "effect": "read",
+        "example": {
+          "file": "clipboard.html"
+        },
+        "id": "whiteboard.decode",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardFileArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "element_count",
+            "raw_count",
+            "private_fields_removed"
+          ],
+          "default_selected": [
+            "element_count",
+            "raw_count",
+            "private_fields_removed",
+            "warnings",
+            "scene"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.decode",
+          "data": {
+            "element_count": 3,
+            "private_fields_removed": 0,
+            "raw_count": 0,
+            "scene": {
+              "elements": [
+                {
+                  "fill": "green-subtle",
+                  "h": 80.0,
+                  "id": "e1",
+                  "kind": "shape",
+                  "shape": "start_end",
+                  "text": "Start",
+                  "w": 180.0,
+                  "x": 0.0,
+                  "y": 0.0
+                },
+                {
+                  "color": "yellow-subtle",
+                  "id": "e2",
+                  "kind": "sticky",
+                  "text": "Idea",
+                  "x": 300.0,
+                  "y": -32.0
+                },
+                {
+                  "from": "e1",
+                  "from_side": "right",
+                  "id": "e3",
+                  "kind": "connector",
+                  "to": "e2",
+                  "to_side": "left"
+                }
+              ],
+              "format": "craft.whiteboard.scene.v1"
+            },
+            "warnings": []
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "Align": {
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "type": "string"
+            },
+            "Cap": {
+              "description": "Line end marker.",
+              "enum": [
+                "none",
+                "arrow",
+                "filled_arrow",
+                "open_arrow",
+                "filled_diamond",
+                "open_diamond",
+                "open_circle",
+                "slash",
+                "triple_bar",
+                "open_circle_cross",
+                "cross",
+                "cross_crows_foot",
+                "crows_foot",
+                "circle_crows_foot"
+              ],
+              "type": "string"
+            },
+            "Color": {
+              "description": "Palette color. `<hue>-subtlest`, `-subtle`, plain, `-bold` and `-boldest` follow the\nAtlassian 100, 200, 300, 600 and 800 accent tokens.",
+              "enum": [
+                "white",
+                "default-text",
+                "gray-subtle",
+                "gray",
+                "gray-bold",
+                "gray-boldest",
+                "blue-subtlest",
+                "blue-subtle",
+                "blue",
+                "blue-bold",
+                "blue-boldest",
+                "teal-subtlest",
+                "teal-subtle",
+                "teal",
+                "teal-bold",
+                "teal-boldest",
+                "green-subtlest",
+                "green-subtle",
+                "green",
+                "green-bold",
+                "green-boldest",
+                "lime-subtlest",
+                "lime-subtle",
+                "lime",
+                "lime-bold",
+                "lime-boldest",
+                "yellow-subtlest",
+                "yellow-subtle",
+                "yellow",
+                "yellow-bold",
+                "yellow-boldest",
+                "orange-subtlest",
+                "orange-subtle",
+                "orange",
+                "orange-bold",
+                "orange-boldest",
+                "red-subtlest",
+                "red-subtle",
+                "red",
+                "red-bold",
+                "red-boldest",
+                "magenta-subtlest",
+                "magenta-subtle",
+                "magenta",
+                "magenta-bold",
+                "magenta-boldest",
+                "purple-subtlest",
+                "purple-subtle",
+                "purple",
+                "purple-bold",
+                "purple-boldest"
+              ],
+              "type": "string"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "Dash": {
+              "enum": [
+                "solid",
+                "dashed",
+                "dotted"
+              ],
+              "type": "string"
+            },
+            "Element": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `center`."
+                    },
+                    "fill": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `gray-subtle`."
+                    },
+                    "filled": {
+                      "description": "`false` draws the outline only. Default `true`.",
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "shape",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "description": "Degrees. Default 0.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "shape": {
+                      "$ref": "#/$defs/ShapeKind"
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "valign": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/VerticalAlign"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `middle`."
+                    },
+                    "w": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "shape",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "One of the eight sticky colors. Default `yellow-subtle`."
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "sticky",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "valign": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/VerticalAlign"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "w": {
+                      "description": "Default 144. The editor grows a sticky downward to fit its text.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `left`."
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `default-text`."
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "text",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "w": {
+                      "description": "Wrapping width. Height follows the text.",
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y",
+                    "w"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `white`."
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "section",
+                      "type": "string"
+                    },
+                    "shadow": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "w": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A line bound to two elements; it follows them when they move.",
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dash": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Dash"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "end_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "from_side": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Side"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "connector",
+                      "type": "string"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Route"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stroke": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Stroke"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "to_side": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Side"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "from",
+                    "to"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A free line between two canvas points.",
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dash": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Dash"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "end_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "line",
+                      "type": "string"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Route"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stroke": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Stroke"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "x1": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x2": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y1": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y2": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x1",
+                    "y1",
+                    "x2",
+                    "y2"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A stamp either free at (`x`, `y`) or pinned to the element named by `on`.",
+                  "properties": {
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "stamp",
+                      "type": "string"
+                    },
+                    "on": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "size": {
+                      "description": "Square side. Default 60.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sprite": {
+                      "$ref": "#/$defs/Sprite"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "sprite"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A Smart Link card. The editor resolves the URL for the viewer when the board renders.",
+                  "properties": {
+                    "h": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "link",
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "w": {
+                      "description": "Default 280 by 306.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "url",
+                    "x",
+                    "y"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "An editor element the scene vocabulary does not model, kept verbatim.",
+                  "properties": {
+                    "element": {
+                      "additionalProperties": true,
+                      "description": "The editor record, with author identities and resolved resource identifiers removed.",
+                      "type": "object"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "raw",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "element"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "Route": {
+              "description": "Path routing: straight, right-angled (\"dynamic\" in the editor) or curved.",
+              "enum": [
+                "straight",
+                "elbow",
+                "curved"
+              ],
+              "type": "string"
+            },
+            "Scene": {
+              "additionalProperties": false,
+              "properties": {
+                "elements": {
+                  "description": "Paint order: later elements are drawn above earlier ones.",
+                  "items": {
+                    "$ref": "#/$defs/Element"
+                  },
+                  "type": "array"
+                },
+                "format": {
+                  "$ref": "#/$defs/SceneFormat"
+                }
+              },
+              "required": [
+                "format",
+                "elements"
+              ],
+              "type": "object"
+            },
+            "SceneFormat": {
+              "enum": [
+                "craft.whiteboard.scene.v1"
+              ],
+              "type": "string"
+            },
+            "ShapeKind": {
+              "description": "Shape library entry. Class and Interface (codes 82 and 83) carry compartments that a\nscene cannot describe, so they are only preserved as raw elements.",
+              "enum": [
+                "sharp_rectangle",
+                "rectangle",
+                "ellipse",
+                "rounded_rectangle",
+                "diamond",
+                "up_triangle",
+                "down_triangle",
+                "left_parallelogram",
+                "right_parallelogram",
+                "start_end",
+                "document",
+                "off_page",
+                "input_output",
+                "database",
+                "summing_junction",
+                "or",
+                "predefined_process",
+                "internal_storage",
+                "manual_input",
+                "manual_operation",
+                "multiple_documents",
+                "preparation",
+                "hard_disk",
+                "comment_left",
+                "comment_right",
+                "stored_data",
+                "delay",
+                "display",
+                "process",
+                "decision",
+                "connector",
+                "merge",
+                "cloud",
+                "key",
+                "server",
+                "archive",
+                "browser",
+                "user",
+                "compute",
+                "computer",
+                "file",
+                "firewall",
+                "folder",
+                "frontend",
+                "internet",
+                "lock",
+                "mail",
+                "mobile",
+                "settings",
+                "shield",
+                "users",
+                "switch",
+                "database_advanced",
+                "alternate_process",
+                "use_case",
+                "classifier",
+                "note",
+                "interface2",
+                "activation",
+                "activity",
+                "actor",
+                "assembly",
+                "component",
+                "deletion",
+                "end",
+                "flow_final",
+                "gateway",
+                "history_pseudostate",
+                "horizontal_fork",
+                "vertical_fork",
+                "off_page_link",
+                "pin_filled_left",
+                "pin_filled_right",
+                "pin_left",
+                "pin_right",
+                "pin",
+                "provided_interface",
+                "receive_signal",
+                "required_interface",
+                "send_signal",
+                "start",
+                "template",
+                "node",
+                "container",
+                "boundary_object",
+                "entity_object",
+                "control_object"
+              ],
+              "type": "string"
+            },
+            "Side": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SideName"
+                },
+                {
+                  "$ref": "#/$defs/UnitPoint"
+                }
+              ],
+              "description": "Where a connector meets an element: a named side or a point in the element's unit box."
+            },
+            "SideName": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "top",
+                    "right",
+                    "bottom",
+                    "left"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "const": "auto",
+                  "description": "Facing sides, chosen from the two elements' centers.",
+                  "type": "string"
+                }
+              ]
+            },
+            "Sprite": {
+              "description": "Stamp sprite identifiers offered by the stamp picker.",
+              "enum": [
+                "thumbs-up",
+                "thumbs-down",
+                "thanks",
+                "clapping-hands",
+                "heart-eyes",
+                "smile",
+                "joy",
+                "crazy",
+                "party-hat",
+                "shocked",
+                "cool",
+                "star-eyes",
+                "ok-face",
+                "peace",
+                "down-point",
+                "up-point",
+                "right-point",
+                "left-point",
+                "fire",
+                "100",
+                "spicy",
+                "party",
+                "heart",
+                "question-mark",
+                "gold-star",
+                "eyes",
+                "plus-one",
+                "win",
+                "tool",
+                "hourglass",
+                "magnifying-glass",
+                "megaphone",
+                "bell",
+                "candy",
+                "calendar",
+                "idea",
+                "artist",
+                "rocket",
+                "success",
+                "note",
+                "info",
+                "question",
+                "decision",
+                "error",
+                "warning"
+              ],
+              "type": "string"
+            },
+            "Stroke": {
+              "description": "Line weight (the editor's small, medium and large).",
+              "enum": [
+                "thin",
+                "medium",
+                "thick"
+              ],
+              "type": "string"
+            },
+            "UnitPoint": {
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "description": "0 is the left edge, 1 the right edge.",
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "description": "0 is the top edge, 1 the bottom edge.",
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y"
+              ],
+              "type": "object"
+            },
+            "VerticalAlign": {
+              "enum": [
+                "top",
+                "middle",
+                "bottom"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "element_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "private_fields_removed": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "raw_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "scene": {
+                  "$ref": "#/$defs/Scene"
+                },
+                "warnings": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "element_count",
+                "raw_count",
+                "private_fields_removed",
+                "warnings",
+                "scene"
+              ],
+              "title": "DecodeData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "decode"
+      ],
+      "selectable_fields": {
+        "element_count": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
+        "private_fields_removed": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
+        "raw_count": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
+        "scene": "sha256:92f17e792a06728f3d413924aa751aaa9c27d748bb29152d458f84ef13904667",
+        "scene.elements": "sha256:8fbe7596b9c5faf21dade9bedda58095e99443e508ccd92b01713a39a9790214",
+        "scene.format": "sha256:7610181874c0beec9204cb8904d0cdb284c034aeedb9f3a92a58baf7f13ca91e",
+        "warnings": "sha256:50dace04867dd6e395bb1a5d6eccce6dc2412b8d64fcd220916fa43c8778b159"
+      }
+    },
+    "whiteboard.encode": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:a16bd9343ae5c50955aa064c7b33b8a3aabd300428674901a08e4602934bf80f",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Encode a whiteboard scene file as editor clipboard HTML; no network or board write.",
+        "effect": "read",
+        "example": {
+          "file": "scene.json"
+        },
+        "id": "whiteboard.encode",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardFileArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "element_count",
+            "scene_digest",
+            "board_written"
+          ],
+          "default_selected": [
+            "element_count",
+            "connector_count",
+            "scene_digest",
+            "clipboard_html",
+            "board_written"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.encode",
+          "data": {
+            "board_written": false,
+            "clipboard_html": "<div id=\"canvas-clipboard\" data-canvas-clipboard=\"W3siYWxpZ25tZW50IjoiY2VudGVyIiwiYmFzaXNQb3NpdGlvbiI6eyJ0eXBlIjoiVmVjdG9yMiIsIngiOjkwLjAsInkiOjQwLjB9LCJiYXNpc1NpemUiOnsidHlwZSI6IlZlY3RvcjIiLCJ4IjoxODAuMCwieSI6ODAuMH0sImNvbG9yIjp7InR5cGUiOiJWZWN0b3IzIiwieCI6MTk5LCJ5IjoyNDgsInoiOjIyN30sImZpbGxFbmFibGVkIjp0cnVlLCJmb250U2NhbGUiOjEuMCwicG9zaXRpb24iOnsidHlwZSI6IlZlY3RvcjIiLCJ4Ijo5MC4wLCJ5Ijo0MC4wfSwicm90YXRpb24iOjAuMCwic2hhcGUiOjksInNpemUiOnsidHlwZSI6IlZlY3RvcjIiLCJ4IjoxODAuMCwieSI6ODAuMH0sInNvdXJjZSI6MSwic3Ryb2tlU3R5bGUiOjEsInRleHQiOiJ7XCJjb250ZW50XCI6W3tcImNvbnRlbnRcIjpbe1widGV4dFwiOlwiU3RhcnRcIixcInR5cGVcIjpcInRleHRcIn1dLFwidHlwZVwiOlwicGFyYWdyYXBoXCJ9XSxcInR5cGVcIjpcImRvY1wiLFwidmVyc2lvblwiOjF9IiwidHlwZSI6InNoYXBlIiwidmVydGljYWxBbGlnbm1lbnQiOjF9LHsiYWxpZ25tZW50IjoiY2VudGVyIiwiYmFzaXNQb3NpdGlvbiI6eyJ0eXBlIjoiVmVjdG9yMiIsIngiOjM3Mi4wLCJ5Ijo0MC4wfSwiYmFzaXNTaXplIjp7InR5cGUiOiJWZWN0b3IyIiwieCI6MTQ0LjAsInkiOjE0NC4wfSwiY29sb3IiOnsidHlwZSI6IlZlY3RvcjMiLCJ4IjoyNTUsInkiOjIzOSwieiI6MTc0fSwiZm9udFNjYWxlIjoxLjAsImlzQXV0aG9yVmlzaWJsZSI6ZmFsc2UsInBvc2l0aW9uIjp7InR5cGUiOiJWZWN0b3IyIiwieCI6MzcyLjAsInkiOjQwLjB9LCJyb3RhdGlvbiI6MC4wLCJzaXplIjp7InR5cGUiOiJWZWN0b3IyIiwieCI6MTQ0LjAsInkiOjE0NC4wfSwic291cmNlIjoxLCJ0ZXh0Ijoie1wiY29udGVudFwiOlt7XCJjb250ZW50XCI6W3tcInRleHRcIjpcIklkZWFcIixcInR5cGVcIjpcInRleHRcIn1dLFwidHlwZVwiOlwicGFyYWdyYXBoXCJ9XSxcInR5cGVcIjpcImRvY1wiLFwidmVyc2lvblwiOjF9IiwidHlwZSI6InN0aWNreSIsInZlcnRpY2FsQWxpZ25tZW50IjoxfSx7ImNvbG9yIjp7InR5cGUiOiJWZWN0b3IzIiwieCI6MTE3LCJ5IjoxMjksInoiOjE0OX0sImVuZCI6WzAsMF0sImVuZENhcCI6MiwicG9zaXRpb24iOnsidHlwZSI6IlZlY3RvcjIiLCJ4IjowLjAsInkiOjAuMH0sInByZXNlbnRhdGlvbiI6Miwic2VnbWVudHMiOltdLCJzaXplIjp7InR5cGUiOiJWZWN0b3IyIiwieCI6MC4wLCJ5IjowLjB9LCJzb3VyY2UiOjEsInNvdXJjZUFuY2hvciI6eyJsZWZ0IjoxLjAsInRvcCI6MC41fSwic291cmNlSW5kZXgiOjAsInN0YXJ0IjpbMCwwXSwic3RhcnRDYXAiOjEsInN0cm9rZSI6MSwic3Ryb2tlU3R5bGUiOjEsInRhcmdldEFuY2hvciI6eyJsZWZ0IjowLjAsInRvcCI6MC41fSwidGFyZ2V0SW5kZXgiOjEsInR5cGUiOiJjb25uZWN0b3IifV0=\"></div>",
+            "connector_count": 1,
+            "element_count": 3,
+            "scene_digest": "sha256:example"
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "board_written": {
+                  "type": "boolean"
+                },
+                "clipboard_html": {
+                  "description": "Paste this as `text/html` into an open whiteboard.",
+                  "type": "string"
+                },
+                "connector_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "element_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "scene_digest": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "element_count",
+                "connector_count",
+                "scene_digest",
+                "clipboard_html",
+                "board_written"
+              ],
+              "title": "EncodeData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "encode"
+      ],
+      "selectable_fields": {
+        "board_written": "sha256:82f78332748eab0ffbaecb9e8a6af440346c7904c2e6f8454e7c38dfc6a3803f",
+        "clipboard_html": "sha256:6b7c98de668a5e0c3b336ee471568edc165be8d4b4910fe34e0cec6956e7e452",
+        "connector_count": "sha256:9641f44ced0d4f4b81dee395e81d257c27bb4e5d5756eae18a72c0a1c9c7ddf5",
+        "element_count": "sha256:82f78332748eab0ffbaecb9e8a6af440346c7904c2e6f8454e7c38dfc6a3803f",
+        "scene_digest": "sha256:82f78332748eab0ffbaecb9e8a6af440346c7904c2e6f8454e7c38dfc6a3803f"
       }
     }
   },

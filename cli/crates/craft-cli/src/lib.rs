@@ -43,3 +43,4 @@ pub mod scans;
 pub mod local_artifacts;
 
 pub mod attachment_upload;
+pub mod whiteboard_scene;

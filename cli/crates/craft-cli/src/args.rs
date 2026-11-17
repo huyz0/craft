@@ -287,6 +287,10 @@ pub enum Action {
         #[command(subcommand)]
         action: DesignAction,
     },
+    Whiteboard {
+        #[command(subcommand)]
+        action: crate::whiteboard_scene::WhiteboardAction,
+    },
     Auth {
         #[command(subcommand)]
         action: AuthAction,

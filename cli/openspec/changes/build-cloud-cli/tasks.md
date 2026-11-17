@@ -972,6 +972,24 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Evidence:** docs/evidence/confluence-folders-whiteboards.md
 
+### whiteboard-scenes
+
+- [ ] Deliver this task.
+
+**Goal:** Let agents put reviewable drawing content on whiteboards and read it back, although Confluence has no content API.
+
+**Spec:** cloud-providers / Native Confluence resources
+
+**Depends on:** confluence-folders-whiteboards
+
+**Build:** Local `whiteboard encode` and `whiteboard decode` convert between a strict scene file (top-left boxes, palette color names, id references) and the editor's clipboard HTML; whiteboard create accepts a built-in template key and template locale. No board content is written or read through an API.
+
+**Verify:** Test scene validation (references, palette, sizes, text and ADF exclusivity), center-based placement, index-bound connectors and attached stamps, decode of editor-shaped records with identities removed and unknown records kept raw, decode-encode-decode stability, and template body/folder refusal; paste an encoded scene into a live board and copy it back.
+
+**Done when:** Every scene that encodes pastes into a board without breaking the editor, and decoding a board copy never emits account or tenant identifiers.
+
+**Evidence:** docs/evidence/whiteboard-scenes.md
+
 ### confluence-conformance
 
 - [ ] Deliver this task.
