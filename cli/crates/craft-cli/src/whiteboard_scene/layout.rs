@@ -28,7 +28,7 @@ pub enum Algorithm {
     #[default]
     Layered,
     Tree,
-    Radial,
+    Mindmap,
     Grid,
 }
 
@@ -63,7 +63,7 @@ pub fn layout(scene: &Scene, options: &Options) -> Scene {
     let positions = match options.algorithm {
         Algorithm::Layered => layered(&scene, &nodes, &edges, &members, options),
         Algorithm::Tree => tree(&scene, &nodes, &edges, options),
-        Algorithm::Radial => radial(&scene, &nodes, &edges, options),
+        Algorithm::Mindmap => mindmap(&scene, &nodes, &edges, options),
         Algorithm::Grid => grid(&scene, &nodes, &members, options, &mut sizes),
     };
     for (index, (x, y)) in &positions {
@@ -371,9 +371,10 @@ fn layered(
     result
 }
 
-/// Balanced radial tree: the root in the middle, each subtree in an angular wedge sized by its
-/// leaf count, one ring per depth. Rings grow so neighbouring leaves never overlap.
-fn radial(
+/// Two-sided mind map: the root in the middle, first-level branches split between the right
+/// and left sides (balanced by leaf count, in order), each side a tidy tree growing outward with
+/// leaves stacked beside their branch.
+fn mindmap(
     scene: &Scene,
     nodes: &[usize],
     edges: &[(usize, usize)],
@@ -387,100 +388,80 @@ fn radial(
             children.entry(*from).or_default().push(*to);
         }
     }
-    let extent = nodes
-        .iter()
-        .map(|n| {
-            let (w, h) = size(&scene.elements[*n]);
-            w.max(h)
-        })
-        .fold(0.0, f64::max);
-    let mut result = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
-    let mut offset_x = 0.0;
-    let roots: Vec<usize> = nodes
+    let Some(root) = nodes
         .iter()
         .copied()
-        .filter(|n| !parent.contains_key(n))
-        .collect();
-    let roots = if roots.is_empty() {
-        nodes.first().copied().into_iter().collect()
-    } else {
-        roots
+        .find(|n| !parent.contains_key(n))
+        .or_else(|| nodes.first().copied())
+    else {
+        return Vec::new();
     };
-    for root in roots {
-        if seen.contains(&root) {
-            continue;
+    fn leaves(node: usize, children: &BTreeMap<usize, Vec<usize>>, depth: usize) -> f64 {
+        let kids = children.get(&node).map(Vec::as_slice).unwrap_or_default();
+        if kids.is_empty() || depth > 64 {
+            1.0
+        } else {
+            kids.iter().map(|k| leaves(*k, children, depth + 1)).sum()
         }
-        // Depth and leaf weight of every node reachable from this root, children in scene order.
-        let mut order = vec![(root, 0usize)];
-        let mut depth_of = HashMap::new();
-        let mut index = 0;
-        seen.insert(root);
-        while index < order.len() {
-            let (node, depth) = order[index];
-            depth_of.insert(node, depth);
-            for child in children.get(&node).into_iter().flatten() {
-                if seen.insert(*child) {
-                    order.push((*child, depth + 1));
-                }
-            }
-            index += 1;
+    }
+    let branches: Vec<usize> = children.get(&root).cloned().unwrap_or_default();
+    let total: f64 = branches.iter().map(|b| leaves(*b, &children, 0)).sum();
+    let mut right = Vec::new();
+    let mut left = Vec::new();
+    let mut taken = 0.0;
+    for branch in branches {
+        let weight = leaves(branch, &children, 0);
+        if taken + weight / 2.0 <= total / 2.0 || right.is_empty() {
+            right.push(branch);
+            taken += weight;
+        } else {
+            left.push(branch);
         }
-        let kids = |node: usize| -> Vec<usize> {
-            children
-                .get(&node)
-                .into_iter()
-                .flatten()
-                .copied()
-                .filter(|c| depth_of.get(c) == depth_of.get(&node).map(|d| d + 1).as_ref())
-                .collect()
-        };
-        let mut leaves: HashMap<usize, f64> = HashMap::new();
-        for (node, _) in order.iter().rev() {
-            let sum: f64 = kids(*node).iter().map(|c| leaves[c]).sum();
-            leaves.insert(*node, sum.max(1.0));
+    }
+    let side_options = Options {
+        algorithm: options.algorithm,
+        direction: Direction::Right,
+        gap: options.gap,
+        columns: None,
+    };
+    let (root_w, root_h) = size(&scene.elements[root]);
+    let mut seen = std::collections::BTreeSet::new();
+    seen.insert(root);
+    let mut result = vec![(root, (-root_w / 2.0, -root_h / 2.0))];
+    for (mirror, side) in [(false, right), (true, left)] {
+        let mut placed = Vec::new();
+        let mut cross = 0.0;
+        for branch in side {
+            let breadth = place_subtree(
+                scene,
+                branch,
+                root_w / 2.0 + options.gap * 1.5,
+                cross,
+                &children,
+                &mut seen,
+                &mut placed,
+                &side_options,
+            );
+            cross += breadth + options.gap;
         }
-        let max_depth = order.iter().map(|(_, d)| *d).max().unwrap_or(0);
-        let step = extent + options.gap * 1.5;
-        let mut radius = vec![0.0f64; max_depth + 1];
-        for depth in 1..=max_depth {
-            let count = order.iter().filter(|(_, d)| *d == depth).count() as f64;
-            let needed = count * (extent + options.gap) / std::f64::consts::TAU;
-            radius[depth] = (radius[depth - 1] + step).max(needed);
+        let height = (cross - options.gap).max(0.0);
+        for (node, (x, y)) in placed {
+            let (w, _) = size(&scene.elements[node]);
+            let x = if mirror { -x - w } else { x };
+            result.push((node, (x, y - height / 2.0)));
         }
-        let mut angle: HashMap<usize, (f64, f64)> = HashMap::new();
-        // Start the first wedge at the top-right so a four-branch map reads clockwise.
-        angle.insert(root, (-std::f64::consts::FRAC_PI_2, std::f64::consts::TAU));
-        let mut centers = Vec::new();
-        for (node, depth) in &order {
-            let (start, span) = angle[node];
-            let middle = start + span / 2.0;
-            let (cx, cy) = if *depth == 0 {
-                (0.0, 0.0)
-            } else {
-                (radius[*depth] * middle.cos(), radius[*depth] * middle.sin())
-            };
-            centers.push((*node, cx, cy));
-            let mut cursor = start;
-            for child in kids(*node) {
-                let share = span * leaves[&child] / leaves[node];
-                angle.insert(child, (cursor, share));
-                cursor += share;
-            }
+    }
+    // Anything not reachable from the root goes below the map.
+    let mut below = result
+        .iter()
+        .map(|(n, (_, y))| y + size(&scene.elements[*n]).1)
+        .fold(0.0, f64::max)
+        + options.gap * 2.0;
+    for node in nodes {
+        if !seen.contains(node) && *node != root {
+            result.push((*node, (0.0, below)));
+            below += size(&scene.elements[*node]).1 + options.gap;
         }
-        let min_x = centers
-            .iter()
-            .map(|(n, x, _)| x - size(&scene.elements[*n]).0 / 2.0)
-            .fold(f64::MAX, f64::min);
-        let max_x = centers
-            .iter()
-            .map(|(n, x, _)| x + size(&scene.elements[*n]).0 / 2.0)
-            .fold(f64::MIN, f64::max);
-        for (node, cx, cy) in centers {
-            let (w, h) = size(&scene.elements[node]);
-            result.push((node, (offset_x - min_x + cx - w / 2.0, cy - h / 2.0)));
-        }
-        offset_x += max_x - min_x + options.gap * 2.0;
     }
     result
 }
@@ -708,7 +689,7 @@ fn spread_anchors(scene: &mut Scene, options: &Options) {
         let preferred =
             |own: &Rect, other: &Rect, outgoing: bool| match (options.algorithm, options.direction)
             {
-                (Algorithm::Grid | Algorithm::Radial, _) => facing_side(own, other, outgoing),
+                (Algorithm::Grid, _) => facing_side(own, other, outgoing),
                 (_, Direction::Right) if (other.center().0 - own.center().0).abs() > 1.0 => {
                     if other.center().0 > own.center().0 {
                         SideName::Right
@@ -783,7 +764,7 @@ fn spread_anchors(scene: &mut Scene, options: &Options) {
 /// the top, forward or bottom corner, so Yes and No branches separate visibly. Exits that would
 /// share a corner keep the spread points.
 fn diamond_exits(scene: &mut Scene, options: &Options) {
-    if matches!(options.algorithm, Algorithm::Grid | Algorithm::Radial) {
+    if matches!(options.algorithm, Algorithm::Grid | Algorithm::Mindmap) {
         return;
     }
     let ids = ids(scene);

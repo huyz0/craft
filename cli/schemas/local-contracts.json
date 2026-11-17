@@ -84522,7 +84522,7 @@
               "enum": [
                 "layered",
                 "tree",
-                "radial",
+                "mindmap",
                 "grid"
               ],
               "type": "string"
@@ -86100,7 +86100,7 @@
           "choices": [
             "layered",
             "tree",
-            "radial",
+            "mindmap",
             "grid"
           ],
           "defaults": [

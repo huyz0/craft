@@ -4,7 +4,7 @@
   "status": "development",
   "binary_version": "0.1.0",
   "contract_version": "1.0",
-  "contract_snapshot_sha256": "ebc343127680197bc736b7f464fa44f04f7d7fe8ed665945e2b661786c2d0939",
+  "contract_snapshot_sha256": "dc902514a53ca3cd9ae24d87d38ffd5a9c2648f62037028419f27bdc105bd430",
   "providers": [
     "confluence",
     "jira"
