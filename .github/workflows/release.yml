@@ -1,0 +1,66 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Toolchain
+        run: rustup show
+      - name: Release metadata
+        run: python tools/release.py check ${{ startsWith(github.ref, 'refs/tags/') && format('--tag {0}', github.ref_name) || '' }}
+      - name: Build
+        run: cargo build --release --locked -p craft-cli
+      - name: Qualify skills against the built executable
+        shell: bash
+        run: python tools/skills_qualify.py check --binary "target/release/craft$([ "$RUNNER_OS" = Windows ] && echo .exe)"
+      - name: Skill tool tests
+        run: python -m unittest skills_qualify_test release_test
+        working-directory: cli/tools
+      - name: Package
+        shell: bash
+        run: python tools/release.py package --binary "target/release/craft$([ "$RUNNER_OS" = Windows ] && echo .exe)" --output-dir dist
+      - name: Verify and install the package
+        shell: bash
+        run: |
+          archive=$(ls dist/craft-*)
+          sum=$(cut -d' ' -f1 dist/SHA256SUMS | head -1)
+          python tools/release.py install --archive "$archive" --sha256 "$sum" --destination "$(pwd -W 2>/dev/null || pwd)/installed"
+          installed/bin/craft version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: craft-${{ matrix.os }}
+          path: cli/dist/*
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: false
+      - name: Draft pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat dist/*/SHA256SUMS > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --prerelease \
+            --title "Craft $GITHUB_REF_NAME (preview)" dist/*/craft-* SHA256SUMS
