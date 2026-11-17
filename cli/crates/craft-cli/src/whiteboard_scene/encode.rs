@@ -186,12 +186,14 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
                         ) {
                             return Err(field(index, "on", "stamps_attach_to_shapes_or_stickies"));
                         }
-                        let (x, y, w, h) = bounds(&scene.elements[parent_index]);
-                        let (cx, cy) = center(x, y, w, h);
+                        let (x, y, w, _) = bounds(&scene.elements[parent_index]);
+                        // The offset is the stamp's center from the parent's top-left corner. The
+                        // top-right corner keeps the parent's text readable.
+                        let (ox, oy) = stamp_offset(w, size);
                         json!({
-                            "type":"stamp","source":1,"position":v2(cx,cy),"size":v2(size,size),
+                            "type":"stamp","source":1,"position":v2(x + ox,y + oy),"size":v2(size,size),
                             "rotation":0,"spriteId":item.sprite.code(),
-                            "attachedTo":{"parentIndex":parent_index,"offset":[w / 2.0, h / 2.0]},
+                            "attachedTo":{"parentIndex":parent_index,"offset":[ox, oy]},
                         })
                     }
                     (None, Some(x), Some(y)) => {
@@ -287,6 +289,11 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
         records,
         connectors,
     })
+}
+
+/// Center of an attached stamp relative to its parent's top-left corner.
+pub fn stamp_offset(parent_width: f64, size: f64) -> (f64, f64) {
+    (parent_width - size * 0.2, size * 0.2)
 }
 
 fn field(index: usize, key: &str, rule: &str) -> CraftError {

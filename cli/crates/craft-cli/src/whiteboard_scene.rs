@@ -12,6 +12,7 @@ mod decode;
 mod encode;
 mod geometry;
 pub mod layout;
+mod preview;
 pub mod scene;
 mod text;
 pub mod vocabulary;
@@ -36,6 +37,7 @@ pub const ENCODE: &str = "whiteboard.encode";
 pub const DECODE: &str = "whiteboard.decode";
 pub const LAYOUT: &str = "whiteboard.layout";
 pub const CHECK: &str = "whiteboard.check";
+pub const PREVIEW: &str = "whiteboard.preview";
 
 #[derive(Subcommand)]
 pub enum WhiteboardAction {
@@ -43,6 +45,7 @@ pub enum WhiteboardAction {
     Decode(WhiteboardFileArgs),
     Layout(WhiteboardLayoutArgs),
     Check(WhiteboardFileArgs),
+    Preview(WhiteboardFileArgs),
 }
 
 impl WhiteboardAction {
@@ -52,6 +55,7 @@ impl WhiteboardAction {
             WhiteboardAction::Decode(_) => DECODE,
             WhiteboardAction::Layout(_) => LAYOUT,
             WhiteboardAction::Check(_) => CHECK,
+            WhiteboardAction::Preview(_) => PREVIEW,
         }
     }
 
@@ -59,7 +63,8 @@ impl WhiteboardAction {
         match self {
             WhiteboardAction::Encode(args)
             | WhiteboardAction::Decode(args)
-            | WhiteboardAction::Check(args) => &args.file,
+            | WhiteboardAction::Check(args)
+            | WhiteboardAction::Preview(args) => &args.file,
             WhiteboardAction::Layout(args) => &args.file,
         }
     }
@@ -93,6 +98,14 @@ pub struct WhiteboardLayoutArgs {
 
 fn default_gap() -> u16 {
     80
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewData {
+    pub element_count: usize,
+    /// Approximate rendering for review; the board's fonts, icons and routing differ.
+    pub svg: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -147,6 +160,14 @@ pub fn execute(
     let data = match action {
         WhiteboardAction::Encode(_) => encode_data(&source)?,
         WhiteboardAction::Check(_) => to_value(check::check(&parse_scene(&source)?.1))?,
+        WhiteboardAction::Preview(_) => {
+            let (_, scene) = parse_scene(&source)?;
+            encode::encode(&scene)?;
+            to_value(PreviewData {
+                element_count: scene.elements.len(),
+                svg: preview::svg(&scene),
+            })?
+        }
         WhiteboardAction::Layout(args) => {
             let (_, scene) = parse_scene(&source)?;
             encode::encode(&scene)?;
@@ -301,5 +322,15 @@ pub fn register(registry: &mut Registry) -> Result<(), CraftError> {
         "Check a whiteboard scene file for overlaps, crossings, spacing, contrast and fit.",
         json!({"file":"scene.json"}),
         to_value(check::check(&example))?,
+    )?;
+    crate::catalog::register::<WhiteboardFileArgs, PreviewData>(
+        registry,
+        PREVIEW,
+        "Render a whiteboard scene file as an approximate SVG for review; no network.",
+        json!({"file":"scene.json"}),
+        to_value(PreviewData {
+            element_count: example.elements.len(),
+            svg: preview::svg(&example),
+        })?,
     )
 }

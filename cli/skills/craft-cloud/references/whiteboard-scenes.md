@@ -26,13 +26,15 @@ A scene is a JSON file that `whiteboard.encode` turns into editor clipboard reco
 ## Workflow
 
 1. Write the elements with ids and rough sizes; positions can be zero when a layout will place them.
-2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `tree` (mind maps, org charts, breakdowns) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, keeps chains straight, and spreads connector ends along each side so lines do not stack. With `layered`, each section is a tier: its members share one column (or row with `direction` `down`), which suits architecture tiers and swimlanes. Layout moves shapes, stickies, links and sections only; add or move titles, legends and free text afterwards, then check again.
+2. Lay out: `whiteboard.layout` with `algorithm` `layered` (flows, pipelines, dependencies), `radial` (mind maps: the root in the middle, branches around it), `tree` (org charts, breakdowns, decision trees) or `grid` (sticky boards; one grid per section). It is deterministic, snaps to the 8 px grid, refits sections around their members, keeps chains straight, and sets every connector's sides (facing the other end, along the flow) and spreads ends that share a side so lines do not stack. Set `route` per connector; layout leaves it alone. With `layered`, each section is a tier: its members share one column (or row with `direction` `down`), which suits architecture tiers and swimlanes. Layout moves shapes, stickies, links and sections only; add or move titles, legends and free text afterwards, then check again.
 3. Check: `whiteboard.check` (also part of the layout result) reports overlaps, elements straddling a section edge, connectors crossing or running through elements, shared anchor points, text that will not fit its box, low text contrast, too many colors, uneven or off-grid spacing, text sitting on a connector instead of a label, and unlabelled decision exits. Fix warnings; consider notes. The score is 100 minus 10 per warning and 2 per note.
-4. Encode and paste ([whiteboards](whiteboards.md)).
+4. Look: `whiteboard.preview` returns an approximate SVG of the scene (fonts, icons and the editor's line routing differ). Render or view it when you can, and judge balance, crowding and readability before pasting.
+5. Encode and paste ([whiteboards](whiteboards.md)).
 
 ```sh
 craft whiteboard layout --file scene.json --algorithm layered --direction right --max-bytes 1048576
 craft whiteboard check --file scene.json --max-bytes 1048576
+craft whiteboard preview --file scene.json --fields svg --max-bytes 4000000
 ```
 
 ## Geometry and order
@@ -135,7 +137,7 @@ UML: `actor`, `use_case`, `classifier`, `component`, `node`, `container`, `note`
 
 ## Stamps
 
-`thumbs-up`, `thumbs-down`, `thanks`, `clapping-hands`, `heart-eyes`, `smile`, `joy`, `crazy`, `party-hat`, `shocked`, `cool`, `star-eyes`, `ok-face`, `peace`, `up-point`, `down-point`, `left-point`, `right-point`, `fire`, `100`, `spicy`, `party`, `heart`, `question-mark`, `gold-star`, `eyes`, `plus-one`, `win`, `tool`, `hourglass`, `magnifying-glass`, `megaphone`, `bell`, `candy`, `calendar`, `idea`, `artist`, `rocket`, `success`, `note`, `info`, `question`, `decision`, `error`, `warning`. A stamp with `on` sits on its shape or sticky and moves with it; use stamps for votes, status and attention, not decoration.
+`thumbs-up`, `thumbs-down`, `thanks`, `clapping-hands`, `heart-eyes`, `smile`, `joy`, `crazy`, `party-hat`, `shocked`, `cool`, `star-eyes`, `ok-face`, `peace`, `up-point`, `down-point`, `left-point`, `right-point`, `fire`, `100`, `spicy`, `party`, `heart`, `question-mark`, `gold-star`, `eyes`, `plus-one`, `win`, `tool`, `hourglass`, `magnifying-glass`, `megaphone`, `bell`, `candy`, `calendar`, `idea`, `artist`, `rocket`, `success`, `note`, `info`, `question`, `decision`, `error`, `warning`. A stamp with `on` sits on the top-right corner of its shape or sticky, clear of the text, and moves with it; use stamps for votes, status and attention, not decoration. Several votes read better as one stamp plus a count in the text (for example "Flaky tests (5 votes)").
 
 A `link` becomes a Smart Link card that the editor resolves per viewer; a Jira work item URL shows its key, summary and status.
 
@@ -143,9 +145,9 @@ A `link` becomes a Smart Link card that the editor resolves per viewer; a Jira w
 
 - Flowchart: `layered`, direction right (or down when tall); `start_end` at both ends, `rounded_rectangle` steps, `diamond` decisions with labelled exits, `elbow` connectors.
 - Architecture: icon shapes or rounded rectangles in sections per tier or trust zone (`-subtlest` backgrounds), `layered` direction right; `medium` stroke for the main request path, `dashed` for asynchronous messages, labels for protocols.
-- Retrospective or brainstorm: one section per column, titled; stickies inside; `grid` (two columns per section); one sticky color per column; stamps for votes.
+- Retrospective or brainstorm: one section per column, titled; stickies inside; `grid` with the same `columns` for every section (1 when columns hold four or fewer stickies) so sections end level; one sticky color per column; votes as a stamp plus a count in the text.
 - Kanban: one section per status; `grid` with `columns` 1; color by type or owner with a legend.
-- Mind map: central `ellipse`, branches as `rounded_rectangle`; `tree`; `curved` connectors with `end_cap: "none"`; one hue per branch.
+- Mind map: central `ellipse` (larger, `-subtle` of the main hue), branches as `rounded_rectangle` with heading text, leaves smaller with normal text; `radial`; `curved` connectors with `end_cap: "none"`, `medium` stroke from the root and `thin` to leaves; one hue per branch, leaves in the same hue's `-subtlest` or `-subtle`.
 - Org chart or breakdown: `tree`, direction down, `elbow` connectors without arrows.
 - Prioritisation: four sections in a 2 x 2 grid with axis titles; place stickies by score; no connectors.
 - Timeline: a `line` along the axis with `start_cap: "none"`, `diamond` milestones on it and stickies above or below; `grid` is not suitable.

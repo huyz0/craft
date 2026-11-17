@@ -108,7 +108,7 @@ fn encode_places_elements_by_center_and_binds_connectors_by_index() -> TestResul
     );
     assert_eq!(
         records[3]["attachedTo"],
-        json!({"parentIndex":1,"offset":[72.0,72.0]})
+        json!({"parentIndex":1,"offset":[132.0,12.0]})
     );
     assert_eq!(
         records[4]["position"],
@@ -582,5 +582,34 @@ fn check_reports_overlap_contrast_shared_anchors_and_overflow() -> TestResult {
     }
     let report = super::check::check(&board);
     assert!(report.score < 100 && report.warning_count >= 4);
+    Ok(())
+}
+
+#[test]
+fn preview_draws_every_visible_kind_as_escaped_svg() -> TestResult {
+    let board = scene(json!([
+        {"kind":"section","x":0,"y":0,"w":600,"h":300,"title":"A & B"},
+        {"kind":"shape","id":"a","shape":"diamond","x":40,"y":80,"w":160,"h":160,"text":"<ok?>"},
+        {"kind":"sticky","id":"b","x":400,"y":80,"text":"Ship"},
+        {"kind":"connector","id":"c","from":"a","to":"b","route":"curved","dash":"dashed"},
+        {"kind":"label","on":"c","text":"Yes"},
+        {"kind":"stamp","sprite":"rocket","on":"b"},
+        {"kind":"line","x1":0,"y1":400,"x2":600,"y2":400},
+        {"kind":"text","x":0,"y":440,"w":400,"text":"# Title"},
+    ]))?;
+    let svg = super::preview::svg(&board);
+    assert!(svg.starts_with("<svg") && svg.ends_with("</svg>"));
+    for needle in [
+        "A &amp; B",
+        "&lt;ok?&gt;",
+        "<polygon",
+        "stroke-dasharray",
+        "Yes",
+        "rocket",
+        "Title",
+    ] {
+        assert!(svg.contains(needle), "{needle}");
+    }
+    assert_eq!(svg, super::preview::svg(&board), "deterministic");
     Ok(())
 }

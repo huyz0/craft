@@ -84501,6 +84501,7 @@
               "enum": [
                 "layered",
                 "tree",
+                "radial",
                 "grid"
               ],
               "type": "string"
@@ -86055,6 +86056,7 @@
           "choices": [
             "layered",
             "tree",
+            "radial",
             "grid"
           ],
           "defaults": [
@@ -86155,6 +86157,339 @@
         "scene": "sha256:a0ae7dc51e664a3cb938b667600780609b1fbfdf024bf7a44d0e5cb7c19a6263",
         "scene.elements": "sha256:c81b4a25f75cb9bd2a4cd38e2f8fac1f9973af8252a37f76737e5e2e546fc0ba",
         "scene.format": "sha256:7a490f4e8165b2f2cedf60c31013ad5ce6201879885cea7b5c5595919209babc"
+      }
+    },
+    "whiteboard.preview": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:e01f6b45ef53242e107284c91cc6a12635ff287d58922023c068449f9a3e38a4",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Render a whiteboard scene file as an approximate SVG for review; no network.",
+        "effect": "read",
+        "example": {
+          "file": "scene.json"
+        },
+        "id": "whiteboard.preview",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardFileArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "element_count"
+          ],
+          "default_selected": [
+            "element_count",
+            "svg"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.preview",
+          "data": {
+            "element_count": 3,
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-40 -72 524 224\" width=\"524\" height=\"224\" font-family=\"Atlassian Sans, Segoe UI, Arial, sans-serif\"><rect x=\"-40\" y=\"-72\" width=\"524\" height=\"224\" fill=\"#ffffff\"/><defs><marker id=\"arrow\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"context-stroke\"/></marker></defs><g><rect x=\"0\" y=\"0\" width=\"180\" height=\"80\" rx=\"40\" fill=\"#c7f8e3\" stroke=\"#8590a2\" stroke-width=\"1\"/><text x=\"90\" y=\"44.9\" font-size=\"14\" text-anchor=\"middle\" fill=\"#172b4d\">Start</text></g><g><rect x=\"300\" y=\"-32\" width=\"144\" height=\"144\" fill=\"#ffefae\" stroke=\"#091e4224\"/><text x=\"372\" y=\"44.9\" font-size=\"14\" text-anchor=\"middle\" fill=\"#172b4d\">Idea</text></g><path d=\"M180,40 L240,40 L240,40 L300,40\" fill=\"none\" stroke=\"#758195\" stroke-width=\"1.5\" marker-end=\"url(#arrow)\"/></svg>"
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "element_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "svg": {
+                  "description": "Approximate rendering for review; the board's fonts, icons and routing differ.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "element_count",
+                "svg"
+              ],
+              "title": "PreviewData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "preview"
+      ],
+      "selectable_fields": {
+        "element_count": "sha256:35441eced62c229444f46c60de8b4c827cfc6618b309c8d4198be3ccdd14d607",
+        "svg": "sha256:e01f6b45ef53242e107284c91cc6a12635ff287d58922023c068449f9a3e38a4"
       }
     }
   },
