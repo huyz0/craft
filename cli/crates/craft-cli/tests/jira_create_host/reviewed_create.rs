@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_core::execution::{NativeCall, NativeResponse, OperationContext, PreparedOperation};
 use craft_core::registry::Registry;
 use craft_provider_jira::create_metadata::{self, JiraMetadata, MetadataPrincipal};
@@ -156,33 +157,35 @@ fn run_case(mode: &str, boundary: Option<usize>) -> TestResult {
     .constrain_reviewed_material(expected_payload, digest)?;
     let calls = product.request_counter();
     let revoked = AtomicBool::new(false);
-    let result = prepared.execute_cached_with_policy_check(
-        fixture.client(),
-        &locked,
-        &setup.journal,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        invocation.clone(),
-        || {
-            if let Some(boundary) = boundary
-                && calls.load(Ordering::SeqCst) >= boundary + 2
-                && !revoked.swap(true, Ordering::SeqCst)
-            {
-                setup.profiles.set_create_policy(
-                    "factory",
-                    CreatePolicyUpdate {
-                        target: target(),
-                        expected_actor: "actor-one".into(),
-                        enabled: false,
-                        expected_revision: Some(1),
-                    },
-                    true,
-                    &invocation,
-                    |_| Ok(()),
-                )?;
-            }
-            setup.profiles.verify_create_policy(&policy, &invocation)
-        },
-    );
+    let result = prepared
+        .execute_cached_with_policy_check(
+            fixture.client(),
+            &locked,
+            &setup.journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            invocation.clone(),
+            || {
+                if let Some(boundary) = boundary
+                    && calls.load(Ordering::SeqCst) >= boundary + 2
+                    && !revoked.swap(true, Ordering::SeqCst)
+                {
+                    setup.profiles.set_create_policy(
+                        "factory",
+                        CreatePolicyUpdate {
+                            target: target(),
+                            expected_actor: "actor-one".into(),
+                            enabled: false,
+                            expected_revision: Some(1),
+                        },
+                        true,
+                        &invocation,
+                        |_| Ok(()),
+                    )?;
+                }
+                setup.profiles.verify_create_policy(&policy, &invocation)
+            },
+        )
+        .observed();
     let envelope = result.envelope;
     assert_eq!(envelope.ok, mode == "match", "{mode}: {envelope:?}");
     let data = envelope.data.ok_or("receipt")?;

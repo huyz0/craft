@@ -1,4 +1,7 @@
 //! Owned TLS acceptance for actual issue/auth/cache/continuation composition.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 
 #[path = "jira_issue_reads_host/attachments.rs"]
 mod attachments;
@@ -60,6 +63,67 @@ fn control() -> Result<InvocationControl, CraftError> {
         CancellationToken::default(),
         30_000,
     )
+}
+/// Expires a manual-clock invocation deadline once the product has received `threshold`
+/// requests, so a stalled resource read must end in `DEADLINE_EXCEEDED` before the fixture
+/// gives up on the stalled connection.
+fn deadline_at_request(
+    product: &TlsServer,
+    threshold: usize,
+) -> Result<
+    (
+        InvocationControl,
+        std::thread::JoinHandle<Result<(), String>>,
+    ),
+    CraftError,
+> {
+    let clock = Arc::new(ManualClock::new(1000));
+    let invocation = InvocationControl::new(clock.clone(), CancellationToken::default(), 10_000)?;
+    let counter = product.request_counter();
+    let worker = std::thread::spawn(move || -> Result<(), String> {
+        let start = std::time::Instant::now();
+        while counter.load(Ordering::SeqCst) < threshold {
+            if start.elapsed() > Duration::from_secs(5) {
+                return Err("Expected request was not observed".into());
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        clock
+            .advance(Duration::from_millis(10_000))
+            .map_err(|error| error.to_string())
+    });
+    Ok((invocation, worker))
+}
+fn join_deadline(
+    worker: Option<std::thread::JoinHandle<Result<(), String>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(worker) = worker {
+        worker.join().map_err(|_| "Deadline worker panicked")??;
+    }
+    Ok(())
+}
+/// Product replies for one fresh read: the provisioning identity, the per-read actor check
+/// and, for the deadline case, a resource request that never answers.
+fn bounded_replies(case: &str) -> Vec<Reply> {
+    let mut replies = vec![identity(), identity()];
+    if case == "deadline" {
+        replies.push(Reply::Stall);
+    }
+    replies
+}
+fn bounded_code(case: &str) -> ErrorCode {
+    if case == "scope" {
+        ErrorCode::PermissionDenied
+    } else {
+        ErrorCode::DeadlineExceeded
+    }
+}
+fn bounded_scopes(case: &str) -> &'static str {
+    if case == "scope" {
+        "read:jira-user"
+    } else {
+        "read:jira-user read:jira-work"
+    }
 }
 fn identity() -> Reply {
     Reply::json(200, br#"{"accountId":"actor-one","active":true}"#, &[])
@@ -380,13 +444,15 @@ fn typed_issue_candidates_refuse_configuration_changes_before_auth_and_native_or
             ) {
                 clock.base.advance(Duration::from_secs(120))?;
             }
-            let mut result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            let mut result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
             if mode == "buffered" {
                 assert!(result.envelope.ok, "{:?}", result.envelope.error);
                 let args = IssueReadArgs::Search(
@@ -404,13 +470,15 @@ fn typed_issue_candidates_refuse_configuration_changes_before_auth_and_native_or
                 let prepared =
                     PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
                 clock.base.advance(Duration::from_secs(120))?;
-                result = prepared.execute_cached(
-                    &setup.store,
-                    fixture.client(),
-                    &locked,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control()?,
-                );
+                result = prepared
+                    .execute_cached(
+                        &setup.store,
+                        fixture.client(),
+                        &locked,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control()?,
+                    )
+                    .observed();
             }
             assert_eq!(result.envelope.request_id, "candidate-request");
             if mode == "success" {
@@ -504,7 +572,8 @@ fn get_performs_one_masked_live_read_and_preserves_renewal_and_alias_evidence() 
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert!(result.envelope.ok, "{:?}", result.envelope.error);
         let data = data(&result.envelope)?;
         assert_eq!(data["requested_issue"], "OLD-7");
@@ -582,7 +651,8 @@ fn search_buffers_remainder_and_resumes_opaque_post_token_after_renewal() -> Tes
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     assert_eq!(data(&first.envelope)?["items"][0]["id"], "1");
     clock.advance(Duration::from_secs(120))?;
@@ -601,7 +671,8 @@ fn search_buffers_remainder_and_resumes_opaque_post_token_after_renewal() -> Tes
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(second.envelope.ok, "{:?}", second.envelope.error);
     assert_eq!(data(&second.envelope)?["items"][0]["id"], "2");
     assert_eq!(data(&second.envelope)?["cached"], true);
@@ -628,7 +699,8 @@ fn search_buffers_remainder_and_resumes_opaque_post_token_after_renewal() -> Tes
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(last.envelope.ok, "{:?}", last.envelope.error);
     assert_eq!(data(&last.envelope)?["items"][0]["id"], "3");
     assert!(!last.envelope.page.as_ref().ok_or("Missing page")?.has_more);
@@ -698,7 +770,8 @@ fn changed_search_semantics_refuse_cursor_before_identity_or_exchange() -> TestR
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     for change in ["jql", "reconcile", "fields", "size"] {
         let mut input = search_input();
@@ -727,7 +800,8 @@ fn changed_search_semantics_refuse_cursor_before_identity_or_exchange() -> TestR
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert_eq!(
             code(&result.envelope),
             Some(ErrorCode::CursorMismatch),
@@ -782,7 +856,8 @@ fn search_warning_denial_disconnect_and_bad_data_keep_renewal_receipts_without_s
                 &setup.store,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 control()?,
-            );
+            )
+            .observed();
         assert!(!result.envelope.ok, "{mode}");
         assert!(result.envelope.page.is_none());
         assert_eq!(data(&result.envelope)?["items"], json!([]));
@@ -854,25 +929,27 @@ fn issue_scope_actor_and_dynamic_policy_denial_prevent_unqualified_output() -> T
             prepared(&setup.grant, command, input, &[], None, 20, 16_384)?
         };
         let counter = product.request_counter();
-        let result = host.execute_cached_with_policy_check(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-            || {
-                if (mode == "before_auth" && counter.load(Ordering::SeqCst) >= 1)
-                    || (mode.starts_with("after_") && counter.load(Ordering::SeqCst) >= 3)
-                {
-                    Err(CraftError::new(
-                        ErrorCode::PolicyDenied,
-                        "Issue policy was revoked.",
-                    ))
-                } else {
-                    Ok(())
-                }
-            },
-        );
+        let result = host
+            .execute_cached_with_policy_check(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+                || {
+                    if (mode == "before_auth" && counter.load(Ordering::SeqCst) >= 1)
+                        || (mode.starts_with("after_") && counter.load(Ordering::SeqCst) >= 3)
+                    {
+                        Err(CraftError::new(
+                            ErrorCode::PolicyDenied,
+                            "Issue policy was revoked.",
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+            )
+            .observed();
         assert!(!result.envelope.ok, "{mode}");
         assert_eq!(
             code(&result.envelope),
@@ -953,7 +1030,8 @@ fn oversized_get_drops_body_and_search_retains_same_position_recovery() -> TestR
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert_eq!(code(&first.envelope), Some(ErrorCode::ItemTooLarge));
         assert_eq!(
             data(&first.envelope)?["credential_cache_update"]["write_state"],
@@ -981,7 +1059,8 @@ fn oversized_get_drops_body_and_search_retains_same_position_recovery() -> TestR
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert!(last.envelope.ok, "{:?}", last.envelope.error);
         if command == SEARCH {
             assert_eq!(data(&last.envelope)?["cached"], true);
@@ -1021,7 +1100,8 @@ fn repeated_search_tokens_fail_without_publishing_a_successor() -> TestResult {
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     let last = prepared(
         &setup.grant,
@@ -1038,7 +1118,8 @@ fn repeated_search_tokens_fail_without_publishing_a_successor() -> TestResult {
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert_eq!(code(&last.envelope), Some(ErrorCode::PaginationStalled));
     assert!(last.envelope.page.is_none());
     assert_eq!(product.finish()?.len(), 5);
@@ -1094,7 +1175,8 @@ fn invocation_control_bounds_identity_and_search_io_without_retry() -> TestResul
                 &setup.store,
                 TlsPolicy::AdditionalCaBundle(product.root()),
                 invocation,
-            );
+            )
+            .observed();
         worker
             .join()
             .map_err(|_| "Control worker panicked")?
@@ -1111,5 +1193,43 @@ fn invocation_control_bounds_identity_and_search_io_without_retry() -> TestResul
         assert_eq!(product.finish()?.len(), threshold);
         assert_eq!(issuer.finish()?.len(), 1);
     }
+    Ok(())
+}
+
+#[test]
+fn issue_get_stops_at_its_deadline_without_retrying_the_stalled_read() -> TestResult {
+    let setup = Setup::new()?;
+    let issuer = issuer(bounded_scopes("deadline"))?;
+    let product = TlsServer::start(Reply::Sequence(bounded_replies("deadline")))?;
+    let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+    let locked = fixture.lock(&setup.grant, &control()?)?;
+    fixture.client().provision_grant(
+        &locked,
+        fixture.service_credentials()?,
+        &[target().tenant_ref()],
+        Some("actor-one"),
+    )?;
+    let (invocation, worker) = deadline_at_request(&product, 3)?;
+    let result = prepared(
+        &setup.grant,
+        GET,
+        json!({"issue":"1"}),
+        &[],
+        None,
+        20,
+        16_384,
+    )?
+    .execute_cached(
+        fixture.client(),
+        &locked,
+        &setup.store,
+        TlsPolicy::AdditionalCaBundle(product.root()),
+        invocation,
+    )
+    .observed();
+    join_deadline(Some(worker))?;
+    assert_eq!(code(&result.envelope), Some(ErrorCode::DeadlineExceeded));
+    assert_eq!(product.finish()?.len(), 3);
+    assert_eq!(issuer.finish()?.len(), 1);
     Ok(())
 }

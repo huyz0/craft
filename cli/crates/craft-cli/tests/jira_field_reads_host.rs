@@ -1,4 +1,7 @@
 //! Owned TLS acceptance of field discovery, service access and immutable buffered pages.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 #[path = "../../craft-runtime/src/transport/tls_fixture.rs"]
 mod tls_fixture;
 use craft_cli::field_reads::{FieldReadPolicy, PreparedFieldRead};
@@ -185,13 +188,15 @@ fn parsed_field_candidates_use_separate_records_and_stop_on_captured_configurati
             if !matches!(mode, "success" | "before_auth") {
                 clock.base.advance(Duration::from_secs(120))?;
             }
-            let mut result = prepared.execute_cached(
-                &setup.store,
-                fixture.client(),
-                &locked,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control()?,
-            );
+            let mut result = prepared
+                .execute_cached(
+                    &setup.store,
+                    fixture.client(),
+                    &locked,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control()?,
+                )
+                .observed();
             if mode == "buffered" {
                 assert!(result.envelope.ok, "{:?}", result.envelope.error);
                 let next = cursor(&result.envelope)?;
@@ -205,13 +210,15 @@ fn parsed_field_candidates_use_separate_records_and_stop_on_captured_configurati
                 let prepared =
                     PreparedInvocation::prepare(args, &[], &options, &setup.store, &control()?)?;
                 clock.base.advance(Duration::from_secs(120))?;
-                result = prepared.execute_cached(
-                    &setup.store,
-                    fixture.client(),
-                    &locked,
-                    TlsPolicy::AdditionalCaBundle(product.root()),
-                    control()?,
-                );
+                result = prepared
+                    .execute_cached(
+                        &setup.store,
+                        fixture.client(),
+                        &locked,
+                        TlsPolicy::AdditionalCaBundle(product.root()),
+                        control()?,
+                    )
+                    .observed();
             }
             assert_eq!(result.envelope.request_id, "candidate-request");
             schema(&result.envelope, &[])?;
@@ -485,7 +492,8 @@ fn field_list_buffers_terminal_records_across_reopen_without_refetching() -> Tes
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     schema(&first.envelope, &[])?;
     assert_eq!(data(&first.envelope)?["coverage"], "visibility_dependent");
@@ -506,7 +514,8 @@ fn field_list_buffers_terminal_records_across_reopen_without_refetching() -> Tes
         &reopened,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(last.envelope.ok, "{:?}", last.envelope.error);
     schema(&last.envelope, &[])?;
     assert_eq!(data(&last.envelope)?["cached"], true);
@@ -569,7 +578,8 @@ fn field_search_site_links_preserve_wire_arrays_and_fetch_one_page_after_remaind
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     let second = prepared(
         &setup.grant,
@@ -583,7 +593,8 @@ fn field_search_site_links_preserve_wire_arrays_and_fetch_one_page_after_remaind
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(second.envelope.ok, "{:?}", second.envelope.error);
     assert_eq!(data(&second.envelope)?["cached"], true);
     let third = prepared(
@@ -598,7 +609,8 @@ fn field_search_site_links_preserve_wire_arrays_and_fetch_one_page_after_remaind
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(third.envelope.ok, "{:?}", third.envelope.error);
     schema(&third.envelope, &fields)?;
     assert_eq!(data(&third.envelope)?["items"][0]["id"], "customfield_3");
@@ -678,20 +690,22 @@ fn field_scope_actor_and_early_policy_denial_prevent_resource_fetches() -> TestR
                 continuation_site: "https://craft-test.atlassian.net".into(),
             },
         )?;
-        let result = prepared.execute_cached_with_policy_check(
-            fixture.client(),
-            &locked,
-            &setup.store,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control()?,
-            || {
-                if mode == "before_auth" {
-                    Err(CraftError::new(ErrorCode::PolicyDenied, "Policy disabled."))
-                } else {
-                    Ok(())
-                }
-            },
-        );
+        let result = prepared
+            .execute_cached_with_policy_check(
+                fixture.client(),
+                &locked,
+                &setup.store,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control()?,
+                || {
+                    if mode == "before_auth" {
+                        Err(CraftError::new(ErrorCode::PolicyDenied, "Policy disabled."))
+                    } else {
+                        Ok(())
+                    }
+                },
+            )
+            .observed();
         assert_eq!(
             code(&result.envelope),
             Some(if mode == "scope" {
@@ -765,7 +779,8 @@ fn field_failures_keep_renewal_evidence_without_retry_or_published_cursor() -> T
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert!(!result.envelope.ok);
         schema(&result.envelope, &[])?;
         assert_eq!(data(&result.envelope)?["items"], json!([]));
@@ -819,7 +834,8 @@ fn oversized_selected_field_recovers_from_buffer_with_a_larger_output_budget() -
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert_eq!(code(&first.envelope), Some(ErrorCode::ItemTooLarge));
     schema(&first.envelope, &fields)?;
     assert_eq!(data(&first.envelope)?["items"], json!([]));
@@ -839,7 +855,8 @@ fn oversized_selected_field_recovers_from_buffer_with_a_larger_output_budget() -
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(last.envelope.ok, "{:?}", last.envelope.error);
     schema(&last.envelope, &fields)?;
     assert_eq!(data(&last.envelope)?["cached"], true);
@@ -893,7 +910,8 @@ fn field_cursor_filter_or_projection_mismatch_is_refused_before_auth() -> TestRe
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         control()?,
-    );
+    )
+    .observed();
     assert!(first.envelope.ok, "{:?}", first.envelope.error);
     clock.advance(Duration::from_secs(120))?;
     for (input, fields) in [
@@ -914,7 +932,8 @@ fn field_cursor_filter_or_projection_mismatch_is_refused_before_auth() -> TestRe
             &setup.store,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control()?,
-        );
+        )
+        .observed();
         assert_eq!(code(&result.envelope), Some(ErrorCode::CursorMismatch));
         assert!(data(&result.envelope)?["credential_cache_update"].is_null());
     }
@@ -961,7 +980,8 @@ fn stalled_field_resource_obeys_invocation_deadline_without_retry() -> TestResul
         &setup.store,
         TlsPolicy::AdditionalCaBundle(product.root()),
         invocation,
-    );
+    )
+    .observed();
     assert_eq!(code(&result.envelope), Some(ErrorCode::DeadlineExceeded));
     schema(&result.envelope, &[])?;
     assert!(result.envelope.page.is_none());
@@ -1024,7 +1044,8 @@ fn field_policy_changes_during_final_clock_and_cursor_work_suppress_native_or_bu
                     &setup.store,
                     TlsPolicy::AdditionalCaBundle(product.root()),
                     control()?,
-                ),
+                )
+                .observed(),
             )
         } else {
             None
@@ -1058,7 +1079,8 @@ fn field_policy_changes_during_final_clock_and_cursor_work_suppress_native_or_bu
                 }
                 Ok(())
             },
-        );
+        )
+        .observed();
         assert!(revoked.load(Ordering::SeqCst));
         assert_eq!(code(&result.envelope), Some(ErrorCode::PolicyDenied));
         schema(&result.envelope, &[])?;

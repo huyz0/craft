@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_create::command::{IssueCreateArgs, PreparedInvocation};
 use craft_cli::issue_recovery::command::{OperationReconcileArgs, PreparedInvocation as Recovery};
 use craft_cli::profiles::InvocationOptions;
@@ -58,14 +59,16 @@ fn saved_create_source_precedes_native_access_and_recovers_a_lost_post_without_r
             &setup.profiles,
             &c,
         )?;
-        let result = prepared.execute_saved(
-            &setup.profiles,
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            c.clone(),
-        );
+        let result = prepared
+            .execute_saved(
+                &setup.profiles,
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                c.clone(),
+            )
+            .observed();
         assert!(!result.envelope.ok);
         let data = result.envelope.data.as_ref().ok_or("data")?;
         assert_eq!(
@@ -125,14 +128,16 @@ fn saved_create_source_precedes_native_access_and_recovers_a_lost_post_without_r
                 &setup.profiles,
                 &c,
             )?;
-            let inspected = recovery.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                c.clone(),
-            );
+            let inspected = recovery
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    c.clone(),
+                )
+                .observed();
             assert!(inspected.envelope.ok, "{:?}", inspected.envelope.error);
             let inspected = inspected.envelope.data.ok_or("inspection")?;
             assert_eq!(inspected["assessment"], "unresolved");

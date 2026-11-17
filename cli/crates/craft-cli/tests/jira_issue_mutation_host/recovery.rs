@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_recovery::{self, PreparedRecovery, RecoveryInput, RecoveryPolicy};
 use craft_core::storage::JournalRecord;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -153,13 +154,15 @@ fn typed_edit_recovery_rechecks_captured_policy_after_identity_observation_and_f
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let lost = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control.clone(),
-        );
+        let lost = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control.clone(),
+            )
+            .observed();
         assert!(!lost.envelope.ok);
         let saved = setup.journal.get(OPERATION)?.ok_or("saved")?;
         setup.profiles.set_issue_recovery_policy(
@@ -199,14 +202,16 @@ fn typed_edit_recovery_rechecks_captured_policy_after_identity_observation_and_f
         )?;
         clock.base.advance(Duration::from_secs(3_600))?;
         clock.armed.store(mode != "success", Ordering::SeqCst);
-        let result = candidate.execute_cached(
-            &setup.profiles,
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control,
-        );
+        let result = candidate
+            .execute_cached(
+                &setup.profiles,
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control,
+            )
+            .observed();
         assert_eq!(
             result.envelope.ok,
             mode == "success",
@@ -306,13 +311,15 @@ fn unknown_edit_investigation_is_read_only_and_preserves_concurrent_and_cache_ev
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let lost = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control.clone(),
-        );
+        let lost = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control.clone(),
+            )
+            .observed();
         assert!(!lost.envelope.ok);
         let saved = setup.journal.get(OPERATION)?.ok_or("journal")?;
         let mut original = request(EDIT_ISSUE);
@@ -352,48 +359,50 @@ fn unknown_edit_investigation_is_read_only_and_preserves_concurrent_and_cache_ev
         )?;
         clock.base.advance(Duration::from_secs(3_600))?;
         let changed = AtomicBool::new(false);
-        let result = recovery.execute_cached_with_policy_check(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control,
-            || {
-                if product.request_count() >= 8 {
-                    if mode == "cancel" {
-                        cancel.cancel();
+        let result = recovery
+            .execute_cached_with_policy_check(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control,
+                || {
+                    if product.request_count() >= 8 {
+                        if mode == "cancel" {
+                            cancel.cancel();
+                        }
+                        if mode == "policy" {
+                            return Err(CraftError::new(
+                                ErrorCode::PolicyDenied,
+                                "Recovery authority revoked.",
+                            ));
+                        }
+                        if mode == "concurrent" && !changed.swap(true, Ordering::SeqCst) {
+                            let mut next: JournalRecord = saved.clone();
+                            next.revision += 1;
+                            let step = next
+                                .steps
+                                .get_mut(issue_mutation::route(EDIT_ISSUE)?)
+                                .ok_or_else(|| {
+                                    CraftError::new(ErrorCode::Internal, "Missing fixture step.")
+                                })?;
+                            step.state = SubmissionState::Confirmed;
+                            step.confirmed_resources.push(target());
+                            setup
+                                .journal
+                                .compare_and_swap(saved.revision, &next)
+                                .map_err(|_| {
+                                    CraftError::new(
+                                        ErrorCode::Internal,
+                                        "Concurrent fixture update failed.",
+                                    )
+                                })?;
+                        }
                     }
-                    if mode == "policy" {
-                        return Err(CraftError::new(
-                            ErrorCode::PolicyDenied,
-                            "Recovery authority revoked.",
-                        ));
-                    }
-                    if mode == "concurrent" && !changed.swap(true, Ordering::SeqCst) {
-                        let mut next: JournalRecord = saved.clone();
-                        next.revision += 1;
-                        let step = next
-                            .steps
-                            .get_mut(issue_mutation::route(EDIT_ISSUE)?)
-                            .ok_or_else(|| {
-                                CraftError::new(ErrorCode::Internal, "Missing fixture step.")
-                            })?;
-                        step.state = SubmissionState::Confirmed;
-                        step.confirmed_resources.push(target());
-                        setup
-                            .journal
-                            .compare_and_swap(saved.revision, &next)
-                            .map_err(|_| {
-                                CraftError::new(
-                                    ErrorCode::Internal,
-                                    "Concurrent fixture update failed.",
-                                )
-                            })?;
-                    }
-                }
-                Ok(())
-            },
-        );
+                    Ok(())
+                },
+            )
+            .observed();
         assert!(
             jsonschema::validator_for(&issue_recovery::schema()?)?
                 .is_valid(&serde_json::to_value(&result.envelope)?)

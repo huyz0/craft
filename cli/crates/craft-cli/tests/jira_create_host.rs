@@ -1,4 +1,7 @@
 //! Owned-server acceptance of the actual internal host, not a public cloud command.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 
 #[path = "jira_create_host/comment_writes.rs"]
 mod comment_writes;
@@ -172,14 +175,16 @@ fn typed_command_resolves_private_policy_and_refuses_its_change_before_auth_or_a
                 |_| Ok(()),
             )?;
         }
-        let result = prepared.execute_cached(
-            &setup.profiles,
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let result = prepared
+            .execute_cached(
+                &setup.profiles,
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(result.envelope.request_id, "typed-command-request");
         assert_eq!(result.envelope.ok, mode == "success");
         let data = result
@@ -289,6 +294,44 @@ fn host(grant: &GrantRef, actor: &str) -> Result<PreparedCreate, CraftError> {
 }
 fn identity() -> Reply {
     Reply::json(200, br#"{"accountId":"actor-one","active":true}"#, &[])
+}
+/// Expires a manual-clock invocation deadline once the product has received `threshold`
+/// requests, so a stalled resource read must end in `DEADLINE_EXCEEDED` before the fixture
+/// gives up on the stalled connection.
+fn deadline_at_request(
+    product: &TlsServer,
+    threshold: usize,
+) -> Result<
+    (
+        InvocationControl,
+        std::thread::JoinHandle<Result<(), String>>,
+    ),
+    CraftError,
+> {
+    let clock = Arc::new(ManualClock::new(1000));
+    let invocation = InvocationControl::new(clock.clone(), CancellationToken::default(), 10_000)?;
+    let counter = product.request_counter();
+    let worker = std::thread::spawn(move || -> Result<(), String> {
+        let start = std::time::Instant::now();
+        while counter.load(Ordering::SeqCst) < threshold {
+            if start.elapsed() > Duration::from_secs(5) {
+                return Err("Expected request was not observed".into());
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        clock
+            .advance(Duration::from_millis(10_000))
+            .map_err(|error| error.to_string())
+    });
+    Ok((invocation, worker))
+}
+fn join_deadline(
+    worker: Option<std::thread::JoinHandle<Result<(), String>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(worker) = worker {
+        worker.join().map_err(|_| "Deadline worker panicked")??;
+    }
+    Ok(())
 }
 fn issuer(scopes: &str) -> Result<TlsServer, Box<dyn std::error::Error>> {
     TlsServer::start(Reply::json(
@@ -456,13 +499,15 @@ fn cached_host_sends_one_qualified_create_and_preserves_success_partial_or_lost_
         if mode == "renewed" {
             clock.advance(Duration::from_secs(3_600))?;
         }
-        let result = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let result = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         let encoded = craft_cli::output::encode(result.envelope, 16_384, result.output_policy)?;
         let envelope: Value = serde_json::from_slice(&encoded.bytes)?;
         let data = &envelope["data"];
@@ -498,13 +543,15 @@ fn cached_host_sends_one_qualified_create_and_preserves_success_partial_or_lost_
                 SubmissionState::Confirmed
             }
         );
-        let replay = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let replay = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(
             replay.envelope.error.as_ref().map(|error| error.code),
             Some(ErrorCode::OperationIdReused)
@@ -575,13 +622,15 @@ fn scope_or_actor_denial_precedes_every_resource_read_and_send_claim() -> TestRe
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let result = host(&setup.grant, actor)?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let result = host(&setup.grant, actor)?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(
             result.envelope.error.as_ref().map(|error| error.code),
             Some(if actor == "actor-one" {
@@ -650,13 +699,15 @@ fn failed_project_parent_or_account_qualification_preserves_cache_update_without
             Some("actor-one"),
         )?;
         clock.advance(Duration::from_secs(3_600))?;
-        let result = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let result = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(
             result.envelope.error.as_ref().map(|error| error.code),
             Some(ErrorCode::PolicyDenied)
@@ -735,13 +786,15 @@ fn committed_claim_rechecks_metadata_token_and_cancellation_without_post_or_reac
             &[target().tenant_ref()],
             Some("actor-one"),
         )?;
-        let result = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(signal, 15_000)?,
-        );
+        let result = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(signal, 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(
             result.envelope.error.as_ref().map(|error| error.code),
             Some(expected)
@@ -763,13 +816,15 @@ fn committed_claim_rechecks_metadata_token_and_cancellation_without_post_or_reac
                 .state,
             SubmissionState::Unknown
         );
-        let replay = host(&setup.grant, "actor-one")?.execute_cached(
-            fixture.client(),
-            &locked,
-            &setup.journal,
-            TlsPolicy::AdditionalCaBundle(product.root()),
-            control(CancellationToken::default(), 15_000)?,
-        );
+        let replay = host(&setup.grant, "actor-one")?
+            .execute_cached(
+                fixture.client(),
+                &locked,
+                &setup.journal,
+                TlsPolicy::AdditionalCaBundle(product.root()),
+                control(CancellationToken::default(), 15_000)?,
+            )
+            .observed_selecting(&["issue_key"]);
         assert_eq!(
             replay.envelope.error.as_ref().map(|error| error.code),
             Some(ErrorCode::OperationIdReused)
@@ -807,13 +862,15 @@ fn stalled_metadata_observes_deadline_without_an_issue_send_or_retry() -> TestRe
         CancellationToken::default(),
         15_000,
     )?;
-    let result = host(&setup.grant, "actor-one")?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.journal,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        deadline,
-    );
+    let result = host(&setup.grant, "actor-one")?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            deadline,
+        )
+        .observed_selecting(&["issue_key"]);
     assert!(matches!(
         result.envelope.error.as_ref().map(|error| error.code),
         Some(ErrorCode::DeadlineExceeded)

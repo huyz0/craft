@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::ObservedAs;
 use craft_cli::issue_links::recovery::{PreparedRecovery, ReconcileArgs};
 use craft_cli::issue_links::{LinkEnvironment, PreparedLink};
 use craft_provider_jira::issue_links::write::{self, LinkDeleteInput, LinkInput};
@@ -137,7 +138,7 @@ fn deletion_case(mode: &str) -> TestResult {
             || Ok(()),
         )
     };
-    let (data, error) = execute(prepare()?);
+    let (data, error) = execute(prepare()?).observed_as("jira.link.delete");
     let confirmed = matches!(mode, "confirmed" | "outward_only" | "inward_only");
     assert_eq!(error.is_none(), confirmed, "{mode}: {error:?}");
     assert_eq!(data.relation_deleted, confirmed);
@@ -158,7 +159,12 @@ fn deletion_case(mode: &str) -> TestResult {
     );
     if sent {
         let saved = setup.journal.get(LINK_OPERATION)?;
-        assert!(execute(prepare()?).1.is_some());
+        assert!(
+            execute(prepare()?)
+                .observed_as("jira.link.delete")
+                .1
+                .is_some()
+        );
         assert_eq!(setup.journal.get(LINK_OPERATION)?, saved);
         assert_eq!(product.request_count(), count);
     } else {
@@ -296,7 +302,9 @@ fn recovery_case(mode: &str) -> TestResult {
         tls: TlsPolicy::AdditionalCaBundle(product.root()),
         control: control.clone(),
     };
-    let (lost, error) = create.execute(environment(), || Ok(()));
+    let (lost, error) = create
+        .execute(environment(), || Ok(()))
+        .observed_as("jira.link.create");
     assert!(error.is_some());
     assert_eq!(
         lost.receipt.request_state,
@@ -376,7 +384,9 @@ fn recovery_case(mode: &str) -> TestResult {
             |_| Ok(()),
         )?;
     }
-    let (data, error) = host.execute(environment(), || Ok(()));
+    let (data, error) = host
+        .execute(environment(), || Ok(()))
+        .observed_as("jira.link.reconcile");
     assert_eq!(
         error.is_some(),
         matches!(mode, "rate" | "revoked" | "mismatch"),

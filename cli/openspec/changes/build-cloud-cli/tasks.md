@@ -810,7 +810,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 ### jira-conformance
 
-- [ ] Deliver this task.
+- [x] Deliver this task.
 
 **Goal:** Qualify the entire Core Jira operation family against its descriptors.
 

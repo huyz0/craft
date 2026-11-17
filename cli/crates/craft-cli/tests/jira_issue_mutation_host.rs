@@ -1,4 +1,7 @@
 //! Owned TLS qualification of edit/transition preparation, single send and completion.
+#[path = "support/conformance.rs"]
+mod conformance;
+use conformance::Observed;
 #[path = "jira_issue_mutation_host/recovery.rs"]
 mod recovery;
 #[path = "jira_issue_mutation_host/saved_source.rs"]
@@ -254,13 +257,15 @@ fn stalled_claimed_mutation_obeys_cancellation_without_retry() -> TestResult {
         }
         token.cancel();
     });
-    let result = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?.execute_cached(
-        fixture.client(),
-        &locked,
-        &setup.journal,
-        TlsPolicy::AdditionalCaBundle(product.root()),
-        control,
-    );
+    let result = prepared(&setup.grant, EDIT_ISSUE, "actor-one")?
+        .execute_cached(
+            fixture.client(),
+            &locked,
+            &setup.journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control,
+        )
+        .observed();
     cancel.join().map_err(|_| "Cancellation worker panicked")?;
     assert_schema(&result.envelope)?;
     assert!(!result.envelope.ok);
@@ -299,13 +304,15 @@ fn cached_edit_and_transition_send_one_frozen_call_and_preserve_renewal_and_requ
             if renew {
                 clock.advance(Duration::from_secs(3_600))?;
             }
-            let result = prepared(&setup.grant, command, "actor-one")?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control.clone(),
-            );
+            let result = prepared(&setup.grant, command, "actor-one")?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control.clone(),
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert!(result.envelope.ok, "{:?}", result.envelope.error);
             let data = result.envelope.data.as_ref().ok_or("data")?;
@@ -318,13 +325,15 @@ fn cached_edit_and_transition_send_one_frozen_call_and_preserve_renewal_and_requ
                 saved.steps[issue_mutation::route(command)?].state,
                 SubmissionState::Confirmed
             );
-            let repeated = prepared(&setup.grant, command, "actor-one")?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let repeated = prepared(&setup.grant, command, "actor-one")?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_eq!(
                 repeated.envelope.error.as_ref().ok_or("error")?.code,
                 ErrorCode::OperationIdReused
@@ -390,13 +399,15 @@ fn lost_unqualified_and_refused_mutations_keep_journal_evidence_and_never_replay
                 &[target().tenant_ref()],
                 Some("actor-one"),
             )?;
-            let result = prepared(&setup.grant, command, "actor-one")?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control.clone(),
-            );
+            let result = prepared(&setup.grant, command, "actor-one")?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control.clone(),
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert!(!result.envelope.ok);
             let data = result.envelope.data.as_ref().ok_or("data")?;
@@ -414,13 +425,15 @@ fn lost_unqualified_and_refused_mutations_keep_journal_evidence_and_never_replay
             if mode == "rate" {
                 assert!(!data["retry_after"].is_null());
             }
-            let repeat = prepared(&setup.grant, command, "actor-one")?.execute_cached(
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let repeat = prepared(&setup.grant, command, "actor-one")?
+                .execute_cached(
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_eq!(
                 repeat.envelope.error.as_ref().ok_or("error")?.code,
                 ErrorCode::OperationIdReused
@@ -473,7 +486,8 @@ fn scope_actor_and_changed_project_refuse_before_any_mutation_exchange() -> Test
             &setup.journal,
             TlsPolicy::AdditionalCaBundle(product.root()),
             control,
-        );
+        )
+        .observed();
         assert_schema(&result.envelope)?;
         assert!(!result.envelope.ok);
         assert_eq!(
@@ -682,14 +696,16 @@ fn typed_mutation_candidates_use_project_records_and_refuse_captured_changes_at_
                     |_| Ok(()),
                 )?;
             }
-            let result = prepared.execute_cached(
-                &setup.profiles,
-                fixture.client(),
-                &locked,
-                &setup.journal,
-                TlsPolicy::AdditionalCaBundle(product.root()),
-                control,
-            );
+            let result = prepared
+                .execute_cached(
+                    &setup.profiles,
+                    fixture.client(),
+                    &locked,
+                    &setup.journal,
+                    TlsPolicy::AdditionalCaBundle(product.root()),
+                    control,
+                )
+                .observed();
             assert_schema(&result.envelope)?;
             assert_eq!(
                 result.envelope.ok,
@@ -774,7 +790,8 @@ fn dynamic_policy_stops_each_read_boundary_and_retains_a_completed_cache_renewal
                     }
                     Ok(())
                 },
-            );
+            )
+            .observed();
         assert_schema(&result.envelope)?;
         assert!(!result.envelope.ok);
         let data = result.envelope.data.as_ref().ok_or("data")?;
@@ -851,7 +868,8 @@ fn claim_time_expiry_revocation_and_cancellation_keep_uncertainty_without_http_s
                     }
                     Ok(())
                 },
-            );
+            )
+            .observed();
         assert_schema(&result.envelope)?;
         assert!(!result.envelope.ok);
         assert_eq!(

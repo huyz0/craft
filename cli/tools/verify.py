@@ -162,6 +162,8 @@ def focused_commands(selection):
         commands.extend([[sys.executable, "tools/runtime_skill.py", mode] for mode in ["check", "selftest"]])
     if "bundle" in checks:
         commands.append([sys.executable, "tools/bundle_test.py"])
+    if "jira-conformance" in checks:
+        commands.append([sys.executable, "tools/jira_conformance.py", "selftest"])
     packages = selection["packages"]
     if packages:
         arguments = [part for package in packages for part in ["-p", package]]
@@ -403,6 +405,7 @@ def main():
             [sys.executable, "tools/dependencies.py"],
             [sys.executable, "tools/providers.py", "check"],
             [sys.executable, "tools/providers.py", "selftest"],
+            [sys.executable, "tools/jira_conformance.py", "selftest"],
             ["cargo", "run", "--quiet", "--locked", "--offline", "-p", "craft-cli", "--example", "provider_routes"],
             ["cargo", "fmt", "--all", "--check"],
             [sys.executable, "tools/contracts.py", "check"],

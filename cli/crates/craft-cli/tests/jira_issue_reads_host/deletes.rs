@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::ObservedAs;
 use craft_cli::attachment_delete::{AttachmentDeleteEnvironment, PreparedAttachmentDelete};
 use craft_provider_jira::attachments::parse_record;
 use craft_provider_jira::comments::mutation::Ownership;
@@ -88,17 +89,19 @@ fn delete_sends_one_exact_route_and_confirmed_operation_never_sends_again() -> T
             &setup.store,
             &control()?,
         )?;
-        let (data, error) = prepared.execute(
-            AttachmentDeleteEnvironment {
-                store: &setup.store,
-                client: fixture.client(),
-                locked: &locked,
-                journal: &journal,
-                tls: TlsPolicy::AdditionalCaBundle(product.root()),
-                control: control()?,
-            },
-            || Ok(()),
-        );
+        let (data, error) = prepared
+            .execute(
+                AttachmentDeleteEnvironment {
+                    store: &setup.store,
+                    client: fixture.client(),
+                    locked: &locked,
+                    journal: &journal,
+                    tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                    control: control()?,
+                },
+                || Ok(()),
+            )
+            .observed_as("jira.attachment.delete");
         Ok((serde_json::to_value(data)?, error))
     };
     let (first, error) = run()?;
@@ -163,6 +166,7 @@ fn own_allowance_does_not_authorize_any_intent_before_network() -> TestResult {
     )
     .err()
     .ok_or("own allowance accepted any intent")?;
+    crate::conformance::observe_failure("jira.attachment.delete", &error);
     assert_eq!(error.code, ErrorCode::PolicyDenied);
     let error = PreparedAttachmentDelete::prepare(
         request(Ownership::Own)?,
@@ -174,6 +178,7 @@ fn own_allowance_does_not_authorize_any_intent_before_network() -> TestResult {
     )
     .err()
     .ok_or("missing apply accepted")?;
+    crate::conformance::observe_failure("jira.attachment.delete", &error);
     assert_eq!(error.code, ErrorCode::ApplyRequired);
     Ok(())
 }
@@ -214,7 +219,8 @@ fn lost_delete_response_is_unknown_and_blocks_replay() -> TestResult {
                 control: control()?,
             },
             || Ok(()),
-        );
+        )
+        .observed_as("jira.attachment.delete");
         Ok((serde_json::to_value(data)?, error))
     };
     let (first, error) = run()?;

@@ -107,6 +107,8 @@ def select(paths, force_full=False):
                 checks.add("dependencies")
             elif name == "providers.py":
                 checks.add("providers")
+            elif name == "jira_conformance.py":
+                checks.add("jira-conformance")
             elif name == "synthetic-acceptance.py":
                 checks.add("isolation")
             else:

@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::attachment_reads::command::{AttachmentListArgs, AttachmentReadArgs, PreparedRead};
 use craft_cli::attachment_reads::{PreparedAttachmentRead, ReadEnvironment};
 use craft_cli::profiles::InvocationOptions;
@@ -73,6 +74,7 @@ fn attachment_lists_buffer_complete_issue_fields_without_refetching_or_url_outpu
                 },
                 || Ok(()),
             )
+            .observed()
             .envelope)
     };
     let first = run(&prepare(&setup, native::LIST, &[], None, 262144)?)?;
@@ -184,13 +186,15 @@ fn attachment_read_allowances_remain_explicit_and_revocation_precedes_auth() -> 
     let issuer = issuer("read:jira-user read:jira-work")?;
     let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
     let locked = fixture.lock(&setup.grant, &c)?;
-    let result = prepared.execute(ReadEnvironment {
-        store: &setup.store,
-        client: fixture.client(),
-        locked: &locked,
-        tls: TlsPolicy::AdditionalCaBundle(product.root()),
-        control: control()?,
-    });
+    let result = prepared
+        .execute(ReadEnvironment {
+            store: &setup.store,
+            client: fixture.client(),
+            locked: &locked,
+            tls: TlsPolicy::AdditionalCaBundle(product.root()),
+            control: control()?,
+        })
+        .observed();
     assert!(!result.envelope.ok);
     assert_eq!(
         result.envelope.error.map(|e| e.code),
@@ -259,13 +263,15 @@ fn attachment_late_policy_changes_suppress_native_metadata_and_keep_renewal() ->
         &setup.store,
         &control()?,
     )?;
-    let result = host.execute(ReadEnvironment {
-        store: &setup.store,
-        client: fixture.client(),
-        locked: &locked,
-        tls: TlsPolicy::AdditionalCaBundle(product.root()),
-        control: control()?,
-    });
+    let result = host
+        .execute(ReadEnvironment {
+            store: &setup.store,
+            client: fixture.client(),
+            locked: &locked,
+            tls: TlsPolicy::AdditionalCaBundle(product.root()),
+            control: control()?,
+        })
+        .observed();
     assert!(!result.envelope.ok);
     assert!(data(&result.envelope)?["attachment"].is_null());
     assert!(!data(&result.envelope)?["credential_cache_update"].is_null());
@@ -309,16 +315,18 @@ fn attachment_missing_scope_and_remote_failures_preserve_cache_evidence_without_
             Some("actor-one"),
         )?;
         clock.advance(Duration::from_secs(3600))?;
-        let result = prepare(&setup, native::GET, &[], None, 262144)?.execute(
-            ReadEnvironment {
-                store: &setup.store,
-                client: fixture.client(),
-                locked: &locked,
-                tls: TlsPolicy::AdditionalCaBundle(product.root()),
-                control: control()?,
-            },
-            || Ok(()),
-        );
+        let result = prepare(&setup, native::GET, &[], None, 262144)?
+            .execute(
+                ReadEnvironment {
+                    store: &setup.store,
+                    client: fixture.client(),
+                    locked: &locked,
+                    tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                    control: control()?,
+                },
+                || Ok(()),
+            )
+            .observed();
         assert!(!result.envelope.ok, "{mode}");
         assert!(!data(&result.envelope)?["credential_cache_update"].is_null());
         assert_eq!(product.finish()?.len(), count);
@@ -326,6 +334,59 @@ fn attachment_missing_scope_and_remote_failures_preserve_cache_evidence_without_
         drop(locked);
         drop(fixture);
         setup.no_plaintext_credentials()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn every_attachment_read_refuses_without_work_scope_and_stops_at_its_deadline() -> TestResult {
+    for command in [native::GET, native::LIST, native::SETTINGS] {
+        for case in ["scope", "deadline"] {
+            let setup = Setup::new()?;
+            let issuer = issuer(bounded_scopes(case))?;
+            let product = TlsServer::start(Reply::Sequence(bounded_replies(case)))?;
+            let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+            let locked = fixture.lock(&setup.grant, &control()?)?;
+            fixture.client().provision_grant(
+                &locked,
+                fixture.service_credentials()?,
+                &[target().tenant_ref()],
+                Some("actor-one"),
+            )?;
+            let (invocation, worker) = if case == "deadline" {
+                let (invocation, worker) = deadline_at_request(&product, 3)?;
+                (invocation, Some(worker))
+            } else {
+                (control()?, None)
+            };
+            let envelope = prepare(&setup, command, &[], None, 262_144)?
+                .execute(
+                    ReadEnvironment {
+                        store: &setup.store,
+                        client: fixture.client(),
+                        locked: &locked,
+                        tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                        control: invocation,
+                    },
+                    || Ok(()),
+                )
+                .observed()
+                .envelope;
+            join_deadline(worker)?;
+            assert_eq!(
+                code(&envelope),
+                Some(bounded_code(case)),
+                "{command} {case}: {:?}",
+                envelope.error
+            );
+            let sent = product.finish()?.len();
+            assert_eq!(
+                sent,
+                if case == "scope" { 2 } else { 3 },
+                "{command} {case}"
+            );
+            assert_eq!(issuer.finish()?.len(), 1);
+        }
     }
     Ok(())
 }

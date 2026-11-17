@@ -1,4 +1,5 @@
 use super::*;
+use crate::conformance::Observed;
 use craft_cli::issue_comments::command::{CommentListArgs, CommentReadArgs, PreparedRead};
 use craft_cli::issue_comments::{PreparedCommentRead, ReadEnvironment};
 use craft_cli::profiles::InvocationOptions;
@@ -63,16 +64,19 @@ fn native_comment_pages_preserve_privacy_buffer_remainders_and_bind_projection()
         Some("actor-one"),
     )?;
     let run = |host: &PreparedCommentRead| {
-        Ok::<_, CraftError>(host.execute(
-            ReadEnvironment {
-                store: &setup.store,
-                client: fixture.client(),
-                locked: &locked,
-                tls: TlsPolicy::AdditionalCaBundle(product.root()),
-                control: control()?,
-            },
-            || Ok(()),
-        ))
+        Ok::<_, CraftError>(
+            host.execute(
+                ReadEnvironment {
+                    store: &setup.store,
+                    client: fixture.client(),
+                    locked: &locked,
+                    tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                    control: control()?,
+                },
+                || Ok(()),
+            )
+            .observed(),
+        )
     };
     let first = run(&prepare(&setup, native::LIST, &[], None)?)?.envelope;
     assert!(first.ok, "{:?}", first.error);
@@ -190,13 +194,15 @@ fn comments_require_explicit_allowance_and_recheck_captured_policy_before_auth()
     let issuer = issuer("read:jira-user read:jira-work")?;
     let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
     let locked = fixture.lock(&setup.grant, &c)?;
-    let result = prepared.execute(ReadEnvironment {
-        store: &setup.store,
-        client: fixture.client(),
-        locked: &locked,
-        tls: TlsPolicy::AdditionalCaBundle(product.root()),
-        control: c,
-    });
+    let result = prepared
+        .execute(ReadEnvironment {
+            store: &setup.store,
+            client: fixture.client(),
+            locked: &locked,
+            tls: TlsPolicy::AdditionalCaBundle(product.root()),
+            control: c,
+        })
+        .observed();
     assert!(!result.envelope.ok);
     assert!(product.finish()?.is_empty());
     assert!(issuer.finish()?.is_empty());
@@ -270,13 +276,15 @@ fn missing_comment_scope_prevents_resource_get_and_late_revocation_suppresses_bo
             &setup.store,
             &c,
         )?;
-        let result = prepared.execute(ReadEnvironment {
-            store: &setup.store,
-            client: fixture.client(),
-            locked: &locked,
-            tls: TlsPolicy::AdditionalCaBundle(product.root()),
-            control: c,
-        });
+        let result = prepared
+            .execute(ReadEnvironment {
+                store: &setup.store,
+                client: fixture.client(),
+                locked: &locked,
+                tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                control: c,
+            })
+            .observed();
         assert!(!result.envelope.ok);
         assert!(
             data(&result.envelope)?["items"]
@@ -292,6 +300,59 @@ fn missing_comment_scope_prevents_resource_get_and_late_revocation_suppresses_bo
         issuer.finish()?;
         drop(locked);
         setup.no_plaintext_credentials()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn every_comment_read_refuses_without_work_scope_and_stops_at_its_deadline() -> TestResult {
+    for command in [native::GET, native::LIST] {
+        for case in ["scope", "deadline"] {
+            let setup = Setup::new()?;
+            let issuer = issuer(bounded_scopes(case))?;
+            let product = TlsServer::start(Reply::Sequence(bounded_replies(case)))?;
+            let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+            let locked = fixture.lock(&setup.grant, &control()?)?;
+            fixture.client().provision_grant(
+                &locked,
+                fixture.service_credentials()?,
+                &[target().tenant_ref()],
+                Some("actor-one"),
+            )?;
+            let (invocation, worker) = if case == "deadline" {
+                let (invocation, worker) = deadline_at_request(&product, 3)?;
+                (invocation, Some(worker))
+            } else {
+                (control()?, None)
+            };
+            let envelope = prepare(&setup, command, &[], None)?
+                .execute(
+                    ReadEnvironment {
+                        store: &setup.store,
+                        client: fixture.client(),
+                        locked: &locked,
+                        tls: TlsPolicy::AdditionalCaBundle(product.root()),
+                        control: invocation,
+                    },
+                    || Ok(()),
+                )
+                .observed()
+                .envelope;
+            join_deadline(worker)?;
+            assert_eq!(
+                code(&envelope),
+                Some(bounded_code(case)),
+                "{command} {case}: {:?}",
+                envelope.error
+            );
+            let sent = product.finish()?.len();
+            assert_eq!(
+                sent,
+                if case == "scope" { 2 } else { 3 },
+                "{command} {case}"
+            );
+            assert_eq!(issuer.finish()?.len(), 1);
+        }
     }
     Ok(())
 }
