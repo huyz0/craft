@@ -633,6 +633,15 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::whiteboard_scene::WhiteboardAction::Decode(_) => {
                     crate::whiteboard_scene::WhiteboardAction::Decode(decode(input)?)
                 }
+                crate::whiteboard_scene::WhiteboardAction::Layout(_) => {
+                    crate::whiteboard_scene::WhiteboardAction::Layout(decode(input)?)
+                }
+                crate::whiteboard_scene::WhiteboardAction::Check(_) => {
+                    crate::whiteboard_scene::WhiteboardAction::Check(decode(input)?)
+                }
+                crate::whiteboard_scene::WhiteboardAction::Preview(_) => {
+                    crate::whiteboard_scene::WhiteboardAction::Preview(decode(input)?)
+                }
             },
         },
         Action::Auth { action } => Action::Auth {
@@ -806,7 +815,10 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         },
         Action::Whiteboard { action } => match action {
             crate::whiteboard_scene::WhiteboardAction::Encode(args)
-            | crate::whiteboard_scene::WhiteboardAction::Decode(args) => value(args),
+            | crate::whiteboard_scene::WhiteboardAction::Decode(args)
+            | crate::whiteboard_scene::WhiteboardAction::Check(args)
+            | crate::whiteboard_scene::WhiteboardAction::Preview(args) => value(args),
+            crate::whiteboard_scene::WhiteboardAction::Layout(args) => value(args),
         },
         Action::Auth { action } => match action {
             crate::args::AuthAction::Status(arguments)

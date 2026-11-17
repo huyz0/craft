@@ -82215,6 +82215,411 @@
         "version": "sha256:e430e7c322b24c7d02d76fccbb77be59308d5161bb0e0d0172884abf9e93571a"
       }
     },
+    "whiteboard.check": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:7344c379411ce344f7311af7d56a877b6425857398ea926dfd65634ce2e143a9",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Check a whiteboard scene file for overlaps, crossings, spacing, contrast and fit.",
+        "effect": "read",
+        "example": {
+          "file": "scene.json"
+        },
+        "id": "whiteboard.check",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardFileArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "warning_count",
+            "info_count",
+            "score"
+          ],
+          "default_selected": [
+            "warning_count",
+            "info_count",
+            "score",
+            "findings"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.check",
+          "data": {
+            "findings": [
+              {
+                "code": "off_grid",
+                "elements": [
+                  "start",
+                  "idea"
+                ],
+                "message": "Positions and sizes are not on the 8 px grid; round them so edges align.",
+                "severity": "info"
+              }
+            ],
+            "info_count": 1,
+            "score": 98,
+            "warning_count": 0
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Finding": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "elements": {
+                  "description": "Scene element ids, or `#index` for elements without an id.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "$ref": "#/$defs/Severity"
+                }
+              },
+              "required": [
+                "code",
+                "severity",
+                "elements",
+                "message"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "Severity": {
+              "enum": [
+                "warning",
+                "info"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "findings": {
+                  "items": {
+                    "$ref": "#/$defs/Finding"
+                  },
+                  "type": "array"
+                },
+                "info_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "score": {
+                  "description": "100 minus 10 per warning and 2 per note, floored at 0.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "warning_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "warning_count",
+                "info_count",
+                "score",
+                "findings"
+              ],
+              "title": "Report",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "check"
+      ],
+      "selectable_fields": {
+        "findings": "sha256:7344c379411ce344f7311af7d56a877b6425857398ea926dfd65634ce2e143a9",
+        "findings.code": "sha256:c18d755a57dec7ca466bbfd570778c4703daa158e5b1ab6465ab82b3624970db",
+        "findings.elements": "sha256:d6fd2ad3796c25922308ed53d493028979eae59c6e85790c250f6a2b231a164d",
+        "findings.message": "sha256:59ce3827355dc9614690f7c713f1ceed7567a5bb918433da009e2f06d8362c75",
+        "findings.severity": "sha256:09838da0f5d21ab5df3f0abed78a061c5ba6ca00c2726347e84a9eb0bce9d363",
+        "info_count": "sha256:5106493fbcccfe5c6014f48071efa83ecfa15911530d3af633da4830184109d5",
+        "score": "sha256:5106493fbcccfe5c6014f48071efa83ecfa15911530d3af633da4830184109d5",
+        "warning_count": "sha256:5106493fbcccfe5c6014f48071efa83ecfa15911530d3af633da4830184109d5"
+      }
+    },
     "whiteboard.decode": {
       "controls": {
         "fields": "supported",
@@ -82224,7 +82629,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:e743c57e080e078648cbf04cfb0f48238caa499a312d99d0c49123b27fb7c2c4",
+      "default_projection_digest": "sha256:752745e95566218115dda11b19672e02e420e7c8e41a445d39b38cdfb45a026f",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -82495,10 +82900,17 @@
                       "type": "string"
                     },
                     "rotation": {
-                      "description": "Degrees. Default 0.",
+                      "description": "Degrees clockwise, at most 360 either way. Default 0.",
                       "format": "double",
                       "type": [
                         "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
                         "null"
                       ]
                     },
@@ -82598,6 +83010,13 @@
                       "format": "double",
                       "type": [
                         "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
                         "null"
                       ]
                     },
@@ -83062,6 +83481,13 @@
                       "const": "link",
                       "type": "string"
                     },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "url": {
                       "type": "string"
                     },
@@ -83087,6 +83513,90 @@
                     "url",
                     "x",
                     "y"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Text carried by a connector or line, drawn on the path and moving with it.",
+                  "properties": {
+                    "adf": true,
+                    "at": {
+                      "description": "Position along the path, 0 at the start and 1 at the end. Default 0.5.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "label",
+                      "type": "string"
+                    },
+                    "on": {
+                      "description": "The connector or line id.",
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "on"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Elements selected, moved and resized together (the editor's Group elements, Ctrl+G).",
+                  "properties": {
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "group",
+                      "type": "string"
+                    },
+                    "members": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "members"
                   ],
                   "type": "object"
                 },
@@ -83619,13 +84129,13 @@
         "decode"
       ],
       "selectable_fields": {
-        "element_count": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
-        "private_fields_removed": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
-        "raw_count": "sha256:4a297da27c2087e418ffa007c8dce56c6dd7c351d4c419a1f51dcb683d0c8293",
-        "scene": "sha256:92f17e792a06728f3d413924aa751aaa9c27d748bb29152d458f84ef13904667",
-        "scene.elements": "sha256:8fbe7596b9c5faf21dade9bedda58095e99443e508ccd92b01713a39a9790214",
-        "scene.format": "sha256:7610181874c0beec9204cb8904d0cdb284c034aeedb9f3a92a58baf7f13ca91e",
-        "warnings": "sha256:50dace04867dd6e395bb1a5d6eccce6dc2412b8d64fcd220916fa43c8778b159"
+        "element_count": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "private_fields_removed": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "raw_count": "sha256:167d943aec11ddacaef1aa147f937b769344b042134ae4e8b81c06ec1ad2bf02",
+        "scene": "sha256:de05275743d46872ec3f9aee9849a9bd1056ae4a4f817f955f3874e7652952ed",
+        "scene.elements": "sha256:225a7f5b0a42543f24a65086d9be74e21c9537912dfbe038535618dc5ff992ec",
+        "scene.format": "sha256:520b5757f4b098b12a7f6ca59f27d8a7622faf956e18d3cc2a462f5a824ee552",
+        "warnings": "sha256:9c4188f08d3188ec04a8e99f1007c6caac59f1b168dc911dc2566c3ab8c023d8"
       }
     },
     "whiteboard.encode": {
@@ -83984,6 +84494,2044 @@
         "connector_count": "sha256:9641f44ced0d4f4b81dee395e81d257c27bb4e5d5756eae18a72c0a1c9c7ddf5",
         "element_count": "sha256:82f78332748eab0ffbaecb9e8a6af440346c7904c2e6f8454e7c38dfc6a3803f",
         "scene_digest": "sha256:82f78332748eab0ffbaecb9e8a6af440346c7904c2e6f8454e7c38dfc6a3803f"
+      }
+    },
+    "whiteboard.layout": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:b0b7aae4ca3ab09436372251ccb13d3273f8253eb14a92800865143e81b640db",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Lay out a whiteboard scene file deterministically (layered, tree or grid); no network.",
+        "effect": "read",
+        "example": {
+          "algorithm": "layered",
+          "file": "scene.json"
+        },
+        "id": "whiteboard.layout",
+        "input_schema": {
+          "$defs": {
+            "Algorithm": {
+              "enum": [
+                "layered",
+                "tree",
+                "mindmap",
+                "grid"
+              ],
+              "type": "string"
+            },
+            "Direction": {
+              "enum": [
+                "right",
+                "down"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": {
+              "$ref": "#/$defs/Algorithm",
+              "default": "layered",
+              "description": "`layered` for flows and dependencies, `tree` for mind maps and hierarchies, `grid` for\nsticky boards (per section)."
+            },
+            "columns": {
+              "description": "Grid columns (default 2 inside sections, otherwise the square root of the count).",
+              "format": "uint16",
+              "maximum": 50,
+              "minimum": 1,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "direction": {
+              "$ref": "#/$defs/Direction",
+              "default": "right"
+            },
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            "gap": {
+              "description": "Gap between elements in pixels (default 24 for grid, 80 otherwise); a multiple of 8 keeps\nthe 8 px grid.",
+              "format": "uint16",
+              "maximum": 400,
+              "minimum": 8,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardLayoutArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "moved_count"
+          ],
+          "default_selected": [
+            "moved_count",
+            "report",
+            "scene"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.layout",
+          "data": {
+            "moved_count": 2,
+            "report": {
+              "findings": [
+                {
+                  "code": "off_grid",
+                  "elements": [
+                    "start"
+                  ],
+                  "message": "Positions and sizes are not on the 8 px grid; round them so edges align.",
+                  "severity": "info"
+                }
+              ],
+              "info_count": 1,
+              "score": 98,
+              "warning_count": 0
+            },
+            "scene": {
+              "elements": [
+                {
+                  "fill": "green-subtle",
+                  "h": 80.0,
+                  "id": "start",
+                  "kind": "shape",
+                  "shape": "start_end",
+                  "text": "Start",
+                  "w": 180.0,
+                  "x": 0.0,
+                  "y": -40.0
+                },
+                {
+                  "id": "idea",
+                  "kind": "sticky",
+                  "text": "Idea",
+                  "x": 304.0,
+                  "y": -72.0
+                },
+                {
+                  "from": "start",
+                  "from_side": "right",
+                  "kind": "connector",
+                  "to": "idea",
+                  "to_side": "left"
+                }
+              ],
+              "format": "craft.whiteboard.scene.v1"
+            }
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "Align": {
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "type": "string"
+            },
+            "Cap": {
+              "description": "Line end marker.",
+              "enum": [
+                "none",
+                "arrow",
+                "filled_arrow",
+                "open_arrow",
+                "filled_diamond",
+                "open_diamond",
+                "open_circle",
+                "slash",
+                "triple_bar",
+                "open_circle_cross",
+                "cross",
+                "cross_crows_foot",
+                "crows_foot",
+                "circle_crows_foot"
+              ],
+              "type": "string"
+            },
+            "Color": {
+              "description": "Palette color. `<hue>-subtlest`, `-subtle`, plain, `-bold` and `-boldest` follow the\nAtlassian 100, 200, 300, 600 and 800 accent tokens.",
+              "enum": [
+                "white",
+                "default-text",
+                "gray-subtle",
+                "gray",
+                "gray-bold",
+                "gray-boldest",
+                "blue-subtlest",
+                "blue-subtle",
+                "blue",
+                "blue-bold",
+                "blue-boldest",
+                "teal-subtlest",
+                "teal-subtle",
+                "teal",
+                "teal-bold",
+                "teal-boldest",
+                "green-subtlest",
+                "green-subtle",
+                "green",
+                "green-bold",
+                "green-boldest",
+                "lime-subtlest",
+                "lime-subtle",
+                "lime",
+                "lime-bold",
+                "lime-boldest",
+                "yellow-subtlest",
+                "yellow-subtle",
+                "yellow",
+                "yellow-bold",
+                "yellow-boldest",
+                "orange-subtlest",
+                "orange-subtle",
+                "orange",
+                "orange-bold",
+                "orange-boldest",
+                "red-subtlest",
+                "red-subtle",
+                "red",
+                "red-bold",
+                "red-boldest",
+                "magenta-subtlest",
+                "magenta-subtle",
+                "magenta",
+                "magenta-bold",
+                "magenta-boldest",
+                "purple-subtlest",
+                "purple-subtle",
+                "purple",
+                "purple-bold",
+                "purple-boldest"
+              ],
+              "type": "string"
+            },
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "Dash": {
+              "enum": [
+                "solid",
+                "dashed",
+                "dotted"
+              ],
+              "type": "string"
+            },
+            "Element": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `center`."
+                    },
+                    "fill": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `gray-subtle`."
+                    },
+                    "filled": {
+                      "description": "`false` draws the outline only. Default `true`.",
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "shape",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "description": "Degrees clockwise, at most 360 either way. Default 0.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "shape": {
+                      "$ref": "#/$defs/ShapeKind"
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "valign": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/VerticalAlign"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `middle`."
+                    },
+                    "w": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "shape",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "One of the eight sticky colors. Default `yellow-subtle`."
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "sticky",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "valign": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/VerticalAlign"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "w": {
+                      "description": "Default 144. The editor grows a sticky downward to fit its text.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "adf": true,
+                    "align": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Align"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `left`."
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `default-text`."
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "text",
+                      "type": "string"
+                    },
+                    "rotation": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "w": {
+                      "description": "Wrapping width. Height follows the text.",
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y",
+                    "w"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Default `white`."
+                    },
+                    "h": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "section",
+                      "type": "string"
+                    },
+                    "shadow": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "w": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A line bound to two elements; it follows them when they move.",
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dash": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Dash"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "end_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "from_side": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Side"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "connector",
+                      "type": "string"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Route"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stroke": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Stroke"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "to_side": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Side"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "from",
+                    "to"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A free line between two canvas points.",
+                  "properties": {
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dash": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Dash"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "end_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "line",
+                      "type": "string"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Route"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_cap": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Cap"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stroke": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Stroke"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "x1": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "x2": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y1": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y2": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "x1",
+                    "y1",
+                    "x2",
+                    "y2"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A stamp either free at (`x`, `y`) or pinned to the element named by `on`.",
+                  "properties": {
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "stamp",
+                      "type": "string"
+                    },
+                    "on": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "size": {
+                      "description": "Square side. Default 60.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "sprite": {
+                      "$ref": "#/$defs/Sprite"
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "sprite"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A Smart Link card. The editor resolves the URL for the viewer when the board renders.",
+                  "properties": {
+                    "h": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "link",
+                      "type": "string"
+                    },
+                    "section": {
+                      "description": "The section this element belongs to, for layout; otherwise membership follows geometry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "w": {
+                      "description": "Default 280 by 306.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "x": {
+                      "format": "double",
+                      "type": "number"
+                    },
+                    "y": {
+                      "format": "double",
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "url",
+                    "x",
+                    "y"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Text carried by a connector or line, drawn on the path and moving with it.",
+                  "properties": {
+                    "adf": true,
+                    "at": {
+                      "description": "Position along the path, 0 at the start and 1 at the end. Default 0.5.",
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/Color"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "font_scale": {
+                      "format": "double",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "label",
+                      "type": "string"
+                    },
+                    "on": {
+                      "description": "The connector or line id.",
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "on"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Elements selected, moved and resized together (the editor's Group elements, Ctrl+G).",
+                  "properties": {
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "group",
+                      "type": "string"
+                    },
+                    "members": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "members"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "An editor element the scene vocabulary does not model, kept verbatim.",
+                  "properties": {
+                    "element": {
+                      "additionalProperties": true,
+                      "description": "The editor record, with author identities and resolved resource identifiers removed.",
+                      "type": "object"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "const": "raw",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "element"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Finding": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "elements": {
+                  "description": "Scene element ids, or `#index` for elements without an id.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "$ref": "#/$defs/Severity"
+                }
+              },
+              "required": [
+                "code",
+                "severity",
+                "elements",
+                "message"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "Report": {
+              "additionalProperties": false,
+              "properties": {
+                "findings": {
+                  "items": {
+                    "$ref": "#/$defs/Finding"
+                  },
+                  "type": "array"
+                },
+                "info_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "score": {
+                  "description": "100 minus 10 per warning and 2 per note, floored at 0.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "warning_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "warning_count",
+                "info_count",
+                "score",
+                "findings"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "Route": {
+              "description": "Path routing: straight, right-angled (\"dynamic\" in the editor) or curved.",
+              "enum": [
+                "straight",
+                "elbow",
+                "curved"
+              ],
+              "type": "string"
+            },
+            "Scene": {
+              "additionalProperties": false,
+              "properties": {
+                "elements": {
+                  "description": "Paint order: later elements are drawn above earlier ones.",
+                  "items": {
+                    "$ref": "#/$defs/Element"
+                  },
+                  "type": "array"
+                },
+                "format": {
+                  "$ref": "#/$defs/SceneFormat"
+                }
+              },
+              "required": [
+                "format",
+                "elements"
+              ],
+              "type": "object"
+            },
+            "SceneFormat": {
+              "enum": [
+                "craft.whiteboard.scene.v1"
+              ],
+              "type": "string"
+            },
+            "Severity": {
+              "enum": [
+                "warning",
+                "info"
+              ],
+              "type": "string"
+            },
+            "ShapeKind": {
+              "description": "Shape library entry. Class and Interface (codes 82 and 83) carry compartments that a\nscene cannot describe, so they are only preserved as raw elements.",
+              "enum": [
+                "sharp_rectangle",
+                "rectangle",
+                "ellipse",
+                "rounded_rectangle",
+                "diamond",
+                "up_triangle",
+                "down_triangle",
+                "left_parallelogram",
+                "right_parallelogram",
+                "start_end",
+                "document",
+                "off_page",
+                "input_output",
+                "database",
+                "summing_junction",
+                "or",
+                "predefined_process",
+                "internal_storage",
+                "manual_input",
+                "manual_operation",
+                "multiple_documents",
+                "preparation",
+                "hard_disk",
+                "comment_left",
+                "comment_right",
+                "stored_data",
+                "delay",
+                "display",
+                "process",
+                "decision",
+                "connector",
+                "merge",
+                "cloud",
+                "key",
+                "server",
+                "archive",
+                "browser",
+                "user",
+                "compute",
+                "computer",
+                "file",
+                "firewall",
+                "folder",
+                "frontend",
+                "internet",
+                "lock",
+                "mail",
+                "mobile",
+                "settings",
+                "shield",
+                "users",
+                "switch",
+                "database_advanced",
+                "alternate_process",
+                "use_case",
+                "classifier",
+                "note",
+                "interface2",
+                "activation",
+                "activity",
+                "actor",
+                "assembly",
+                "component",
+                "deletion",
+                "end",
+                "flow_final",
+                "gateway",
+                "history_pseudostate",
+                "horizontal_fork",
+                "vertical_fork",
+                "off_page_link",
+                "pin_filled_left",
+                "pin_filled_right",
+                "pin_left",
+                "pin_right",
+                "pin",
+                "provided_interface",
+                "receive_signal",
+                "required_interface",
+                "send_signal",
+                "start",
+                "template",
+                "node",
+                "container",
+                "boundary_object",
+                "entity_object",
+                "control_object"
+              ],
+              "type": "string"
+            },
+            "Side": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SideName"
+                },
+                {
+                  "$ref": "#/$defs/UnitPoint"
+                }
+              ],
+              "description": "Where a connector meets an element: a named side or a point in the element's unit box."
+            },
+            "SideName": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "top",
+                    "right",
+                    "bottom",
+                    "left"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "const": "auto",
+                  "description": "Facing sides, chosen from the two elements' centers.",
+                  "type": "string"
+                }
+              ]
+            },
+            "Sprite": {
+              "description": "Stamp sprite identifiers offered by the stamp picker.",
+              "enum": [
+                "thumbs-up",
+                "thumbs-down",
+                "thanks",
+                "clapping-hands",
+                "heart-eyes",
+                "smile",
+                "joy",
+                "crazy",
+                "party-hat",
+                "shocked",
+                "cool",
+                "star-eyes",
+                "ok-face",
+                "peace",
+                "down-point",
+                "up-point",
+                "right-point",
+                "left-point",
+                "fire",
+                "100",
+                "spicy",
+                "party",
+                "heart",
+                "question-mark",
+                "gold-star",
+                "eyes",
+                "plus-one",
+                "win",
+                "tool",
+                "hourglass",
+                "magnifying-glass",
+                "megaphone",
+                "bell",
+                "candy",
+                "calendar",
+                "idea",
+                "artist",
+                "rocket",
+                "success",
+                "note",
+                "info",
+                "question",
+                "decision",
+                "error",
+                "warning"
+              ],
+              "type": "string"
+            },
+            "Stroke": {
+              "description": "Line weight (the editor's small, medium and large).",
+              "enum": [
+                "thin",
+                "medium",
+                "thick"
+              ],
+              "type": "string"
+            },
+            "UnitPoint": {
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "description": "0 is the left edge, 1 the right edge.",
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "description": "0 is the top edge, 1 the bottom edge.",
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y"
+              ],
+              "type": "object"
+            },
+            "VerticalAlign": {
+              "enum": [
+                "top",
+                "middle",
+                "bottom"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "moved_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "report": {
+                  "$ref": "#/$defs/Report",
+                  "description": "Checks run on the laid-out scene."
+                },
+                "scene": {
+                  "$ref": "#/$defs/Scene"
+                }
+              },
+              "required": [
+                "moved_count",
+                "report",
+                "scene"
+              ],
+              "title": "LayoutData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "algorithm": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": [
+            "layered",
+            "tree",
+            "mindmap",
+            "grid"
+          ],
+          "defaults": [
+            "layered"
+          ],
+          "delimiter": null,
+          "long": "algorithm",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "columns": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "columns",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "direction": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": [
+            "right",
+            "down"
+          ],
+          "defaults": [
+            "right"
+          ],
+          "delimiter": null,
+          "long": "direction",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "gap": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "gap",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "layout"
+      ],
+      "selectable_fields": {
+        "moved_count": "sha256:67a2c911c435d50a61c2c6373fec8b23ebe0ecbca093a19db3fa1a9751cea7f0",
+        "report": "sha256:0a5371891217dd13859b7f0412e1f9a2aef7823772b684de153fdfa21d54b3a7",
+        "report.findings": "sha256:0ccb29d7ee26e9529da07eb2ddb0adf43d809d5fa017785b5f48114f5b2c85ed",
+        "report.findings.code": "sha256:8649a7d67122720d46f1b3e32d6b5056493ae00d9c3135f57abeb3c9dd175b43",
+        "report.findings.elements": "sha256:841f62a1bd66585b9ec1c49ec76175c985a9503561e4e1ad5f1cfe361be32be2",
+        "report.findings.message": "sha256:90cc6661a5523b1823c5071428b512cfe197fe4673a39ed7b886e5092d539344",
+        "report.findings.severity": "sha256:b7312aadd6fb07cb496aaa20d4c232debce19fee1dc0a4f22f54868038122ee4",
+        "report.info_count": "sha256:ca91b3950b424c1e7b0d3985f6a249d3e356d4209ec3d3544a2402bbfcd1eb17",
+        "report.score": "sha256:fb434ce251dbf7e89f0e24b8ca819bc87959586f89fd4f7059e9d427e899dc8e",
+        "report.warning_count": "sha256:ec8f17079ee70fd65d4140d69c8d60b559db39f2f571b4accaa96d56ec4ec7a7",
+        "scene": "sha256:d1667892544d07fda7caf2c98edfb38e1305aed8990a15491d7d73b4b821ad1f",
+        "scene.elements": "sha256:59a80ba7fdaec2ee808f15e7132915071e4d364a94a3fb2bd8b25cc1ee9ccf22",
+        "scene.format": "sha256:1b96e3be6d2a697a7bec05c6a8abc7a99eb82010a653eb069e537c79da9cc25e"
+      }
+    },
+    "whiteboard.preview": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "rejected",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:e01f6b45ef53242e107284c91cc6a12635ff287d58922023c068449f9a3e38a4",
+      "descriptor": {
+        "api_revision": "local",
+        "contract_version": "1.0",
+        "description": "Render a whiteboard scene file as an approximate SVG for review; no network.",
+        "effect": "read",
+        "example": {
+          "file": "scene.json"
+        },
+        "id": "whiteboard.preview",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "title": "WhiteboardFileArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "element_count"
+          ],
+          "default_selected": [
+            "element_count",
+            "svg"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "not_applicable",
+        "response_example": {
+          "command": "whiteboard.preview",
+          "data": {
+            "element_count": 3,
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-40 -72 524 224\" width=\"524\" height=\"224\" font-family=\"Atlassian Sans, Segoe UI, Arial, sans-serif\"><rect x=\"-40\" y=\"-72\" width=\"524\" height=\"224\" fill=\"#ffffff\"/><defs><marker id=\"arrow\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\"><path d=\"M 0 0 L 10 5 L 0 10 z\" fill=\"context-stroke\"/></marker></defs><g><rect x=\"0\" y=\"0\" width=\"180\" height=\"80\" rx=\"40\" fill=\"#c7f8e3\" stroke=\"#8590a2\" stroke-width=\"1\"/><text x=\"90\" y=\"44.9\" font-size=\"14\" text-anchor=\"middle\" fill=\"#172b4d\">Start</text></g><g><rect x=\"300\" y=\"-32\" width=\"144\" height=\"144\" fill=\"#ffefae\" stroke=\"#091e4224\"/><text x=\"372\" y=\"44.9\" font-size=\"14\" text-anchor=\"middle\" fill=\"#172b4d\">Idea</text></g><path d=\"M 180 40 L 240 40 L 240 40 L 300 40\" fill=\"none\" stroke=\"#758195\" stroke-width=\"1.5\" marker-end=\"url(#arrow)\"/></svg>"
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "element_count": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "svg": {
+                  "description": "Approximate rendering for review; the board's fonts, icons and routing differ.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "element_count",
+                "svg"
+              ],
+              "title": "PreviewData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "local_read",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": []
+      },
+      "flags": {
+        "file": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "file",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "whiteboard",
+        "preview"
+      ],
+      "selectable_fields": {
+        "element_count": "sha256:35441eced62c229444f46c60de8b4c827cfc6618b309c8d4198be3ccdd14d607",
+        "svg": "sha256:e01f6b45ef53242e107284c91cc6a12635ff287d58922023c068449f9a3e38a4"
       }
     }
   },

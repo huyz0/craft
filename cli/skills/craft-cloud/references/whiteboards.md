@@ -6,7 +6,7 @@ Confluence's public API creates, reads metadata of, and trashes whiteboards, but
 | --- | --- |
 | New board, blank or from a built-in template | `confluence.whiteboard.create` |
 | Board identity, parent, version, status | `confluence.whiteboard.get` |
-| Draw shapes, stickies, text, sections, connectors, stamps, links | author a scene, `whiteboard.encode`, paste into the open board |
+| Draw shapes, stickies, text, sections, connectors, labels, groups, stamps, links | author a scene, `whiteboard.layout`, `whiteboard.check`, `whiteboard.encode`, paste into the open board |
 | Read or reuse what is on a board | copy in the open board, `whiteboard.decode` |
 | Remove a board | `confluence.whiteboard.trash` |
 
@@ -22,7 +22,7 @@ Plan limits apply: the Free plan keeps three active whiteboards per user (older 
 
 ## Draw on a board
 
-1. Write the scene to a JSON file and encode it. Encoding is local, deterministic and validates every reference, color and size before producing anything:
+1. Write the scene to a JSON file, lay it out and check it (see the workflow in [scene format](whiteboard-scenes.md)), then encode it. Encoding is local, deterministic and validates every reference, color and size before producing anything:
 
 ```sh
 craft whiteboard encode --file scene.json --fields clipboard_html --max-bytes 1048576

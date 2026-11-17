@@ -48,12 +48,22 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
             .get(id)
             .ok_or_else(|| field(index, key, "unknown_element_reference"))?;
         match scene.elements[found] {
-            Element::Connector(_) | Element::Line(_) | Element::Stamp(_) => {
-                Err(field(index, key, "reference_is_not_attachable"))
-            }
+            Element::Connector(_)
+            | Element::Line(_)
+            | Element::Stamp(_)
+            | Element::Label(_)
+            | Element::Group(_) => Err(field(index, key, "reference_is_not_attachable")),
             _ => Ok(found),
         }
     };
+    for (index, element) in scene.elements.iter().enumerate() {
+        if let Some(section) = element.section() {
+            let named = ids.get(section).map(|found| &scene.elements[*found]);
+            if !matches!(named, Some(Element::Section(_))) {
+                return Err(field(index, "section", "unknown_section_reference"));
+            }
+        }
+    }
     let mut records = Vec::with_capacity(scene.elements.len());
     let mut connectors = 0;
     for (index, element) in scene.elements.iter().enumerate() {
@@ -184,12 +194,14 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
                         ) {
                             return Err(field(index, "on", "stamps_attach_to_shapes_or_stickies"));
                         }
-                        let (x, y, w, h) = bounds(&scene.elements[parent_index]);
-                        let (cx, cy) = center(x, y, w, h);
+                        let (x, y, w, _) = bounds(&scene.elements[parent_index]);
+                        // The offset is the stamp's center from the parent's top-left corner. The
+                        // top-right corner keeps the parent's text readable.
+                        let (ox, oy) = stamp_offset(w, size);
                         json!({
-                            "type":"stamp","source":1,"position":v2(cx,cy),"size":v2(size,size),
+                            "type":"stamp","source":1,"position":v2(x + ox,y + oy),"size":v2(size,size),
                             "rotation":0,"spriteId":item.sprite.code(),
-                            "attachedTo":{"parentIndex":parent_index,"offset":[w / 2.0, h / 2.0]},
+                            "attachedTo":{"parentIndex":parent_index,"offset":[ox, oy]},
                         })
                     }
                     (None, Some(x), Some(y)) => {
@@ -220,6 +232,58 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
                     "unfurledConnections":[],"unfurlState":"idle","rotation":0,
                 })
             }
+            Element::Label(item) => {
+                let connector = *ids
+                    .get(item.on.as_str())
+                    .ok_or_else(|| field(index, "on", "unknown_element_reference"))?;
+                if !matches!(
+                    scene.elements[connector],
+                    Element::Connector(_) | Element::Line(_)
+                ) {
+                    return Err(field(index, "on", "labels_attach_to_connectors_or_lines"));
+                }
+                let at = item.at.unwrap_or(0.5);
+                if !at.is_finite() || !(0.0..=1.0).contains(&at) {
+                    return Err(field(index, "at", "label_position_outside_path"));
+                }
+                json!({
+                    "type":"pathLabel","source":1,"sourcePathIndex":connector,"proportion":at,
+                    "position":v2(0.0,0.0),"size":v2(0.0,0.0),
+                    "color":v3(item.color.unwrap_or(Color::DefaultText)),
+                    "text":document(index, item.text.as_deref(), item.adf.as_ref())?,
+                    "fontScale":font_scale(index, item.font_scale)?,
+                })
+            }
+            Element::Group(item) => {
+                if item.members.len() < 2 {
+                    return Err(field(index, "members", "group_needs_two_members"));
+                }
+                let mut members = Vec::with_capacity(item.members.len());
+                let (mut left, mut top, mut right, mut bottom) =
+                    (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+                for id in &item.members {
+                    let member = target(index, "members", id)?;
+                    if members.contains(&member) {
+                        return Err(field(index, "members", "duplicate_group_member"));
+                    }
+                    let (x, y, w, h) = scene.elements[member]
+                        .bounds()
+                        .ok_or_else(|| field(index, "members", "group_member_has_no_box"))?;
+                    (left, top) = (left.min(x), top.min(y));
+                    (right, bottom) = (right.max(x + w), bottom.max(y + h));
+                    members.push(member);
+                }
+                // The editor maps `childrenIndices` to new IDs on paste; `children` only needs
+                // one placeholder per member, and the group needs its own box.
+                let placeholders: Vec<String> =
+                    (0..members.len()).map(|n| format!("member-{n}")).collect();
+                let (cx, cy) = center(left, top, right - left, bottom - top);
+                json!({
+                    "type":"group","source":1,
+                    "position":v2(cx,cy),"size":v2(right - left,bottom - top),
+                    "children":placeholders,"childrenIndices":members,
+                })
+            }
             Element::Raw(item) => {
                 if !item.element.get("type").is_some_and(Value::is_string) {
                     return Err(field(index, "element", "raw_element_needs_type"));
@@ -233,6 +297,11 @@ pub fn encode(scene: &Scene) -> Result<Encoded, CraftError> {
         records,
         connectors,
     })
+}
+
+/// Center of an attached stamp relative to its parent's top-left corner.
+pub fn stamp_offset(parent_width: f64, size: f64) -> (f64, f64) {
+    (parent_width - size * 0.2, size * 0.2)
 }
 
 fn field(index: usize, key: &str, rule: &str) -> CraftError {
@@ -278,10 +347,11 @@ fn font_scale(index: usize, value: Option<f64>) -> Result<f64, CraftError> {
     }
 }
 
+/// Scene rotation is in degrees, clockwise; the editor stores radians.
 fn rotation(index: usize, value: Option<f64>) -> Result<f64, CraftError> {
     let value = value.unwrap_or(0.0);
     if value.is_finite() && value.abs() <= 360.0 {
-        Ok(value)
+        Ok(value.to_radians())
     } else {
         Err(field(index, "rotation", "rotation_out_of_range"))
     }
