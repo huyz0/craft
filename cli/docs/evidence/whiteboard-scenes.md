@@ -12,9 +12,14 @@ With the site owner's approval and signed-in browser session, in the test space:
 - Paste: dispatching a `paste` ClipboardEvent carrying such HTML into the editor frame created the elements, selected, at the pointer. Placement follows `basisPosition` (center) for shapes, stickies and text, and `position` (center) for sections; connectors given only `sourceIndex` and `targetIndex` were bound by the editor. Copying a section returned the section with a pasted sticky inside its bounds and without one outside, so membership follows geometry.
 - Pasted and rendered: shape codes 0 to 88 except the compartment shapes 82 and 83 (pasted in two batches without errors), all three routes, dashed and dotted dashes, thick stroke, filled-arrow, filled-diamond and crow's-foot caps, stamps `rocket`, `gold-star` and `thumbs-up` (free and attached), headings, bold, italic, underline, strike, links and ordered lists in ADF.
 - Failure modes: a record missing fields (`position`, `size`, `source` and others) stopped the board from rendering ("Something went wrong") until reload; colors outside the token palette rendered black; an ADF emoji node did not render.
-- Not verified live: Smart Link paste and the full stamp sprite list beyond the three above. The sprite identifiers come from the editor's stamp message keys.
+- All 45 stamp sprite identifiers (taken from the editor's stamp message keys) pasted and rendered their images. A Smart Link record with a Jira work item URL unfurled into a card showing the item key, summary and status.
+- A paste dispatched before any real pointer click on the canvas did nothing at first and was applied later, after the next click, which duplicated content when the paste had been retried.
 
-Test boards were created with the owner's account; see the live run below for cleanup.
+## Live end-to-end run
+
+`craft whiteboard encode` output for a 13-element scene (section, three shapes, two stickies, five connectors, an attached stamp and a text block) was pasted into a new board after a canvas click. Copying the pasted group back and comparing it with the encoded records found the same 13 records apart from key order, one constant placement offset, every connector bound to the intended elements (Start to Build, Build to Green?, Green? to Ship it and to Fix and retry, Fix and retry back to Build) and the stamp attached to its sticky. A 31-element demo scene (three sections, flowchart, architecture icons, retro stickies with stamps, an ADF legend) then pasted with all nine connectors bound.
+
+The exploration boards were moved to the space trash afterwards; one demo board remains in the test space.
 
 ## Deterministic tests
 

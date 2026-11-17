@@ -25,11 +25,13 @@ Plan limits apply: the Free plan keeps three active whiteboards per user (older 
 1. Write the scene to a JSON file and encode it. Encoding is local, deterministic and validates every reference, color and size before producing anything:
 
 ```sh
-craft whiteboard encode --file scene.json --fields clipboard_html
+craft whiteboard encode --file scene.json --fields clipboard_html --max-bytes 1048576
 ```
 
+The default output budget is small; a scene of more than a dozen elements needs `--max-bytes` (about 400 bytes per element).
+
 2. Put `clipboard_html` onto the board as a paste:
-   - With a browser tool on the user's signed-in session, open the board, click an empty spot of the canvas where the content should land, then dispatch a paste into the editor frame (snippet below). The browser view must be visible; a hidden or minimized view stops the editor from processing the paste.
+   - With a browser tool on the user's signed-in session, open the board, close the template picker if it shows, click an empty spot of the canvas with a real pointer click where the content should land, then dispatch a paste into the editor frame (snippet below). Without that click the editor holds the paste and may apply it later, so a repeated attempt can land twice: if a paste seems to do nothing, click the canvas and check with a copy before pasting again.
    - Without a browser tool there is no dependable manual route: copying the HTML from a file or chat puts plain text on the clipboard, and the board needs the `text/html` flavor to create elements. Offer a template instead, or ask for browser access.
 3. Verify: the pasted group stays selected, so copy it back (snippet below), decode it, and compare element counts and texts with what you encoded. Look at a screenshot when layout matters.
 
