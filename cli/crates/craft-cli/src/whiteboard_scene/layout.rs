@@ -405,17 +405,43 @@ fn mindmap(
         }
     }
     let branches: Vec<usize> = children.get(&root).cloned().unwrap_or_default();
-    let total: f64 = branches.iter().map(|b| leaves(*b, &children, 0)).sum();
+    // Split branches between the sides: equal branch counts (within one), then the closest leaf
+    // totals, keeping branch order on each side; earliest split wins ties. Larger maps alternate.
+    let weights: Vec<f64> = branches.iter().map(|b| leaves(*b, &children, 0)).collect();
+    let count = branches.len();
+    let mut best: Option<(f64, u32)> = None;
+    if count <= 16 {
+        for mask in 0u32..(1 << count) {
+            let right_count = mask.count_ones() as usize;
+            if right_count * 2 < count || right_count * 2 > count + 1 {
+                continue;
+            }
+            let right_weight: f64 = (0..count)
+                .filter(|i| mask & (1 << i) != 0)
+                .map(|i| weights[i])
+                .sum();
+            let left_weight: f64 = weights.iter().sum::<f64>() - right_weight;
+            let difference = (right_weight - left_weight).abs();
+            if best.is_none_or(|(value, _)| difference < value) {
+                best = Some((difference, mask));
+            }
+        }
+    }
+    let mask = best.map_or_else(
+        || {
+            (0..count)
+                .filter(|i| i % 2 == 0)
+                .fold(0u32, |m, i| m | (1 << (i % 32)))
+        },
+        |(_, mask)| mask,
+    );
     let mut right = Vec::new();
     let mut left = Vec::new();
-    let mut taken = 0.0;
-    for branch in branches {
-        let weight = leaves(branch, &children, 0);
-        if taken + weight / 2.0 <= total / 2.0 || right.is_empty() {
-            right.push(branch);
-            taken += weight;
+    for (i, branch) in branches.into_iter().enumerate() {
+        if i < 32 && mask & (1 << i) != 0 {
+            right.push(branch)
         } else {
-            left.push(branch);
+            left.push(branch)
         }
     }
     let side_options = Options {

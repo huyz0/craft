@@ -44,3 +44,18 @@ The exploration boards were moved to the space trash afterwards; one demo board 
 `craft-provider-confluence` `folder_and_whiteboard_create_bind_space_and_parent_then_confirm_type_title_and_parent` now also checks that a whiteboard template and locale reach the body as `templateKey` and `locale`, that folders refuse them, and that unknown keys, unknown locales and a locale without a template are rejected.
 
 `tools/contracts.py write` regenerated the snapshot for the two new local commands and the create flags; `tools/runtime_skill.py check` passes with the rebound skill.
+
+## A/B test of the skill (17 November 2026)
+
+Method: the same four briefs (support triage flowchart, sprint retro, e-commerce architecture, launch mind map) were given to fresh subagents that could read only one version of the guidance and use the CLI locally. Arm A had the whiteboard references as merged before this change; arm B had the revised references plus the atlassian-design skill. Each scene was rendered with `whiteboard preview` and headless Chrome, shuffled into blind X/Y pairs, and judged from images only by independent grader agents (a five-criterion 1 to 5 rubric, and a 1 to 10 "present to a VP" review). After each round, the new guidance and tools were fixed and arm B was rerun; arm A's scenes stayed fixed.
+
+| Round | Rubric grader (new vs old wins) | Review grader (new vs old wins) | What changed after it |
+| --- | --- | --- | --- |
+| 1 | 1 of 4 (totals 77 vs 82) | not run | radial layout, corner stamps, labels along routes in the preview |
+| 2 | 2 of 4 | 1 of 4 | explicit `section` membership, level grid sections, decision exits on separate corners, two-sided mind map, retro and architecture recipes |
+| 3 | 2 of 4 (totals 86 vs 83) | 1 of 4 | balanced mind map split |
+
+The new guidance won the flowchart in every round from both graders. It was close or behind on the retro, architecture and mind map, where arm A's agents hand-placed elements well. Remaining weaknesses the graders named for arm B: connector bundling between service and data tiers in layered layouts, uneven tier widths, and emphasis repeated three ways on retro votes. The automatic check scored arm B 96 to 100 throughout and arm A 30 to 96; the check measures geometry, not judgement, so it is not used as the result.
+
+Live board rendering was verified separately (above); the A/B images are previews, so editor routing and fonts differ in detail.
+

@@ -51,7 +51,7 @@ pub fn svg(scene: &Scene) -> String {
     let mut out = String::new();
     let _ = write!(
         out,
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{left} {top} {} {}" width="{}" height="{}" font-family="Atlassian Sans, Segoe UI, Arial, sans-serif"><rect x="{left}" y="{top}" width="{}" height="{}" fill="#ffffff"/><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>"##,
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{left} {top} {} {}" width="{}" height="{}" font-family="Atlassian Sans, Segoe UI, Arial, sans-serif"><rect x="{left}" y="{top}" width="{}" height="{}" fill="#ffffff"/><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>"##,
         right - left,
         bottom - top,
         (right - left).round(),
@@ -176,7 +176,7 @@ pub fn svg(scene: &Scene) -> String {
                     | ShapeKind::HardDisk => {
                         let ry = (r.h * 0.12).min(16.0);
                         format!(
-                            r#"<path d="M{x},{t} a{rx},{ry} 0 0,0 {w},0 a{rx},{ry} 0 0,0 -{w},0 v{h} a{rx},{ry} 0 0,0 {w},0 v-{h}" fill="{fill}" {outline}/>"#,
+                            r#"<path d="M {x} {t} a{rx},{ry} 0 0,0 {w},0 a{rx},{ry} 0 0,0 -{w},0 v{h} a{rx},{ry} 0 0,0 {w},0 v-{h}" fill="{fill}" {outline}/>"#,
                             x = r.x,
                             t = r.y + ry,
                             rx = r.w / 2.0,
@@ -310,7 +310,7 @@ pub fn svg(scene: &Scene) -> String {
     }
     for element in &scene.elements {
         if let Element::Line(line) = element {
-            let d = format!("M{},{} L{},{}", line.x1, line.y1, line.x2, line.y2);
+            let d = format!("M {} {} L {} {}", line.x1, line.y1, line.x2, line.y2);
             line_style(
                 &mut out,
                 &d,
@@ -447,7 +447,7 @@ fn polyline(points: &[(f64, f64)]) -> String {
     points
         .iter()
         .enumerate()
-        .map(|(i, (x, y))| format!("{}{x},{y}", if i == 0 { "M" } else { " L" }))
+        .map(|(i, (x, y))| format!("{} {x} {y}", if i == 0 { "M" } else { " L" }))
         .collect()
 }
 
