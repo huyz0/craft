@@ -28,6 +28,7 @@ A scene is a JSON file that `whiteboard.encode` turns into editor clipboard reco
 - Coordinates are relative. The editor drops the pasted group where the user last clicked, so only positions relative to each other matter. Start near (0, 0).
 - Array order is paint order: put sections first, then shapes and stickies, then connectors and stamps.
 - An element whose box lies fully inside a section belongs to it and moves with it. Keep a 40 px margin inside sections and leave the top 60 px for the title.
+- Sections are the only grouping container. Confluence whiteboards have no frame element (the Miro or FigJam kind with presentation or export boundaries); frames imported from Miro become plain rectangles. When a user asks for frames, use titled sections, and use a `shape` with `filled: false` only for a visual border that should not group anything. A section cannot contain another section.
 - Sizes that work well: sticky 144 x 144 (default; it grows downward with longer text), process shape 200 x 100, decision diamond 160 x 160, start/end 180 x 80, icon shapes 100 x 100, text width 300 to 600. Leave 60 to 120 px between connected elements so arrows stay readable.
 
 ## Element kinds
