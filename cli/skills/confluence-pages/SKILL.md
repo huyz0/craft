@@ -71,7 +71,7 @@ Confluence stores a page's width in two page properties, `content-appearance-pub
 | `max` | Content spans the whole window with no cap. |
 
 ```json
-{"operation_id": "widen-plan-1", "apply": true, "space_id": "229380", "page_id": "123456", "width": "full_width"}
+{"operation_id": "widen-plan-1", "apply": true, "space_id": "100", "page_id": "123456", "width": "full_width"}
 ```
 
 It needs `confluence.page.width.set` in the space's confluence-write policy. It writes the published property first, then the draft, and never resends. On `PARTIAL_APPLY` (published confirmed, draft not) or an uncertain result, run it again with a new operation ID: it re-reads both properties and writes both at their next version.
