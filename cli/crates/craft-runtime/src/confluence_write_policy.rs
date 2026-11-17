@@ -41,6 +41,8 @@ pub enum ConfluenceWriteOperation {
     WhiteboardCreate,
     #[serde(rename = "confluence.whiteboard.trash")]
     WhiteboardTrash,
+    #[serde(rename = "confluence.page.width.set")]
+    PageWidthSet,
 }
 impl ConfluenceWriteOperation {
     pub fn command(self) -> &'static str {
@@ -60,6 +62,7 @@ impl ConfluenceWriteOperation {
             Self::FolderTrash => "confluence.folder.trash",
             Self::WhiteboardCreate => "confluence.whiteboard.create",
             Self::WhiteboardTrash => "confluence.whiteboard.trash",
+            Self::PageWidthSet => "confluence.page.width.set",
         }
     }
 }

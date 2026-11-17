@@ -7164,7 +7164,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -7487,6 +7488,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -7724,6 +7778,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -9388,7 +9453,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -9711,6 +9777,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -9948,6 +10067,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -10302,7 +10432,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -10625,6 +10756,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -10862,6 +11046,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -13405,7 +13600,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 2
+            "version": 2,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -13728,6 +13924,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -13965,6 +14214,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -14881,7 +15141,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -15204,6 +15465,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -15441,6 +15755,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -16326,7 +16651,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -16649,6 +16975,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -16886,6 +17265,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -17278,7 +17668,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -17601,6 +17992,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -17838,6 +18282,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -18748,7 +19203,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -19071,6 +19527,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -19308,6 +19817,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -19699,7 +20219,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -20022,6 +20543,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -20259,6 +20833,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -22797,7 +23382,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -23120,6 +23706,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -23357,6 +23996,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -23762,7 +24412,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 2
+            "version": 2,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -24085,6 +24736,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -24322,6 +25026,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -24558,7 +25273,7 @@
       ],
       "selectable_fields": {}
     },
-    "confluence.space.create": {
+    "confluence.page.width.set": {
       "controls": {
         "fields": "rejected",
         "input": "supported",
@@ -24571,16 +25286,16 @@
       "descriptor": {
         "api_revision": "confluence-cloud-v2",
         "contract_version": "1.0",
-        "description": "Create a space with an unused key and explicit visibility (v2 only).",
+        "description": "Set the page display width for viewers and the editor.",
         "effect": "write",
         "example": {
           "apply": true,
-          "key": "CRAFT",
-          "name": "Craft plans",
           "operation_id": "publish-plan",
-          "visibility": "default_roles"
+          "page_id": "101",
+          "space_id": "100",
+          "width": "full_width"
         },
-        "id": "confluence.space.create",
+        "id": "confluence.page.width.set",
         "input_schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false,
@@ -24595,53 +25310,61 @@
                 "null"
               ]
             },
-            "description": {
+            "operation_id": {
+              "type": "string"
+            },
+            "page_id": {
+              "type": "string"
+            },
+            "space_id": {
               "type": [
                 "string",
                 "null"
               ]
             },
-            "key": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "operation_id": {
-              "type": "string"
-            },
-            "visibility": {
-              "description": "`default_roles` or `private`; there is no default.",
-              "enum": [
-                "default_roles",
-                "private"
-              ],
-              "type": "string"
+            "width": {
+              "description": "`fixed` (760px column, the native default), `full_width` (up to 1800px) or `max` (edge to\nedge); there is no default.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
             }
           },
           "required": [
             "operation_id",
-            "key",
-            "name",
-            "visibility"
+            "page_id",
+            "width"
           ],
-          "title": "SpaceCreateArgs",
+          "title": "PageWidthSetArgs",
           "type": "object",
           "x-craft-input-decoder": "serde-strict"
         },
         "permissions": [
-          "Global Create space permission; the v2 route needs role-based access control on the site."
+          "View and edit the page."
         ],
         "projection": null,
         "provider": "confluence",
         "reconciliation": "known_resource",
         "response_example": {
-          "command": "confluence.space.create",
+          "command": "confluence.page.width.set",
           "data": {
             "credential_cache_update": null,
             "editor_draft_policy": null,
             "editor_draft_preservation_verified": false,
-            "http_status": 201,
+            "http_status": 200,
             "journal": null,
             "persistence": "recorded",
             "provider_request_id": null,
@@ -24649,9 +25372,9 @@
               "confirmed_resources": [
                 {
                   "deployment": "cloud",
-                  "id": "100",
+                  "id": "101",
                   "provider": "confluence",
-                  "resource_type": "space",
+                  "resource_type": "page",
                   "tenant": "00000000-1111-2222-3333-444444444444"
                 }
               ],
@@ -24670,7 +25393,13 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": {
+              "confirmed": "full_width",
+              "draft": "confirmed",
+              "published": "confirmed",
+              "requested": "full_width"
+            }
           },
           "ok": true,
           "request_id": "example",
@@ -24993,6 +25722,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -25230,6 +26012,998 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
+                }
+              },
+              "required": [
+                "receipt",
+                "target",
+                "space_id",
+                "persistence",
+                "reconciliation_required",
+                "replay_authorized",
+                "editor_draft_preservation_verified"
+              ],
+              "title": "PublicationData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "reconcile_before_replay",
+        "routes": [
+          {
+            "continuation_parameters": [],
+            "id": "confluence-page-property-create",
+            "method": "post",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "pages"
+              },
+              {
+                "kind": "parameter",
+                "value": "id"
+              },
+              {
+                "kind": "literal",
+                "value": "properties"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 65536
+          },
+          {
+            "continuation_parameters": [],
+            "id": "confluence-page-property-update",
+            "method": "put",
+            "path": [
+              {
+                "kind": "literal",
+                "value": "wiki"
+              },
+              {
+                "kind": "literal",
+                "value": "api"
+              },
+              {
+                "kind": "literal",
+                "value": "v2"
+              },
+              {
+                "kind": "literal",
+                "value": "pages"
+              },
+              {
+                "kind": "parameter",
+                "value": "page-id"
+              },
+              {
+                "kind": "literal",
+                "value": "properties"
+              },
+              {
+                "kind": "parameter",
+                "value": "property-id"
+              }
+            ],
+            "query_parameters": [],
+            "response_max_bytes": 65536
+          }
+        ],
+        "scope_alternatives": [
+          [
+            "write:page:confluence"
+          ]
+        ],
+        "tenant_conditions": [
+          "Exact site/space/grant/actor; the page must be current in that space. Writes content-appearance-published, then content-appearance-draft, each as a separately journaled step; the draft write is sent only after the published write is confirmed."
+        ]
+      },
+      "flags": {
+        "apply": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "apply",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "cloud_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "cloud-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "operation_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "operation-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "page_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "page-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "space_id": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "space-id",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "width": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [],
+          "delimiter": null,
+          "long": "width",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "confluence",
+        "page",
+        "width",
+        "set"
+      ],
+      "selectable_fields": {}
+    },
+    "confluence.space.create": {
+      "controls": {
+        "fields": "rejected",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "supported",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": null,
+      "descriptor": {
+        "api_revision": "confluence-cloud-v2",
+        "contract_version": "1.0",
+        "description": "Create a space with an unused key and explicit visibility (v2 only).",
+        "effect": "write",
+        "example": {
+          "apply": true,
+          "key": "CRAFT",
+          "name": "Craft plans",
+          "operation_id": "publish-plan",
+          "visibility": "default_roles"
+        },
+        "id": "confluence.space.create",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "apply": {
+              "default": false,
+              "type": "boolean"
+            },
+            "cloud_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "key": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "operation_id": {
+              "type": "string"
+            },
+            "visibility": {
+              "description": "`default_roles` or `private`; there is no default.",
+              "enum": [
+                "default_roles",
+                "private"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "operation_id",
+            "key",
+            "name",
+            "visibility"
+          ],
+          "title": "SpaceCreateArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [
+          "Global Create space permission; the v2 route needs role-based access control on the site."
+        ],
+        "projection": null,
+        "provider": "confluence",
+        "reconciliation": "known_resource",
+        "response_example": {
+          "command": "confluence.space.create",
+          "data": {
+            "credential_cache_update": null,
+            "editor_draft_policy": null,
+            "editor_draft_preservation_verified": false,
+            "http_status": 201,
+            "journal": null,
+            "persistence": "recorded",
+            "provider_request_id": null,
+            "receipt": {
+              "confirmed_resources": [
+                {
+                  "deployment": "cloud",
+                  "id": "100",
+                  "provider": "confluence",
+                  "resource_type": "space",
+                  "tenant": "00000000-1111-2222-3333-444444444444"
+                }
+              ],
+              "job": null,
+              "operation_id": "publish-plan",
+              "request_state": "confirmed"
+            },
+            "reconciliation_required": false,
+            "replay_authorized": false,
+            "retry_after": null,
+            "space_id": "100",
+            "target": {
+              "deployment": "cloud",
+              "id": "00000000-1111-2222-3333-444444444444",
+              "provider": "confluence",
+              "resource_type": "site",
+              "tenant": "00000000-1111-2222-3333-444444444444"
+            },
+            "version": null,
+            "width": null
+          },
+          "ok": true,
+          "request_id": "example",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "CredentialCacheUpdate": {
+              "additionalProperties": false,
+              "description": "Credential-cache effects are independent from any product-resource mutation.",
+              "properties": {
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "grant",
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "EditorDraftPolicy": {
+              "description": "Explicit acknowledgment of the documented native publish behavior: Confluence reconciles the\npublished content into any open editor draft and may overwrite divergent unpublished edits.\nIt is bound into the operation digest but never sent as a native field, and grants no permission.",
+              "enum": [
+                "native_reconciliation_may_overwrite"
+              ],
+              "type": "string"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "JobState": {
+              "enum": [
+                "accepted",
+                "running",
+                "succeeded",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "JournalRecord": {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/OperationBinding"
+                },
+                "revision": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "steps": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/JournalStep"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "binding",
+                "revision",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "JournalStep": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "request_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "$ref": "#/$defs/SubmissionState"
+                }
+              },
+              "required": [
+                "state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "OperationBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "description": "Host-verified effective actor under the selected provider/tenant authority.",
+                  "type": "string"
+                },
+                "descriptor_digest": {
+                  "type": "string"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_digest": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_digest",
+                "descriptor_digest",
+                "target",
+                "grant",
+                "actor"
+              ],
+              "type": "object"
+            },
+            "OperationReceipt": {
+              "additionalProperties": false,
+              "description": "Confirmed effects survive a later failed or uncertain request in a composite operation.",
+              "properties": {
+                "confirmed_resources": {
+                  "items": {
+                    "$ref": "#/$defs/ResourceRef"
+                  },
+                  "type": "array"
+                },
+                "job": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RemoteJob"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operation_id": {
+                  "type": "string"
+                },
+                "request_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "operation_id",
+                "request_state",
+                "confirmed_resources"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
+            "Persistence": {
+              "enum": [
+                "recorded",
+                "unrecorded",
+                "uncertain"
+              ],
+              "type": "string"
+            },
+            "RemoteJob": {
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "state": {
+                  "$ref": "#/$defs/JobState"
+                }
+              },
+              "required": [
+                "resource",
+                "state"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "ResourceRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "resource_type": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant",
+                "resource_type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "RetryAfter": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "delay_seconds",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "at_unix_millis",
+                      "type": "string"
+                    },
+                    "value": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "SubmissionState": {
+              "enum": [
+                "prepared",
+                "send_started",
+                "confirmed",
+                "failed",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "credential_cache_update": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CredentialCacheUpdate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "editor_draft_policy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EditorDraftPolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for updates: the native publish may overwrite divergent unpublished editor drafts."
+                },
+                "editor_draft_preservation_verified": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "http_status": {
+                  "format": "uint16",
+                  "maximum": 65535,
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "journal": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/JournalRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "persistence": {
+                  "$ref": "#/$defs/Persistence"
+                },
+                "provider_request_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "receipt": {
+                  "$ref": "#/$defs/OperationReceipt"
+                },
+                "reconciliation_required": {
+                  "type": "boolean"
+                },
+                "replay_authorized": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "retry_after": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RetryAfter"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "space_id": {
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ResourceRef"
+                },
+                "version": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -26825,7 +28599,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -27148,6 +28923,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -27385,6 +29213,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -28295,7 +30134,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": null
+            "version": null,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -28618,6 +30458,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -28855,6 +30748,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -29160,7 +31064,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -29483,6 +31388,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -29720,6 +31678,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [
@@ -66143,7 +68112,8 @@
               "resource_type": "site",
               "tenant": "00000000-1111-2222-3333-444444444444"
             },
-            "version": 1
+            "version": 1,
+            "width": null
           },
           "ok": true,
           "request_id": "example",
@@ -66466,6 +68436,59 @@
               ],
               "type": "object"
             },
+            "PageWidth": {
+              "description": "The display widths the Confluence editor offers.",
+              "oneOf": [
+                {
+                  "const": "fixed",
+                  "description": "The 760px reading column; the native default when no property exists.",
+                  "type": "string"
+                },
+                {
+                  "const": "full_width",
+                  "description": "Content up to 1800px wide.",
+                  "type": "string"
+                },
+                {
+                  "const": "max",
+                  "description": "Edge to edge with no cap.",
+                  "type": "string"
+                }
+              ]
+            },
+            "PageWidthReceipt": {
+              "additionalProperties": false,
+              "properties": {
+                "confirmed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidth"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set only when both appearance properties were confirmed with the requested value."
+                },
+                "draft": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-draft`: what the editor opens with; sent only after published is\nconfirmed."
+                },
+                "published": {
+                  "$ref": "#/$defs/RequestState",
+                  "description": "`content-appearance-published`: what viewers see."
+                },
+                "requested": {
+                  "$ref": "#/$defs/PageWidth"
+                }
+              },
+              "required": [
+                "requested",
+                "published",
+                "draft"
+              ],
+              "type": "object"
+            },
             "Persistence": {
               "enum": [
                 "recorded",
@@ -66703,6 +68726,17 @@
                     "integer",
                     "null"
                   ]
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/PageWidthReceipt"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Present for width writes: the per-property outcome of the two appearance writes."
                 }
               },
               "required": [

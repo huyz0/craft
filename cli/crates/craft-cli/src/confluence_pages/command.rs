@@ -312,6 +312,30 @@ pub struct ContentTrashArgs {
     #[arg(long, value_parser = content_revision, default_value = "{\"version\":0}")]
     pub expected: pages::ContentRevision,
 }
+fn width(text: &str) -> Result<pages::PageWidth, String> {
+    serde_json::from_value(Value::String(text.into()))
+        .map_err(|_| "expected_fixed_full_width_or_max".into())
+}
+#[derive(Args, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PageWidthSetArgs {
+    #[arg(long, default_value = "")]
+    pub operation_id: String,
+    #[arg(long)]
+    #[serde(default)]
+    pub apply: bool,
+    #[arg(long)]
+    pub cloud_id: Option<String>,
+    #[arg(long)]
+    pub space_id: Option<String>,
+    #[arg(long, default_value = "")]
+    pub page_id: String,
+    /// `fixed` (760px column, the native default), `full_width` (up to 1800px) or `max` (edge to
+    /// edge); there is no default.
+    #[arg(long, value_parser = width)]
+    #[schemars(required)]
+    pub width: Option<pages::PageWidth>,
+}
 pub enum PageWriteArgs {
     Create(PageCreateArgs),
     Update(PageUpdateArgs),
@@ -327,6 +351,7 @@ pub enum PageWriteArgs {
     FolderTrash(ContentTrashArgs),
     WhiteboardCreate(ContentCreateArgs),
     WhiteboardTrash(ContentTrashArgs),
+    WidthSet(PageWidthSetArgs),
 }
 /// Maps a saved space allowance to the page-host write it permits; attachment transfer
 /// allowances belong to the upload host instead.
@@ -345,6 +370,7 @@ fn kind_of(operation: Operation) -> Option<PageWriteKind> {
         Operation::FolderTrash => PageWriteKind::FolderTrash,
         Operation::WhiteboardCreate => PageWriteKind::WhiteboardCreate,
         Operation::WhiteboardTrash => PageWriteKind::WhiteboardTrash,
+        Operation::PageWidthSet => PageWriteKind::WidthSet,
         Operation::AttachmentUpload | Operation::AttachmentReplace => return None,
     })
 }
@@ -386,6 +412,7 @@ impl PageWriteArgs {
             Self::FolderTrash(_) => Operation::FolderTrash,
             Self::WhiteboardCreate(_) => Operation::WhiteboardCreate,
             Self::WhiteboardTrash(_) => Operation::WhiteboardTrash,
+            Self::WidthSet(_) => Operation::PageWidthSet,
         })
     }
     pub fn decode(command: &str, value: Value) -> Result<Self, CraftError> {
@@ -404,6 +431,7 @@ impl PageWriteArgs {
             FOLDER_TRASH => Ok(Self::FolderTrash(decode(&value)?)),
             WHITEBOARD_CREATE => Ok(Self::WhiteboardCreate(decode(&value)?)),
             WHITEBOARD_TRASH => Ok(Self::WhiteboardTrash(decode(&value)?)),
+            PAGE_WIDTH_SET => Ok(Self::WidthSet(decode(&value)?)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -421,6 +449,7 @@ impl PageWriteArgs {
             Self::SpaceCreate(v) => encoded(v),
             Self::FolderCreate(v) | Self::WhiteboardCreate(v) => encoded(v),
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => encoded(v),
+            Self::WidthSet(v) => encoded(v),
         }
     }
     fn cloud(&self) -> Option<&str> {
@@ -437,6 +466,7 @@ impl PageWriteArgs {
             Self::SpaceCreate(v) => v.cloud_id.as_deref(),
             Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.cloud_id.as_deref(),
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.cloud_id.as_deref(),
+            Self::WidthSet(v) => v.cloud_id.as_deref(),
         }
     }
     fn space(&self) -> Option<&str> {
@@ -453,6 +483,7 @@ impl PageWriteArgs {
             Self::SpaceCreate(_) => Some(""),
             Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.space_id.as_deref(),
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.space_id.as_deref(),
+            Self::WidthSet(v) => v.space_id.as_deref(),
         }
     }
     fn operation_id(&self) -> &str {
@@ -469,6 +500,7 @@ impl PageWriteArgs {
             Self::SpaceCreate(v) => &v.operation_id,
             Self::FolderCreate(v) | Self::WhiteboardCreate(v) => &v.operation_id,
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => &v.operation_id,
+            Self::WidthSet(v) => &v.operation_id,
         }
     }
     fn apply(&self) -> bool {
@@ -485,6 +517,7 @@ impl PageWriteArgs {
             Self::SpaceCreate(v) => v.apply,
             Self::FolderCreate(v) | Self::WhiteboardCreate(v) => v.apply,
             Self::FolderTrash(v) | Self::WhiteboardTrash(v) => v.apply,
+            Self::WidthSet(v) => v.apply,
         }
     }
     fn input(&self, space: &str) -> Result<Value, CraftError> {
@@ -570,6 +603,13 @@ impl PageWriteArgs {
                 space_id: space.into(),
                 id: v.id.clone(),
                 expected: v.expected.clone(),
+            }),
+            Self::WidthSet(v) => encoded(&pages::PageWidthSetInput {
+                space_id: space.into(),
+                page_id: v.page_id.clone(),
+                width: v.width.ok_or_else(|| {
+                    CraftError::field("/width", "expected_fixed_full_width_or_max")
+                })?,
             }),
         }
     }
@@ -665,6 +705,9 @@ impl From<PageWriteArgs> for crate::args::ConfluenceAction {
             PageWriteArgs::WhiteboardTrash(v) => Self::Whiteboard {
                 action: crate::args::ConfluenceWhiteboardAction::Trash(Box::new(v)),
             },
+            PageWriteArgs::WidthSet(v) => page(P::Width {
+                action: crate::args::ConfluencePageWidthAction::Set(Box::new(v)),
+            }),
         }
     }
 }
@@ -717,6 +760,12 @@ impl TryFrom<crate::args::ConfluenceAction> for PageWriteArgs {
             A::Whiteboard {
                 action: crate::args::ConfluenceWhiteboardAction::Trash(v),
             } => Ok(Self::WhiteboardTrash(*v)),
+            A::Page {
+                action:
+                    P::Width {
+                        action: crate::args::ConfluencePageWidthAction::Set(v),
+                    },
+            } => Ok(Self::WidthSet(*v)),
             _ => Err(CraftError::field("/command", "expected_page_write")),
         }
     }
@@ -740,6 +789,7 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             FOLDER_TRASH,
             WHITEBOARD_CREATE,
             WHITEBOARD_TRASH,
+            PAGE_WIDTH_SET,
         ],
     )
 }
@@ -762,6 +812,7 @@ pub fn register_public(registry: &mut Registry) -> Result<(), CraftError> {
             FOLDER_TRASH,
             WHITEBOARD_CREATE,
             WHITEBOARD_TRASH,
+            PAGE_WIDTH_SET,
         ],
     )
 }
@@ -810,7 +861,7 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             "example".into(),
             json!({
                 "receipt":{"operation_id":"publish-plan","request_state":"confirmed","confirmed_resources":[{"provider":"confluence","deployment":"cloud","tenant":"00000000-1111-2222-3333-444444444444","resource_type":resource,"id":match resource {"page" => "101", "attachment" => "att301", "space" => "100", "folder" | "whiteboard" => "401", _ => "201"}}],"job":null},
-                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"credential_cache_update":null
+                "target":site("00000000-1111-2222-3333-444444444444"),"space_id":"100","version":version,"persistence":"recorded","journal":null,"http_status":status,"provider_request_id":null,"retry_after":null,"reconciliation_required":false,"replay_authorized":false,"editor_draft_policy":if command==PAGE_UPDATE {json!("native_reconciliation_may_overwrite")} else {Value::Null},"editor_draft_preservation_verified":false,"width":if command==PAGE_WIDTH_SET {json!({"requested":"full_width","confirmed":"full_width","published":"confirmed","draft":"confirmed"})} else {Value::Null},"credential_cache_update":null
             })
         ));
         match command {
@@ -857,6 +908,10 @@ fn register_commands(registry: &mut Registry, commands: &[&str]) -> Result<(), C
             FOLDER_TRASH | WHITEBOARD_TRASH => {
                 d.input_schema = schema_for::<ContentTrashArgs>()?;
                 registry.register_typed::<ContentTrashArgs>(d)?;
+            }
+            PAGE_WIDTH_SET => {
+                d.input_schema = schema_for::<PageWidthSetArgs>()?;
+                registry.register_typed::<PageWidthSetArgs>(d)?;
             }
             _ => {
                 d.input_schema = schema_for::<SpaceCreateArgs>()?;

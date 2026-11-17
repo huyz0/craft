@@ -86,7 +86,8 @@ def policies(state_root, site, cloud, actor, project, space):
           "confluence.content-state.set", "confluence.content-state.clear",
           "confluence.attachment.trash", "confluence.attachment.upload",
           "confluence.attachment.replace", "confluence.folder.create", "confluence.folder.trash",
-          "confluence.whiteboard.create", "confluence.whiteboard.trash"], None),
+          "confluence.whiteboard.create", "confluence.whiteboard.trash",
+          "confluence.page.width.set"], None),
         ("cf-test", "confluence-admin", ref("confluence", cloud, "site", cloud),
          ["confluence.space.create"], None),
         ("cf-test", "confluence-read", ref("confluence", cloud, "site", cloud), [
@@ -467,6 +468,12 @@ def page_lifecycle(state_root, space):
                 "page_id": page}))
         else:
             report.append("confluence.content-state.set => SKIP space offers no states")
+    if "--width" in sys.argv:
+        for width in ["full_width", "fixed"]:
+            changed = step(f"confluence.page.width.set {width}", run(state_root, "cf-test", "confluence.page.width.set", {
+                "operation_id": f"craft-test-{stamp}-width-{width.replace('_', '-')}", "apply": True,
+                "space_id": space, "page_id": page, "width": width}))
+            report.append(f"width receipt: {json.dumps((changed.get('data') or {}).get('width'))}")
     if "--uploads" in sys.argv:
         source = CAPTURES / "upload-source"
         source.mkdir(parents=True, exist_ok=True)
@@ -556,8 +563,7 @@ def content_lifecycle(state_root, space):
         out = step(f"confluence.{kind}.get", run(state_root, "cf-test", f"confluence.{kind}.get", {"id": ident}))
         item = (out.get("data") or {}).get("item") or {}
         if not item.get("version"):
-            raise SystemExit("
-".join(report + [f"stopping: no reviewed version for {kind} {ident}"]))
+            raise SystemExit("\n".join(report + [f"stopping: no reviewed version for {kind} {ident}"]))
         report.append(f"  {kind} {ident}: status={item.get('status')} parent={item.get('parent_type')}:{item.get('parent_id')} version={item.get('version')}")
         return item
 
@@ -653,6 +659,7 @@ def main():
     parser.add_argument("--trash", action="store_true", help="also trash the page (needs delete:page:confluence)")
     parser.add_argument("--comments", action="store_true", help="also create, reply, edit and delete footer comments")
     parser.add_argument("--badges", action="store_true", help="also set and clear a content-state badge")
+    parser.add_argument("--width", action="store_true", help="also set the page width to full_width and back to fixed")
     parser.add_argument("--attachments", action="store_true", help="also list the page's attachments")
     parser.add_argument("--uploads", action="store_true", help="also upload, refuse a duplicate filename and replace by ID")
     args = parser.parse_args()

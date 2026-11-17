@@ -17,7 +17,7 @@ Provisioning, policy administration and selected cloud commands are now public a
 | --- | --- | --- |
 | confluence-read | site | Exact space/page get/list/search, page-bound comment get/list/replies, content-state get/available, attachment get/list and folder/whiteboard get allowances |
 | confluence-admin | site | Site-level Confluence administration; currently only `confluence.space.create` |
-| confluence-write | space | Page create/update/trash, footer comment create/update/delete, content-state set/clear, attachment trash/upload/replace and folder/whiteboard create/trash, each listed explicitly |
+| confluence-write | space | Page create/update/trash, footer comment create/update/delete, content-state set/clear, page width set, attachment trash/upload/replace and folder/whiteboard create/trash, each listed explicitly (at most 16) |
 | jira-create | project | Only jira.issue.create |
 | jira-read | site | Issue get/search, edit metadata, transitions, permission checks, link/comment reads, attachment metadata/list/settings and separately allowed download |
 | jira-project-read | site | Project listing, with explicit continuation_site |

@@ -766,6 +766,7 @@ fn enable_writes(setup: &Setup, revision: Option<u64>, enabled: bool) -> Result<
                 Op::ContentStateSet,
                 Op::ContentStateClear,
                 Op::AttachmentTrash,
+                Op::PageWidthSet,
             ],
         },
         true,
@@ -1348,6 +1349,169 @@ fn space_create_needs_site_authority_an_absent_key_and_explicit_visibility() -> 
                 assert_eq!(body["key"], "CRAFTTEST");
                 assert_eq!(body["createPrivateSpace"], mode == "private");
                 assert!(body.get("roleAssignments").is_none());
+            }
+        }
+        drop(locked);
+        setup.no_secrets()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn page_width_writes_published_then_draft_and_stops_at_the_first_unconfirmed_step() -> TestResult {
+    let published = "content-appearance-published";
+    let draft = "content-appearance-draft";
+    let property = |id: &str, key: &str, value: &str, version: u64| json!({"id":id,"key":key,"value":value,"version":{"number":version}});
+    for mode in [
+        "create",
+        "update",
+        "draft_refused",
+        "published_unknown",
+        "stale_value",
+    ] {
+        let setup = Setup::new()?;
+        enable_writes(&setup, None, true)?;
+        let issuer = issuer(WRITE_SCOPES)?;
+        let existing = mode == "update";
+        let lookup = |id: &str, key: &str, version: u64| -> Result<Reply, serde_json::Error> {
+            reply(if existing {
+                json!({"results":[property(id, key, "fixed", version)],"_links":{}})
+            } else {
+                json!({"results":[],"_links":{}})
+            })
+        };
+        let mut replies = vec![
+            identity(),
+            identity(),
+            reply(current_page())?,
+            lookup("9001", published, 3)?,
+            lookup("9002", draft, 1)?,
+        ];
+        let (first_version, second_version) = if existing { (4, 2) } else { (1, 1) };
+        match mode {
+            "published_unknown" => replies.push(Reply::json(500, b"{}", &[])),
+            "stale_value" => {
+                replies.push(reply(property("9001", published, "fixed", first_version))?)
+            }
+            _ => replies.push(reply(property(
+                "9001",
+                published,
+                "full-width",
+                first_version,
+            ))?),
+        }
+        match mode {
+            "draft_refused" => replies.push(Reply::json(409, b"{}", &[])),
+            "create" | "update" => replies.push(reply(property(
+                "9002",
+                draft,
+                "full-width",
+                second_version,
+            ))?),
+            _ => {}
+        }
+        let product = TlsServer::start(Reply::Sequence(replies))?;
+        let fixture = setup.fixture(&issuer, &product, Arc::new(ManualClock::new(1000)))?;
+        let locked = fixture.lock(&setup.grant, &control()?)?;
+        fixture.client().provision_grant(
+            &locked,
+            fixture.service_credentials()?,
+            &[target().tenant_ref()],
+            Some("actor-one"),
+        )?;
+        let journal = NativeJournal::open(&setup.store, &control()?)?;
+        let result = candidate(
+            &setup,
+            pages::PAGE_WIDTH_SET,
+            json!({"space_id":"100","page_id":"101","width":"full_width"}),
+        )?
+        .execute_cached(
+            &setup.store,
+            fixture.client(),
+            &locked,
+            &journal,
+            TlsPolicy::AdditionalCaBundle(product.root()),
+            control()?,
+        );
+        let data = result.envelope.data.clone().ok_or("data")?;
+        let requests = product.finish()?;
+        let reads: Vec<_> = requests
+            .iter()
+            .filter(|r| r.method == "GET" && r.target.contains("/properties"))
+            .collect();
+        assert_eq!(reads.len(), 2, "{mode}");
+        assert!(reads[0].target.contains("key=content-appearance-published"));
+        assert!(reads[1].target.contains("key=content-appearance-draft"));
+        let writes: Vec<_> = requests.iter().filter(|r| r.method != "GET").collect();
+        let body = |i: usize| -> Result<Value, serde_json::Error> {
+            serde_json::from_slice(&writes[i].body)
+        };
+        let width = &data["width"];
+        assert_eq!(width["requested"], "full_width");
+        match mode {
+            "create" | "update" => {
+                assert!(result.envelope.ok, "{mode}: {:?}", result.envelope.error);
+                assert_eq!(data["receipt"]["request_state"], "confirmed");
+                assert_eq!(data["receipt"]["confirmed_resources"][0]["id"], "101");
+                assert_eq!(width["confirmed"], "full_width");
+                assert_eq!(width["published"], "confirmed");
+                assert_eq!(width["draft"], "confirmed");
+                assert_eq!(writes.len(), 2);
+                let steps = data["journal"]["steps"].as_object().ok_or("steps")?;
+                assert_eq!(steps.len(), 2);
+                assert_eq!(steps[published]["state"], "confirmed");
+                assert_eq!(steps[draft]["state"], "confirmed");
+                if existing {
+                    assert_eq!(writes[0].method, "PUT");
+                    assert!(
+                        writes[0]
+                            .target
+                            .contains("/wiki/api/v2/pages/101/properties/9001")
+                    );
+                    assert!(
+                        writes[1]
+                            .target
+                            .contains("/wiki/api/v2/pages/101/properties/9002")
+                    );
+                    assert_eq!(
+                        body(0)?,
+                        json!({"key":published,"value":"full-width","version":{"number":4}})
+                    );
+                    assert_eq!(
+                        body(1)?,
+                        json!({"key":draft,"value":"full-width","version":{"number":2}})
+                    );
+                } else {
+                    assert!(writes.iter().all(|w| w.method == "POST"
+                        && w.target.ends_with("/wiki/api/v2/pages/101/properties")));
+                    assert_eq!(body(0)?, json!({"key":published,"value":"full-width"}));
+                    assert_eq!(body(1)?, json!({"key":draft,"value":"full-width"}));
+                }
+            }
+            "draft_refused" => {
+                assert!(!result.envelope.ok);
+                assert_eq!(writes.len(), 2);
+                assert_eq!(
+                    result.envelope.error.as_ref().ok_or("error")?.code,
+                    ErrorCode::PartialApply
+                );
+                assert_eq!(data["receipt"]["request_state"], "failed");
+                assert_eq!(width["published"], "confirmed");
+                assert_eq!(width["draft"], "failed");
+                assert_eq!(width["confirmed"], Value::Null);
+                assert_eq!(data["reconciliation_required"], true);
+                assert_eq!(data["replay_authorized"], false);
+            }
+            _ => {
+                // An uncertain or mismatched published write is never followed by the draft write.
+                assert!(!result.envelope.ok);
+                assert_eq!(writes.len(), 1, "{mode}");
+                assert_eq!(data["receipt"]["request_state"], "sent_unknown");
+                assert_eq!(width["published"], "sent_unknown");
+                assert_eq!(width["draft"], "not_sent");
+                assert_eq!(data["reconciliation_required"], true);
+                let steps = data["journal"]["steps"].as_object().ok_or("steps")?;
+                assert_eq!(steps.len(), 1);
             }
         }
         drop(locked);
