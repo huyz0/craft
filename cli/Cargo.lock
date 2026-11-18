@@ -674,6 +674,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-provider-trello"
+version = "0.1.0"
+dependencies = [
+ "craft-core",
+ "jsonschema",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "craft-runtime"
 version = "0.1.0"
 dependencies = [

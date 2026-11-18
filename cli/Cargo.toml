@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/craft-cli", "crates/craft-core", "crates/craft-platform", "crates/craft-runtime", "crates/craft-test-support", "crates/craft-workflows", "crates/craft-provider-jira", "crates/craft-provider-confluence", "crates/craft-live-conformance"]
+members = ["crates/craft-cli", "crates/craft-core", "crates/craft-platform", "crates/craft-runtime", "crates/craft-test-support", "crates/craft-workflows", "crates/craft-provider-jira", "crates/craft-provider-confluence", "crates/craft-provider-trello", "crates/craft-live-conformance"]
 resolver = "3"
 
 [workspace.package]

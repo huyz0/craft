@@ -157,7 +157,7 @@ fn site_admin_policy_is_explicit_revisioned_and_migrates_from_schema_twelve() ->
     assert!(store.confluence_read_policy("factory", &control)?.is_none());
     drop(store);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE confluence_admin_policies; PRAGMA user_version=12;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE confluence_admin_policies; PRAGMA user_version=12;")?;
     let migrated = files.store()?;
     assert!(
         migrated
@@ -167,9 +167,9 @@ fn site_admin_policy_is_explicit_revisioned_and_migrates_from_schema_twelve() ->
     drop(migrated);
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        13
+        14
     );
-    raw.execute_batch("DROP TABLE confluence_admin_policies; CREATE TABLE confluence_admin_policies(foreign_data TEXT); PRAGMA user_version=12;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE confluence_admin_policies; CREATE TABLE confluence_admin_policies(foreign_data TEXT); PRAGMA user_version=12;")?;
     assert!(ProfileStore::open(&files.root, &control).is_err());
     Ok(())
 }

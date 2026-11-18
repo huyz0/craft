@@ -285,7 +285,7 @@ fn confluence_policy_migration_preserves_profiles_and_rolls_back_conflicts_and_t
     let profile = store.get("factory", &control)?;
     drop(store);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; PRAGMA user_version=9;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; PRAGMA user_version=9;")?;
     let migrated = files.store()?;
     assert_eq!(migrated.settings(), &settings);
     assert_eq!(migrated.get("factory", &control)?, profile);
@@ -297,16 +297,16 @@ fn confluence_policy_migration_preserves_profiles_and_rolls_back_conflicts_and_t
     drop(migrated);
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        13
+        14
     );
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; CREATE TABLE confluence_read_policies(foreign_data TEXT); PRAGMA user_version=9;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; CREATE TABLE confluence_read_policies(foreign_data TEXT); PRAGMA user_version=9;")?;
     assert!(ProfileStore::open(&files.root, &control).is_err());
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
         9
     );
     raw.execute_batch(
-        "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE confluence_read_policies;",
+        "DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE confluence_read_policies;",
     )?;
     let migrated = files.store()?;
     drop(migrated);

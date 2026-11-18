@@ -276,7 +276,7 @@ fn legacy_rows_never_gain_action_authority_and_only_explicit_updates_upgrade_for
     );
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        13
+        14
     );
     Ok(())
 }
@@ -577,7 +577,7 @@ fn empty_schema_migration_preserves_existing_state_and_conflicts_roll_back() -> 
     let settings = store.settings().clone();
     drop(store);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; PRAGMA user_version=7;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; PRAGMA user_version=7;")?;
     drop(raw);
     let migrated = ProfileStore::open(&files.root, &control()?)?;
     assert_eq!(migrated.get("factory", &control()?)?, profile);
@@ -591,9 +591,9 @@ fn empty_schema_migration_preserves_existing_state_and_conflicts_roll_back() -> 
     let raw = files.raw()?;
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
-        13
+        14
     );
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; CREATE TABLE issue_mutation_policies (foreign_data TEXT); PRAGMA user_version=7;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; CREATE TABLE issue_mutation_policies (foreign_data TEXT); PRAGMA user_version=7;")?;
     assert!(ProfileStore::open(&files.root, &control()?).is_err());
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
