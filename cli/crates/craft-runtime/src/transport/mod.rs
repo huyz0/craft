@@ -11,6 +11,8 @@ mod routing;
 pub use mutations::{MutationAttempt, PreparedHttpMutation};
 pub use routing::{JiraFieldSite, JiraProjectSite};
 #[cfg(test)]
+mod static_scheme_tests;
+#[cfg(test)]
 mod tests;
 
 use std::fmt;
@@ -40,6 +42,20 @@ pub struct HostSession {
     tenant: TenantRef,
     grant: GrantRef,
     token: SecretBytes,
+    scheme: CredentialScheme,
+}
+
+/// How the session secret becomes an `Authorization` header. The scheme is fixed by the
+/// provider of the bound tenant, never by operation arguments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialScheme {
+    /// `Bearer <secret>`.
+    Bearer,
+    /// Trello: the secret is `<api key>:<member token>`, sent as an OAuth 1.0 style header so
+    /// neither value appears in a URL.
+    TrelloKeyToken,
+    /// Bitbucket Cloud: the secret is `<user>:<api token>`, sent as HTTP Basic.
+    Basic,
 }
 
 impl fmt::Debug for HostSession {
@@ -65,11 +81,49 @@ impl HostSession {
             tenant,
             grant,
             token,
+            scheme: CredentialScheme::Bearer,
         })
     }
 
+    /// Binds a static credential. The tenant's provider must match the scheme, so a Trello
+    /// secret can never be presented to another host.
+    pub fn with_scheme(
+        tenant: TenantRef,
+        grant: GrantRef,
+        token: SecretBytes,
+        scheme: CredentialScheme,
+    ) -> Result<Self, CraftError> {
+        tenant.validate()?;
+        grant.validate()?;
+        let expected = match scheme {
+            CredentialScheme::Bearer => None,
+            CredentialScheme::TrelloKeyToken => Some("trello"),
+            CredentialScheme::Basic => Some("bitbucket"),
+        };
+        if expected.is_some_and(|provider| provider != tenant.provider) {
+            return Err(CraftError::field(
+                "/auth",
+                "credential_scheme_provider_mismatch",
+            ));
+        }
+        let session = Self {
+            #[cfg(feature = "synthetic-acceptance")]
+            synthetic: None,
+            tenant,
+            grant,
+            token,
+            scheme,
+        };
+        session.header()?;
+        Ok(session)
+    }
+
     fn header(&self) -> Result<HeaderValue, CraftError> {
-        bearer_header(&self.token)
+        match self.scheme {
+            CredentialScheme::Bearer => bearer_header(&self.token),
+            CredentialScheme::TrelloKeyToken => trello_header(&self.token),
+            CredentialScheme::Basic => basic_header(&self.token),
+        }
     }
 
     #[cfg(feature = "synthetic-acceptance")]
@@ -116,9 +170,83 @@ pub(crate) fn bearer_header(token: &SecretBytes) -> Result<HeaderValue, CraftErr
     Ok(header)
 }
 
+fn invalid_static() -> CraftError {
+    CraftError::field("/auth", "invalid_static_credential_encoding_or_size")
+}
+
+/// Splits `<left>:<right>`; both halves must be printable ASCII without separators or quotes
+/// so neither can break out of its header field.
+fn static_pair(secret: &SecretBytes) -> Result<(&str, &str), CraftError> {
+    let text = std::str::from_utf8(secret.expose()).map_err(|_| invalid_static())?;
+    let (left, right) = text.split_once(':').ok_or_else(invalid_static)?;
+    let clean = |part: &str| {
+        !part.is_empty()
+            && part.len() <= 4_096
+            && part
+                .bytes()
+                .all(|b| b.is_ascii_graphic() && !matches!(b, b'"' | b',' | b'\\' | b':'))
+    };
+    if !clean(left) || !clean(right) {
+        return Err(invalid_static());
+    }
+    Ok((left, right))
+}
+
+fn trello_header(secret: &SecretBytes) -> Result<HeaderValue, CraftError> {
+    let (key, token) = static_pair(secret)?;
+    let mut header = HeaderValue::from_str(&format!(
+        "OAuth oauth_consumer_key=\"{key}\", oauth_token=\"{token}\""
+    ))
+    .map_err(|_| invalid_static())?;
+    header.set_sensitive(true);
+    Ok(header)
+}
+
+fn basic_header(secret: &SecretBytes) -> Result<HeaderValue, CraftError> {
+    // The user half may be an email address, so only the secret half keeps the strict check.
+    let text = std::str::from_utf8(secret.expose()).map_err(|_| invalid_static())?;
+    let (user, token) = text.split_once(':').ok_or_else(invalid_static)?;
+    if user.is_empty()
+        || token.is_empty()
+        || text.len() > 8_192
+        || text.bytes().any(|b| !b.is_ascii_graphic())
+    {
+        return Err(invalid_static());
+    }
+    let mut header = HeaderValue::from_str(&format!("Basic {}", base64(text.as_bytes())))
+        .map_err(|_| invalid_static())?;
+    header.set_sensitive(true);
+    Ok(header)
+}
+
+fn base64(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |n, (i, b)| n | (u32::from(*b) << (16 - 8 * i)));
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(TABLE[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
 pub(crate) fn product_identity_url(tenant: &TenantRef) -> Result<url::Url, CraftError> {
-    let mut url = Endpoint::atlassian(tenant)?.prefix;
+    let mut url = Endpoint::for_tenant(tenant)?.prefix;
+    let workspace_tail;
     let tail: &[&str] = match tenant.provider.as_str() {
+        "trello" => &["members", "me"],
+        "bitbucket" => {
+            workspace_tail = ["workspaces", tenant.tenant.as_str()];
+            &workspace_tail
+        }
         "jira" => &["rest", "api", "3", "myself"],
         "confluence" => &["wiki", "rest", "api", "user", "current"],
         _ => return Err(denied()),
@@ -231,7 +359,7 @@ impl HttpContext {
         if session.tenant != operation.request().target.tenant_ref() || &session.grant != grant {
             return Err(denied());
         }
-        let endpoint = Endpoint::atlassian(&session.tenant)?;
+        let endpoint = Endpoint::for_tenant(&session.tenant)?;
         #[cfg(feature = "synthetic-acceptance")]
         let endpoint = if let Some(route) = &session.synthetic {
             Endpoint {
