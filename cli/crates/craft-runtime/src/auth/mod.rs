@@ -17,5 +17,6 @@ pub fn validate_service_target(
 
 pub use service::{
     AuthFailure, ProductIdentity, ServiceCredentials, ServiceGrantReceipt, ServiceOAuthClient,
-    ServiceSession, ServiceToken, TokenMetadata, VerifiedServiceAccess,
+    ServiceSession, ServiceToken, StaticCredentials, StaticGrantReceipt, TokenMetadata,
+    VerifiedServiceAccess,
 };

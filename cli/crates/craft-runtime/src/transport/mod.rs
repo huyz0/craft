@@ -118,7 +118,11 @@ impl HostSession {
         Ok(session)
     }
 
-    fn header(&self) -> Result<HeaderValue, CraftError> {
+    pub(crate) fn secret(&self) -> &SecretBytes {
+        &self.token
+    }
+
+    pub(crate) fn header(&self) -> Result<HeaderValue, CraftError> {
         match self.scheme {
             CredentialScheme::Bearer => bearer_header(&self.token),
             CredentialScheme::TrelloKeyToken => trello_header(&self.token),
