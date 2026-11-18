@@ -34,6 +34,7 @@ pub enum PolicyKind {
     JiraFieldRead,
     JiraMutation,
     JiraRecovery,
+    TrelloRead,
 }
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -146,13 +147,14 @@ fn validate_target(kind: PolicyKind, target: &ResourceRef) -> Result<(), CraftEr
         PolicyKind::JiraRead | PolicyKind::JiraProjectRead | PolicyKind::JiraFieldRead => {
             ("jira", "site")
         }
+        PolicyKind::TrelloRead => ("trello", "account"),
         _ => ("jira", "project"),
     };
     if target.provider != provider
         || target.deployment != "cloud"
         || target.resource_type != resource
-        || (resource == "site" && target.id != target.tenant)
-        || (resource != "site"
+        || (matches!(resource, "site" | "account") && target.id != target.tenant)
+        || (!matches!(resource, "site" | "account")
             && kind != PolicyKind::JiraProjectContext
             && !target
                 .id

@@ -180,6 +180,7 @@ impl ServiceOAuthClient {
         &self,
         locked: &LockedCredentials<'_>,
         tenant: &TenantRef,
+        expected_actor: &str,
     ) -> Result<HostSession, AuthFailure> {
         self.control.check()?;
         let scheme = scheme_for(&tenant.provider)?;
@@ -201,6 +202,13 @@ impl ServiceOAuthClient {
             return Err(invalid_stored().into());
         }
         validate_identity("/actor", &stored.actor).map_err(|_| invalid_stored())?;
+        if stored.actor != expected_actor {
+            return Err(CraftError::new(
+                ErrorCode::PolicyDenied,
+                "Stored credential actor differs from the configured policy actor.",
+            )
+            .into());
+        }
         if &stored.tenant != tenant {
             return Err(CraftError::new(
                 ErrorCode::PolicyDenied,

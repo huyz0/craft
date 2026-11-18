@@ -11,6 +11,7 @@ use std::sync::Arc;
 enum CloudCommands {
     Confluence,
     Jira,
+    Trello,
 }
 impl ProviderModule for CloudCommands {
     fn manifest(&self) -> ProviderManifest {
@@ -18,6 +19,7 @@ impl ProviderModule for CloudCommands {
             id: match self {
                 Self::Confluence => "confluence",
                 Self::Jira => "jira",
+                Self::Trello => "trello",
             }
             .into(),
             version: env!("CARGO_PKG_VERSION").into(),
@@ -28,6 +30,7 @@ impl ProviderModule for CloudCommands {
     fn register(&self, registry: &mut Registry) -> Result<(), CraftError> {
         let mut candidates = Registry::default();
         match self {
+            Self::Trello => crate::trello_reads::register_candidates(&mut candidates)?,
             Self::Confluence => {
                 crate::confluence_reads::command::register_candidates(&mut candidates)?;
                 crate::confluence_pages::command::register_public(&mut candidates)?;
@@ -68,6 +71,17 @@ impl ProviderModule for CloudCommands {
                 };
             }
             match descriptor.id.as_str() {
+                "trello.board.list" => register!(crate::trello_reads::BoardListArgs),
+                "trello.board.get" | "trello.card.get" => register!(crate::trello_reads::IdArgs),
+                "trello.list.list"
+                | "trello.card.board-list"
+                | "trello.label.list"
+                | "trello.member.list" => register!(crate::trello_reads::BoardArgs),
+                "trello.card.list" => register!(crate::trello_reads::ListArgs),
+                "trello.card.search" => register!(crate::trello_reads::SearchArgs),
+                "trello.comment.list" | "trello.checklist.list" | "trello.attachment.list" => {
+                    register!(crate::trello_reads::CardArgs)
+                }
                 "confluence.comment.list" => {
                     register!(crate::confluence_reads::command::ConfluenceCommentListArgs)
                 }
@@ -231,6 +245,7 @@ impl OperationHandler for VerifiedHostRequired {
 pub(crate) fn register(registry: &mut Registry) -> Result<(), CraftError> {
     registry.register_provider(&CloudCommands::Confluence)?;
     registry.register_provider(&CloudCommands::Jira)?;
+    registry.register_provider(&CloudCommands::Trello)?;
     let mut recovery = Registry::default();
     crate::issue_recovery::command::register_candidate(&mut recovery)?;
     registry.register_typed_handler::<crate::issue_recovery::command::OperationReconcileArgs>(

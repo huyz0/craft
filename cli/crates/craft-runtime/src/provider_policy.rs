@@ -4,7 +4,7 @@
 //! `bitbucket.write`) is enabled separately, bound to the profile's exact grant and tenant, and
 //! rechecked before data is released or a mutation is sent.
 
-use craft_core::contracts::{AuthMode, GrantRef, ResourceRef};
+use craft_core::contracts::{AuthMode, GrantRef, ResourceRef, validate_identity};
 use craft_core::control::InvocationControl;
 use craft_core::error::{CraftError, ErrorCode};
 use craft_core::input::parse_object;
@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 use crate::profiles::{ProfileStore, begin, commit, invalid_state, state_error};
 
 pub(crate) const TABLE: &str = "CREATE TABLE provider_policies (profile TEXT NOT NULL COLLATE BINARY REFERENCES profiles(name), class TEXT NOT NULL COLLATE BINARY, revision INTEGER NOT NULL CHECK(revision>=1), payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB))<=65536), PRIMARY KEY(profile,class))";
+
+pub const TRELLO_READ: &str = "trello.read";
 
 /// Classes a profile can enable. The provider is the prefix before the dot.
 pub const CLASSES: [&str; 4] = [
@@ -34,6 +36,7 @@ pub struct ProviderPolicyRecord {
     pub class: String,
     pub grant: GrantRef,
     pub target: ResourceRef,
+    pub expected_actor: String,
     pub operations: Vec<String>,
     pub enabled: bool,
 }
@@ -41,6 +44,7 @@ pub struct ProviderPolicyRecord {
 pub struct ProviderPolicyUpdate {
     pub class: String,
     pub target: ResourceRef,
+    pub expected_actor: String,
     pub operations: Vec<String>,
     pub enabled: bool,
     pub expected_revision: Option<u64>,
@@ -57,6 +61,7 @@ fn validate(
     profile: &Profile,
     class: &str,
     target: &ResourceRef,
+    actor: &str,
     operations: &[String],
 ) -> Result<(), CraftError> {
     let provider = provider_of(class)
@@ -70,7 +75,19 @@ fn validate(
     };
     profile.validate_target(kind, target)?;
     if target.id != target.tenant {
-        return Err(CraftError::field("/target", "expected_exact_account_target"));
+        return Err(CraftError::field(
+            "/target",
+            "expected_exact_account_target",
+        ));
+    }
+    validate_identity("/expected_actor", actor)?;
+    // A Trello credential is proven against its member id, so the actor is that id.
+    if matches!(actor, "anonymous" | "unknown") || (provider == "trello" && actor != target.tenant)
+    {
+        return Err(CraftError::field(
+            "/expected_actor",
+            "expected_proven_provider_actor",
+        ));
     }
     crate::transport::product_identity_url(&target.tenant_ref())?;
     if profile.provider != provider
@@ -112,7 +129,14 @@ impl ProviderPolicyRecord {
         {
             return Err(invalid_state());
         }
-        validate(profile, &self.class, &self.target, &self.operations).map_err(|_| invalid_state())
+        validate(
+            profile,
+            &self.class,
+            &self.target,
+            &self.expected_actor,
+            &self.operations,
+        )
+        .map_err(|_| invalid_state())
     }
 }
 
@@ -190,7 +214,13 @@ impl ProfileStore {
         update.operations.sort();
         let transaction = begin(&self.connection, control)?;
         let profile = self.get(profile, control)?;
-        validate(&profile, &update.class, &update.target, &update.operations)?;
+        validate(
+            &profile,
+            &update.class,
+            &update.target,
+            &update.expected_actor,
+            &update.operations,
+        )?;
         let previous = read(self, &profile, &update.class)?;
         if previous.as_ref().map(|record| record.revision) != update.expected_revision {
             return Err(CraftError::new(
@@ -198,13 +228,14 @@ impl ProfileStore {
                 "Provider policy revision changed; inspect it before updating.",
             ));
         }
-        if previous
-            .as_ref()
-            .is_some_and(|record| record.enabled && record.target != update.target)
-        {
+        if previous.as_ref().is_some_and(|record| {
+            record.enabled
+                && (record.target != update.target
+                    || record.expected_actor != update.expected_actor)
+        }) {
             return Err(CraftError::new(
                 ErrorCode::PolicyDenied,
-                "Disable the provider policy before transferring its target.",
+                "Disable the provider policy before transferring its target or actor.",
             ));
         }
         let record = ProviderPolicyRecord {
@@ -220,6 +251,7 @@ impl ProfileStore {
             class: update.class,
             grant: profile.grant.clone(),
             target: update.target,
+            expected_actor: update.expected_actor,
             operations: update.operations,
             enabled: update.enabled,
         };

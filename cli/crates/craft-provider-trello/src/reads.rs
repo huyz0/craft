@@ -96,7 +96,10 @@ fn normalize(command: &str, raw: &Value) -> Result<Value, CraftError> {
             put("position", number(raw, "pos"));
             put("board_id", text(raw, "idBoard"));
         }
-        "trello.card.list" | "trello.card.board-list" | "trello.card.get" | "trello.card.search" => {
+        "trello.card.list"
+        | "trello.card.board-list"
+        | "trello.card.get"
+        | "trello.card.search" => {
             put("name", text(raw, "name"));
             put("description", text(raw, "desc"));
             put("closed", flag(raw, "closed"));

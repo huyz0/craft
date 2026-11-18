@@ -42,7 +42,13 @@ fn defaults(command: &str) -> &'static [&'static str] {
         | "trello.card.board-list"
         | "trello.card.get"
         | "trello.card.search" => &[
-            "id", "name", "list_id", "due", "label_ids", "member_ids", "closed",
+            "id",
+            "name",
+            "list_id",
+            "due",
+            "label_ids",
+            "member_ids",
+            "closed",
         ],
         "trello.comment.list" => &["id", "text", "date", "author_username"],
         "trello.label.list" => &["id", "name", "color"],
@@ -178,9 +184,7 @@ impl ProviderModule for TrelloContext {
         for entry in ENTRIES {
             match entry.id {
                 "trello.board.list" => register_one::<BoardListInput>(registry, entry)?,
-                "trello.board.get" | "trello.card.get" => {
-                    register_one::<IdInput>(registry, entry)?
-                }
+                "trello.board.get" | "trello.card.get" => register_one::<IdInput>(registry, entry)?,
                 "trello.list.list"
                 | "trello.label.list"
                 | "trello.member.list"

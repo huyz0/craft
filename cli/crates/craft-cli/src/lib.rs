@@ -40,6 +40,7 @@ mod public_commands;
 pub mod review_policy;
 pub mod saved_requests;
 pub mod scans;
+pub mod trello_reads;
 
 pub mod local_artifacts;
 

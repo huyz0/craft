@@ -34,6 +34,8 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
                 16
             } else if kind == PolicyKind::JiraRecovery {
                 8
+            } else if kind == PolicyKind::TrelloRead {
+                16
             } else {
                 6
             }
@@ -69,6 +71,17 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
         }
         PolicyKind::JiraRecovery => {
             operations::<IssueRecoveryOperation>(values)?;
+        }
+        PolicyKind::TrelloRead => {
+            if values
+                .iter()
+                .any(|name| !craft_provider_trello::commands().any(|command| command == name))
+            {
+                return Err(invalid(
+                    "/operations",
+                    "operation_not_supported_by_policy_kind",
+                ));
+            }
         }
         PolicyKind::JiraCreate if values == ["jira.issue.create"] => {}
         _ => {
@@ -142,6 +155,10 @@ pub(super) fn get(
             .transpose(),
         PolicyKind::JiraRecovery => store
             .issue_recovery_policy(name, &target.id, control)?
+            .map(|r| snapshot(&r, kind))
+            .transpose(),
+        PolicyKind::TrelloRead => store
+            .provider_policy(name, craft_runtime::provider_policy::TRELLO_READ, control)?
             .map(|r| snapshot(&r, kind))
             .transpose(),
     }
@@ -314,6 +331,23 @@ pub(super) fn set(
                     enabled,
                     expected_revision,
                     operations: operations(&args.operations)?,
+                },
+                args.apply,
+                control,
+                |r| before(snapshot(r, kind)?),
+            )?;
+            snapshot(&r, kind)
+        }
+        PolicyKind::TrelloRead => {
+            let r = store.set_provider_policy(
+                name,
+                craft_runtime::provider_policy::ProviderPolicyUpdate {
+                    class: craft_runtime::provider_policy::TRELLO_READ.into(),
+                    target,
+                    expected_actor,
+                    operations: args.operations.clone(),
+                    enabled,
+                    expected_revision,
                 },
                 args.apply,
                 control,

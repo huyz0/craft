@@ -40,6 +40,7 @@ fn update(
     ProviderPolicyUpdate {
         class: class.into(),
         target: board(),
+        expected_actor: MEMBER.into(),
         operations: operations.iter().map(|name| (*name).into()).collect(),
         enabled,
         expected_revision: revision,
