@@ -41,6 +41,7 @@ pub fn uses_state_context(command: &str) -> bool {
                 | "auth.status"
                 | "auth.doctor"
                 | "auth.provision"
+                | "auth.provision-static"
                 | "operation.get"
                 | "operation.list"
                 | "operation.preview"
@@ -701,6 +702,8 @@ pub enum AuthAction {
     Status(ProfileNameArgs),
     Doctor(ProfileNameArgs),
     Provision(crate::provision::ProvisionArgs),
+    #[command(name = "provision-static")]
+    ProvisionStatic(crate::provision_static::ProvisionStaticArgs),
 }
 
 #[derive(Subcommand)]

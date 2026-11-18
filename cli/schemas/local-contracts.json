@@ -2368,6 +2368,467 @@
         "verified_products.verified_at_unix_ms": "sha256:fc51ab2509e401a140ccd7da52c4121987c77c914860d1887dd2bb6b78ea2208"
       }
     },
+    "auth.provision-static": {
+      "controls": {
+        "fields": "supported",
+        "input": "supported",
+        "max_bytes": "supported",
+        "profile": "rejected",
+        "state_root": "supported",
+        "timeout_ms": "supported"
+      },
+      "default_projection_digest": "sha256:0762204218b92ee25743a6139270efe26c3de1fa280e92062733637ea37d3a28",
+      "descriptor": {
+        "api_revision": "static-credential-identity-proof",
+        "contract_version": "1.0",
+        "description": "Prove and store one static key or token for a Trello or Bitbucket profile.",
+        "effect": "write",
+        "example": {
+          "name": "cards",
+          "secret_stdin": true
+        },
+        "id": "auth.provision-static",
+        "input_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "description": "Profile whose provider is `trello` or `bitbucket`. Its grant receives the secret.",
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "replace": {
+              "default": false,
+              "type": "boolean"
+            },
+            "secret_stdin": {
+              "default": false,
+              "description": "Required: the secret is read from a native pipe, never from an argument or file.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "title": "ProvisionStaticArgs",
+          "type": "object",
+          "x-craft-input-decoder": "serde-strict"
+        },
+        "permissions": [],
+        "projection": {
+          "always_returned": [
+            "grant",
+            "profile",
+            "tenant",
+            "credential_write_state"
+          ],
+          "default_selected": [
+            "grant",
+            "profile",
+            "tenant",
+            "actor",
+            "credential_write_state",
+            "cleanup_pending"
+          ],
+          "item_pointer": "",
+          "mode": "local"
+        },
+        "provider": "craft",
+        "reconciliation": "known_resource",
+        "response_example": {
+          "command": "auth.provision-static",
+          "data": {
+            "actor": "000000000000000000000000",
+            "cleanup_pending": false,
+            "credential_write_state": "confirmed",
+            "grant": {
+              "id": "gr_00000000000000000000000000000000"
+            },
+            "profile": "cards",
+            "tenant": {
+              "deployment": "cloud",
+              "provider": "trello",
+              "tenant": "000000000000000000000000"
+            }
+          },
+          "ok": true,
+          "request_id": "example-request",
+          "schema_version": "1.0",
+          "warnings": []
+        },
+        "response_schema": {
+          "$defs": {
+            "CraftError": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/ErrorCode"
+                },
+                "details": {
+                  "$ref": "#/$defs/ErrorDetails"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable",
+                "details",
+                "next_action"
+              ],
+              "type": "object"
+            },
+            "ErrorCode": {
+              "enum": [
+                "INPUT_INVALID",
+                "COMMAND_UNKNOWN",
+                "FIELD_UNKNOWN",
+                "TARGET_AMBIGUOUS",
+                "UNSUPPORTED_CAPABILITY",
+                "APPLY_REQUIRED",
+                "OUTPUT_BUDGET_TOO_SMALL",
+                "CURSOR_INVALID",
+                "CURSOR_UNAVAILABLE",
+                "CURSOR_EXPIRED",
+                "CURSOR_MISMATCH",
+                "CURSOR_CORRUPT",
+                "CURSOR_CAPACITY",
+                "ITEM_TOO_LARGE",
+                "PAGINATION_STALLED",
+                "AUTH_REQUIRED",
+                "KEYRING_UNAVAILABLE",
+                "PERMISSION_DENIED",
+                "POLICY_DENIED",
+                "VERSION_CONFLICT",
+                "OPERATION_ID_REUSED",
+                "RATE_LIMITED",
+                "WRITE_OUTCOME_UNKNOWN",
+                "PARTIAL_APPLY",
+                "REMOTE_UNAVAILABLE",
+                "DEADLINE_EXCEEDED",
+                "CANCELLED",
+                "INTERNAL"
+              ],
+              "type": "string"
+            },
+            "ErrorDetails": {
+              "additionalProperties": false,
+              "properties": {
+                "issues": {
+                  "items": {
+                    "$ref": "#/$defs/FieldIssue"
+                  },
+                  "type": "array"
+                },
+                "write_state": {
+                  "$ref": "#/$defs/RequestState"
+                }
+              },
+              "required": [
+                "write_state"
+              ],
+              "type": "object"
+            },
+            "FieldIssue": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "path_truncated": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "rule"
+              ],
+              "type": "object"
+            },
+            "GrantRef": {
+              "additionalProperties": false,
+              "description": "An opaque local grant identity, never an access or refresh token.",
+              "properties": {
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "type": "object"
+            },
+            "Page": {
+              "additionalProperties": false,
+              "properties": {
+                "consistency": {
+                  "type": "string"
+                },
+                "has_more": {
+                  "type": "boolean"
+                },
+                "next_cursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returned": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stop_reason": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "returned",
+                "has_more",
+                "truncated",
+                "stop_reason",
+                "consistency"
+              ],
+              "type": "object"
+            },
+            "RequestState": {
+              "enum": [
+                "not_sent",
+                "sent_unknown",
+                "confirmed",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "TenantRef": {
+              "additionalProperties": false,
+              "properties": {
+                "deployment": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "deployment",
+                "tenant"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "not": {
+                "required": [
+                  "error"
+                ]
+              },
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              },
+              "required": [
+                "data"
+              ]
+            },
+            {
+              "properties": {
+                "ok": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "data": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cleanup_pending": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "credential_write_state": {
+                  "$ref": "#/$defs/RequestState"
+                },
+                "grant": {
+                  "$ref": "#/$defs/GrantRef"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "tenant": {
+                  "$ref": "#/$defs/TenantRef"
+                }
+              },
+              "required": [
+                "grant",
+                "profile",
+                "tenant",
+                "credential_write_state"
+              ],
+              "title": "ProvisionStaticData",
+              "type": "object"
+            },
+            "error": {
+              "$ref": "#/$defs/CraftError"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Page"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.0"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "ok",
+            "command",
+            "request_id",
+            "warnings"
+          ],
+          "title": "Envelope",
+          "type": "object"
+        },
+        "retry_class": "reconcile_before_replay",
+        "routes": [],
+        "scope_alternatives": [],
+        "tenant_conditions": [
+          "The secret must resolve to the profile's configured Trello member or Bitbucket workspace; resource permissions are not established."
+        ]
+      },
+      "flags": {
+        "name": {
+          "action": "Set",
+          "arity": {
+            "max": 1,
+            "min": 1
+          },
+          "choices": null,
+          "defaults": [
+            ""
+          ],
+          "delimiter": null,
+          "long": "name",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "replace": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "replace",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        },
+        "secret_stdin": {
+          "action": "SetTrue",
+          "arity": {
+            "max": 0,
+            "min": 0
+          },
+          "choices": [
+            "true",
+            "false"
+          ],
+          "defaults": [
+            "false"
+          ],
+          "delimiter": null,
+          "long": "secret-stdin",
+          "long_aliases": null,
+          "required": false,
+          "short": null,
+          "short_aliases": null
+        }
+      },
+      "path": [
+        "auth",
+        "provision-static"
+      ],
+      "selectable_fields": {
+        "actor": "sha256:547874ad3329c85158e37a9bd789fe8d75d1303b9549df64af13516da609e18b",
+        "cleanup_pending": "sha256:3e27a0b8340ca2bb48ed319f52e488dc4dd53ed32a14422540144e7e7dc6d95b",
+        "credential_write_state": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "grant": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "grant.id": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "profile": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "tenant": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "tenant.deployment": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "tenant.provider": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d",
+        "tenant.tenant": "sha256:f7e96e745b20924729a49b645069ecdb554e342f6b40e9c1af59ff2d321b264d"
+      }
+    },
     "auth.status": {
       "controls": {
         "fields": "supported",
@@ -34589,7 +35050,7 @@
         "state_root": "rejected",
         "timeout_ms": "supported"
       },
-      "default_projection_digest": "sha256:2967a7c4189b1deba9b82353480f4f6196fcd3772bd2af61e37e1fce83a8dbb1",
+      "default_projection_digest": "sha256:a2624f753c188f39830705094194677fb691ed82242de568af5f95efe76e5f27",
       "descriptor": {
         "api_revision": "local",
         "contract_version": "1.0",
@@ -34619,7 +35080,6 @@
           ],
           "default_selected": [
             "id",
-            "description",
             "effect"
           ],
           "item_pointer": "/commands",

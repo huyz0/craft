@@ -38,6 +38,50 @@ impl StaticCredentials {
     pub fn new(secret: SecretBytes) -> Self {
         Self(secret)
     }
+
+    /// Parses the provisioning object piped to the host: Trello `{"key","token"}` or Bitbucket
+    /// `{"email","api_token"}`. Unknown fields are refused so a mistaken object cannot be stored.
+    pub fn from_provisioning(provider: &str, input: SecretBytes) -> Result<Self, CraftError> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Trello {
+            key: SecretText,
+            token: SecretText,
+        }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Bitbucket {
+            email: SecretText,
+            api_token: SecretText,
+        }
+        let invalid = || CraftError::field("/credentials", "invalid_static_credentials");
+        if input.expose().len() > super::PROVISIONING_LIMIT {
+            return Err(invalid());
+        }
+        let joined = |left: &SecretText, right: &SecretText| {
+            let mut text = Zeroizing::new(String::new());
+            text.push_str(&left.0);
+            text.push(':');
+            text.push_str(&right.0);
+            text
+        };
+        let text = match provider {
+            "trello" => {
+                let parsed: Trello =
+                    serde_json::from_slice(input.expose()).map_err(|_| invalid())?;
+                joined(&parsed.key, &parsed.token)
+            }
+            "bitbucket" => {
+                let parsed: Bitbucket =
+                    serde_json::from_slice(input.expose()).map_err(|_| invalid())?;
+                joined(&parsed.email, &parsed.api_token)
+            }
+            _ => return Err(invalid()),
+        };
+        Ok(Self(
+            SecretBytes::new(text.as_bytes().to_vec()).map_err(|_| invalid())?,
+        ))
+    }
 }
 
 #[derive(Debug)]

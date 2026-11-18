@@ -352,12 +352,10 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
             &["command"],
             &["command", "authentication", "availability"],
         ),
-        "help" => (
-            "/commands",
-            &["id"],
-            // Provider is derivable from the id prefix and stays selectable with --fields.
-            &["id", "description", "effect"],
-        ),
+        // Every command is listed, so descriptions stay opt-in (`--fields id,description`) and
+        // `command find` returns them for a query: the default listing must keep fitting the
+        // default output budget as providers are added.
+        "help" => ("/commands", &["id"], &["id", "effect"]),
         _ => return None,
     };
     Some(ProjectionContract {
@@ -371,6 +369,7 @@ fn local_projection(command: &str) -> Option<ProjectionContract> {
 pub fn registry() -> Result<Registry, CraftError> {
     let mut registry = local_registry()?;
     crate::provision::register_candidate(&mut registry)?;
+    crate::provision_static::register(&mut registry)?;
     crate::policies::register_candidates(&mut registry)?;
     crate::review_policy::register(&mut registry)?;
     crate::planning_review::command::register(&mut registry)?;
