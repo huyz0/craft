@@ -148,16 +148,22 @@ impl ProfileInput {
 
     /// Configuration templates are independent of compiled provider capabilities.
     pub fn authority(&self) -> Result<&'static str, CraftError> {
-        if self.deployment != "cloud" || !matches!(self.provider.as_str(), "jira" | "confluence") {
+        if self.deployment != "cloud"
+            || !matches!(
+                self.provider.as_str(),
+                "jira" | "confluence" | "trello" | "bitbucket"
+            )
+        {
             return Err(CraftError::new(
                 ErrorCode::UnsupportedCapability,
                 "No profile configuration template exists for this provider/deployment.",
             ));
         }
-        let kind = if self.provider == "jira" {
-            "project"
-        } else {
-            "space"
+        let kind = match self.provider.as_str() {
+            "jira" => "project",
+            "trello" => "board",
+            "bitbucket" => "repository",
+            _ => "space",
         };
         if self.defaults.keys().any(|key| key != kind) {
             return Err(CraftError::field(
@@ -165,7 +171,12 @@ impl ProfileInput {
                 "unsupported_default_resource_kind",
             ));
         }
-        Ok("atlassian-cloud")
+        // Trello and Bitbucket grants hold a static key/token pair, never an Atlassian OAuth grant.
+        Ok(match self.provider.as_str() {
+            "trello" => "trello-key-token",
+            "bitbucket" => "bitbucket-api-token",
+            _ => "atlassian-cloud",
+        })
     }
 }
 

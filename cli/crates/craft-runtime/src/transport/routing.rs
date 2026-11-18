@@ -198,6 +198,39 @@ fn query_component(raw: &str) -> Result<String, CraftError> {
 }
 
 impl Endpoint {
+    /// Picks the trusted origin for a tenant. Atlassian products route through the cloud gateway;
+    /// Trello and Bitbucket Cloud use their own fixed API origins. No argument, link or content
+    /// can choose a different host.
+    pub(super) fn for_tenant(tenant: &TenantRef) -> Result<Self, CraftError> {
+        match tenant.provider.as_str() {
+            "trello" => Self::fixed(tenant, "https://api.trello.com/1/", member_id),
+            "bitbucket" => Self::fixed(tenant, "https://api.bitbucket.org/2.0/", workspace_slug),
+            _ => Self::atlassian(tenant),
+        }
+    }
+
+    fn fixed(
+        tenant: &TenantRef,
+        origin: &str,
+        valid_tenant: fn(&str) -> bool,
+    ) -> Result<Self, CraftError> {
+        tenant.validate()?;
+        if tenant.deployment != "cloud" {
+            return Err(CraftError::new(
+                ErrorCode::UnsupportedCapability,
+                "No trusted HTTP template exists for this provider/deployment.",
+            ));
+        }
+        if !valid_tenant(&tenant.tenant) {
+            return Err(CraftError::field(
+                "/target/tenant",
+                "expected_provider_tenant",
+            ));
+        }
+        Ok(Self {
+            prefix: Url::parse(origin).map_err(|_| denied())?,
+        })
+    }
     pub(super) fn atlassian(tenant: &TenantRef) -> Result<Self, CraftError> {
         tenant.validate()?;
         if tenant.deployment != "cloud"
@@ -340,4 +373,23 @@ impl Endpoint {
         self.route_url(route, &normalized)?;
         Ok(normalized)
     }
+}
+
+/// A Trello member id is 24 lowercase hex characters.
+fn member_id(value: &str) -> bool {
+    value.len() == 24
+        && value
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// A Bitbucket workspace slug: lowercase letters, digits, `-`, `_` or `.`, bounded and not
+/// starting with punctuation, so it can never become a separator or traversal segment.
+fn workspace_slug(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 100
+        && value.as_bytes()[0].is_ascii_alphanumeric()
+        && value.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_' | b'.')
+        })
 }

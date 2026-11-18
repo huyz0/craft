@@ -22,6 +22,8 @@ mod cache;
 pub use cache::{ServiceGrantReceipt, ServiceSession};
 mod access;
 pub use access::VerifiedServiceAccess;
+mod static_grant;
+pub use static_grant::{StaticCredentials, StaticGrantReceipt};
 
 #[cfg(test)]
 mod tests;

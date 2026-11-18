@@ -170,6 +170,7 @@ pub fn command_id(action: &Action) -> &'static str {
             crate::args::AuthAction::Status(_) => "auth.status",
             crate::args::AuthAction::Doctor(_) => "auth.doctor",
             crate::args::AuthAction::Provision(_) => "auth.provision",
+            crate::args::AuthAction::ProvisionStatic(_) => crate::provision_static::COMMAND,
         },
         Action::Profile { action } => match action {
             crate::args::ProfileAction::List(_) => "profile.list",
@@ -655,6 +656,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
                 crate::args::AuthAction::Provision(_) => {
                     crate::args::AuthAction::Provision(decode(input)?)
                 }
+                crate::args::AuthAction::ProvisionStatic(_) => {
+                    crate::args::AuthAction::ProvisionStatic(decode(input)?)
+                }
             },
         },
         Action::Profile { action } => Action::Profile {
@@ -824,6 +828,7 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
             crate::args::AuthAction::Status(arguments)
             | crate::args::AuthAction::Doctor(arguments) => value(arguments),
             crate::args::AuthAction::Provision(arguments) => value(arguments),
+            crate::args::AuthAction::ProvisionStatic(arguments) => value(arguments),
         },
         Action::Profile { action } => match action {
             crate::args::ProfileAction::List(arguments) => value(arguments),
@@ -1733,6 +1738,12 @@ fn execute_with_candidates(
             registry.validate(command, &value(&arguments)?)?;
             crate::provision::execute(arguments, fields, stdin_consumed, options, control)
         }
+        Action::Auth {
+            action: crate::args::AuthAction::ProvisionStatic(arguments),
+        } => {
+            registry.validate(command, &value(&arguments)?)?;
+            crate::provision_static::execute(arguments, fields, stdin_consumed, options, control)
+        }
         Action::Operation {
             action: crate::args::OperationAction::Preview(arguments),
         } => {
@@ -1904,6 +1915,8 @@ fn execute_data(
                             "service_oauth"
                         } else if operation.id == "auth.provision" {
                             "service_credentials"
+                        } else if operation.id == crate::provision_static::COMMAND {
+                            "static_credentials"
                         } else {
                             "none"
                         }

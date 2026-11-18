@@ -29,6 +29,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "artifact.get",
         "artifact.export",
         "auth.provision",
+        "auth.provision-static",
         "policy.get",
         "policy.set",
         "confluence.space.get",

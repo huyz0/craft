@@ -26,6 +26,18 @@ pub fn read_service_credentials_from_stdin(
     ServiceCredentials::from_provisioning(read_secret(std::io::stdin(), control)?)
 }
 
+/// Same pipe rules as service credentials, for the provider's static key/token object.
+pub fn read_static_credentials_from_stdin(
+    provider: &str,
+    control: &InvocationControl,
+) -> Result<super::StaticCredentials, CraftError> {
+    control.check()?;
+    if !craft_platform::stdin_is_pipe().map_err(|_| invalid_pipe())? {
+        return Err(invalid_pipe());
+    }
+    super::StaticCredentials::from_provisioning(provider, read_secret(std::io::stdin(), control)?)
+}
+
 fn collect(mut reader: impl Read, control: &InvocationControl) -> Result<SecretBytes, CraftError> {
     let mut bytes = Zeroizing::new(Vec::with_capacity(PIPE_LIMIT + 1));
     let mut scratch = Zeroizing::new([0_u8; 8_192]);
