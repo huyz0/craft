@@ -194,7 +194,7 @@ impl ProviderModule for TrelloContext {
                 _ => register_one::<CardScopedInput>(registry, entry)?,
             }
         }
-        Ok(())
+        crate::writes::register(registry)
     }
 }
 

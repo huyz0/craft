@@ -5,8 +5,15 @@ mod models;
 mod reads;
 mod registration;
 mod table;
+mod writes;
 
 pub use models::*;
 pub use reads::{read_get, read_page};
 pub use registration::{TrelloContext, projection, response_schema_for, validate_target};
 pub use table::{Kind, commands, is_get, kind_of};
+pub use writes::{
+    AttachmentAddInput, CardArchiveInput, CardCreateInput, CardLabelInput, CardMemberInput,
+    CardMoveInput, CardUpdateInput, CheckItemAddInput, CheckItemStateInput, ChecklistCreateInput,
+    CommentAddInput, CommentUpdateInput, LabelCreateInput, Observation, Position, WriteItem, build,
+    interpret, is_write, step, write_commands, write_entry,
+};
