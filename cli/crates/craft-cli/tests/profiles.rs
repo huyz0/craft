@@ -178,7 +178,8 @@ fn flags_and_json_create_shared_grant_profiles_with_discoverable_write_contracts
         success(&fixture.invoke(&["provider", "list"], None)?)?["data"]["items"],
         json!([
             {"id":"confluence","version":craft_core::VERSION,"deployments":["cloud"]},
-            {"id":"jira","version":craft_core::VERSION,"deployments":["cloud"]}
+            {"id":"jira","version":craft_core::VERSION,"deployments":["cloud"]},
+            {"id":"trello","version":craft_core::VERSION,"deployments":["cloud"]}
         ])
     );
     assert!(!fixture.path.join("home").exists());

@@ -15,6 +15,8 @@ use crate::transport::TlsPolicy;
 pub const CLIENT_ID: &str = "craft-synthetic-client";
 pub const CLIENT_SECRET: &str = "craft-synthetic-client-secret";
 pub const ACCESS_TOKEN: &str = "craft-synthetic-access-token";
+/// The only secret a static-credential fixture session accepts: `<key>:<token>` form.
+pub const STATIC_SECRET: &str = "craftsyntheticfixturekey:craftsyntheticfixturetoken";
 
 pub(crate) fn refusal() -> CraftError {
     CraftError::new(
@@ -83,6 +85,12 @@ impl ServiceFixture {
         control: &InvocationControl,
     ) -> Result<LockedCredentials<'_>, CraftError> {
         self.credentials.lock(grant, control)
+    }
+    /// Fixture material for a static-credential provider such as Trello or Bitbucket.
+    pub fn static_credentials(&self) -> Result<crate::auth::StaticCredentials, CraftError> {
+        Ok(crate::auth::StaticCredentials::new(
+            SecretBytes::new(STATIC_SECRET.as_bytes().to_vec()).map_err(|_| refusal())?,
+        ))
     }
     pub fn service_credentials(&self) -> Result<ServiceCredentials, CraftError> {
         let bytes = serde_json::to_vec(

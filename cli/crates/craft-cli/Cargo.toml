@@ -44,6 +44,10 @@ required-features = ["synthetic-acceptance"]
 name = "confluence_context_host"
 required-features = ["synthetic-acceptance"]
 
+[[test]]
+name = "trello_host"
+required-features = ["synthetic-acceptance"]
+
 [[bin]]
 name = "craft"
 path = "src/main.rs"
@@ -55,6 +59,7 @@ craft-platform = { path = "../craft-platform" }
 craft-workflows = { path = "../craft-workflows" }
 craft-provider-jira = { path = "../craft-provider-jira" }
 craft-provider-confluence = { path = "../craft-provider-confluence" }
+craft-provider-trello = { path = "../craft-provider-trello" }
 clap.workspace = true
 serde_json.workspace = true
 serde.workspace = true

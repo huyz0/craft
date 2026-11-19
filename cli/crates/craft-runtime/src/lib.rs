@@ -23,6 +23,7 @@ pub mod pagination;
 pub mod profile_pages;
 pub mod profiles;
 pub mod project_read_policy;
+pub mod provider_policy;
 pub mod review_policy;
 pub mod scan;
 pub mod secrets;

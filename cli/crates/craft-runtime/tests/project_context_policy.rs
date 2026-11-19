@@ -201,7 +201,7 @@ fn legacy_records_gain_context_permission_only_after_applied_preflighted_revisio
         files
             .raw()?
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
-        13
+        14
     );
     Ok(())
 }

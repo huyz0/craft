@@ -1265,25 +1265,25 @@ fn provider_cursor_schema_migration_preserves_existing_state_and_rolls_back_conf
         drop(store);
         let raw = fixture.raw()?;
         raw.execute_batch(
-            "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies;",
+            "DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies;",
         )?;
         if version < 10 {
-            raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE confluence_read_policies;")?;
+            raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE confluence_read_policies;")?;
         }
         if version < 9 {
-            raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE issue_recovery_policies;")?;
+            raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE issue_recovery_policies;")?;
         }
         if version < 8 {
-            raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors;")?;
+            raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors;")?;
         }
         if version < 3 {
             raw.execute_batch(
-                "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE create_policies;",
+                "DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE create_policies;",
             )?;
         }
         if version < 2 {
             raw.execute_batch(
-                "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE operation_records;",
+                "DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE operation_records;",
             )?;
         }
         raw.pragma_update(None, "user_version", version)?;
@@ -1344,10 +1344,10 @@ fn provider_cursor_schema_migration_preserves_existing_state_and_rolls_back_conf
         }
         assert_eq!(
             raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
-            13
+            14
         );
         drop(migrated);
-        raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE provider_cursors(foreign_data TEXT); PRAGMA user_version=1;")?;
+        raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE provider_cursors(foreign_data TEXT); PRAGMA user_version=1;")?;
         assert!(fixture.store().is_err());
         assert_eq!(
             raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,

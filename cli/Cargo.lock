@@ -601,6 +601,7 @@ dependencies = [
  "craft-platform",
  "craft-provider-confluence",
  "craft-provider-jira",
+ "craft-provider-trello",
  "craft-runtime",
  "craft-test-support",
  "craft-workflows",
@@ -674,6 +675,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-provider-trello"
+version = "0.1.0"
+dependencies = [
+ "craft-core",
+ "jsonschema",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "craft-runtime"
 version = "0.1.0"
 dependencies = [
@@ -683,6 +695,7 @@ dependencies = [
  "craft-platform",
  "craft-provider-confluence",
  "craft-provider-jira",
+ "craft-provider-trello",
  "craft-test-support",
  "ctrlc",
  "getrandom 0.3.4",

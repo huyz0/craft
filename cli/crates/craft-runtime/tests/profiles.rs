@@ -289,7 +289,7 @@ fn refuses_foreign_database_future_schema_and_corrupt_security_settings()
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
         99
     );
-    fixture.raw()?.execute_batch("PRAGMA user_version=14;")?;
+    fixture.raw()?.execute_batch("PRAGMA user_version=15;")?;
     for payload in [
         r#"{"schema_version":1,"installation_id":"ins_00000000000000000000000000000000","credential_backend":"file","secret":"private-sentinel"}"#,
         r#"{"schema_version":1,"schema_version":1,"installation_id":"ins_00000000000000000000000000000000","credential_backend":"windows_credential_manager"}"#,

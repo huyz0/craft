@@ -180,6 +180,7 @@ impl ServiceOAuthClient {
         &self,
         locked: &LockedCredentials<'_>,
         tenant: &TenantRef,
+        expected_actor: &str,
     ) -> Result<HostSession, AuthFailure> {
         self.control.check()?;
         let scheme = scheme_for(&tenant.provider)?;
@@ -201,6 +202,13 @@ impl ServiceOAuthClient {
             return Err(invalid_stored().into());
         }
         validate_identity("/actor", &stored.actor).map_err(|_| invalid_stored())?;
+        if stored.actor != expected_actor {
+            return Err(CraftError::new(
+                ErrorCode::PolicyDenied,
+                "Stored credential actor differs from the configured policy actor.",
+            )
+            .into());
+        }
         if &stored.tenant != tenant {
             return Err(CraftError::new(
                 ErrorCode::PolicyDenied,
@@ -210,12 +218,10 @@ impl ServiceOAuthClient {
         }
         let secret =
             SecretBytes::new(stored.secret.0.as_bytes().to_vec()).map_err(|_| invalid_stored())?;
-        Ok(HostSession::with_scheme(
-            tenant.clone(),
-            grant,
-            secret,
-            scheme,
-        )?)
+        let session = HostSession::with_scheme(tenant.clone(), grant, secret, scheme)?;
+        #[cfg(feature = "synthetic-acceptance")]
+        let session = session.with_synthetic(self.synthetic.clone())?;
+        Ok(session)
     }
 
     pub(super) fn probe_static(
@@ -224,6 +230,12 @@ impl ServiceOAuthClient {
         session: &HostSession,
     ) -> Result<String, AuthFailure> {
         let url = product_identity_url(tenant)?;
+        #[cfg(feature = "synthetic-acceptance")]
+        let url = if let Some(route) = &self.synthetic {
+            route.product_url(url)?
+        } else {
+            url
+        };
         #[cfg(test)]
         let url = if let Some(origin) = &self.api_origin {
             let mut value = url;

@@ -135,9 +135,12 @@ impl HostSession {
         mut self,
         route: Option<crate::synthetic_acceptance::Loopback>,
     ) -> Result<Self, CraftError> {
-        if route.is_some()
-            && self.token.expose() != crate::synthetic_acceptance::ACCESS_TOKEN.as_bytes()
-        {
+        // Static credentials have their own fixed fixture secret; bearer sessions keep theirs.
+        let fixture_secret = match self.scheme {
+            CredentialScheme::Bearer => crate::synthetic_acceptance::ACCESS_TOKEN,
+            _ => crate::synthetic_acceptance::STATIC_SECRET,
+        };
+        if route.is_some() && self.token.expose() != fixture_secret.as_bytes() {
             return Err(crate::synthetic_acceptance::refusal());
         }
         self.synthetic = route;
