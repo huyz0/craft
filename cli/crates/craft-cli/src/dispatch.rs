@@ -46,7 +46,7 @@ pub fn command_id(action: &Action) -> &'static str {
             crate::args::PolicyAction::Set(_) => crate::policies::SET,
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_command(action),
-        Action::Trello { action } => action.read().command(),
+        Action::Trello { action } => action.op().command(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -716,7 +716,7 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
             crate::args::PolicyAction::Set(v) => value(v),
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_arguments(action),
-        Action::Trello { action } => action.read().arguments(),
+        Action::Trello { action } => action.op().arguments(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -1286,10 +1286,17 @@ pub fn execute(
         );
     }
     if let Action::Trello { action: trello } = &action {
-        let read = trello.read();
-        registry.descriptor(read.command())?;
-        registry.validate(read.command(), &read.arguments()?)?;
-        return Ok(crate::trello_reads::execute(read, fields, options, control));
+        let op = trello.op();
+        registry.descriptor(op.command())?;
+        registry.validate(op.command(), &op.arguments()?)?;
+        return Ok(match op {
+            crate::trello_reads::TrelloOp::Read(read) => {
+                crate::trello_reads::execute(read, fields, options, control)
+            }
+            crate::trello_reads::TrelloOp::Write(write) => {
+                crate::trello_writes::execute(write, fields, options, control)
+            }
+        });
     }
     if matches!(&action, Action::Confluence { .. }) {
         return execute_confluence_candidate(

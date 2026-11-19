@@ -44,6 +44,10 @@ required-features = ["synthetic-acceptance"]
 name = "confluence_context_host"
 required-features = ["synthetic-acceptance"]
 
+[[test]]
+name = "trello_host"
+required-features = ["synthetic-acceptance"]
+
 [[bin]]
 name = "craft"
 path = "src/main.rs"

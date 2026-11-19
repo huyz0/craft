@@ -4,6 +4,11 @@
 use crate::dispatch::CommandResult;
 use crate::output::OutputPolicy;
 use crate::profiles::{InvocationOptions, selected_profile_context};
+use crate::trello_writes::{
+    AttachmentAddArgs, CardArchiveArgs, CardCreateArgs, CardLabelArgs, CardMemberArgs,
+    CardMoveArgs, CardUpdateArgs, CheckItemAddArgs, CheckItemStateArgs, ChecklistCreateArgs,
+    CommentAddArgs, CommentUpdateArgs, LabelCreateArgs, TrelloWriteArgs,
+};
 use clap::{Args, Subcommand};
 use craft_core::contracts::{
     AuthMode, CanonicalRequest, Envelope, GrantRef, ResourceRef, Selection,
@@ -164,6 +169,10 @@ pub enum TrelloAction {
         #[command(subcommand)]
         action: ChecklistAction,
     },
+    Checkitem {
+        #[command(subcommand)]
+        action: CheckItemAction,
+    },
     Attachment {
         #[command(subcommand)]
         action: AttachmentAction,
@@ -188,26 +197,44 @@ pub enum CardAction {
     BoardList(BoardArgs),
     Get(IdArgs),
     Search(SearchArgs),
+    Create(CardCreateArgs),
+    Update(CardUpdateArgs),
+    Move(CardMoveArgs),
+    Archive(CardArchiveArgs),
 }
 #[derive(Subcommand)]
 pub enum CommentAction {
     List(CardArgs),
+    Add(CommentAddArgs),
+    Update(CommentUpdateArgs),
 }
 #[derive(Subcommand)]
 pub enum LabelAction {
     List(BoardArgs),
+    Create(LabelCreateArgs),
+    Add(CardLabelArgs),
+    Remove(CardLabelArgs),
 }
 #[derive(Subcommand)]
 pub enum ChecklistAction {
     List(CardArgs),
+    Create(ChecklistCreateArgs),
+}
+#[derive(Subcommand)]
+pub enum CheckItemAction {
+    Add(CheckItemAddArgs),
+    SetState(CheckItemStateArgs),
 }
 #[derive(Subcommand)]
 pub enum AttachmentAction {
     List(CardArgs),
+    AddUrl(AttachmentAddArgs),
 }
 #[derive(Subcommand)]
 pub enum MemberAction {
     List(BoardArgs),
+    Add(CardMemberArgs),
+    Remove(CardMemberArgs),
 }
 
 /// Flat view of every Trello read, shared by parsing, JSON input and the host.
@@ -235,76 +262,203 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, CraftError>
         .map_err(|_| CraftError::field("/input", "invalid_typed_trello_arguments"))
 }
 
-impl TrelloAction {
-    pub fn read(&self) -> TrelloReadArgs {
-        use TrelloReadArgs as R;
+/// A parsed Trello command: either a read or a journaled write.
+pub enum TrelloOp {
+    Read(TrelloReadArgs),
+    Write(TrelloWriteArgs),
+}
+
+impl TrelloOp {
+    pub fn command(&self) -> &'static str {
         match self {
-            Self::Board { action } => match action {
-                BoardAction::List(v) => R::BoardList(v.clone()),
-                BoardAction::Get(v) => R::BoardGet(v.clone()),
-            },
+            Self::Read(read) => read.command(),
+            Self::Write(write) => write.command(),
+        }
+    }
+    pub fn arguments(&self) -> Result<Value, CraftError> {
+        match self {
+            Self::Read(read) => read.arguments(),
+            Self::Write(write) => write.arguments(),
+        }
+    }
+}
+
+impl TrelloAction {
+    pub fn op(&self) -> TrelloOp {
+        use TrelloOp::{Read, Write};
+        use TrelloReadArgs as R;
+        use TrelloWriteArgs as W;
+        match self {
+            Self::Board {
+                action: BoardAction::List(v),
+            } => Read(R::BoardList(v.clone())),
+            Self::Board {
+                action: BoardAction::Get(v),
+            } => Read(R::BoardGet(v.clone())),
             Self::List {
                 action: ListAction::List(v),
-            } => R::ListList(v.clone()),
-            Self::Card { action } => match action {
-                CardAction::List(v) => R::CardList(v.clone()),
-                CardAction::BoardList(v) => R::CardBoardList(v.clone()),
-                CardAction::Get(v) => R::CardGet(v.clone()),
-                CardAction::Search(v) => R::CardSearch(v.clone()),
-            },
+            } => Read(R::ListList(v.clone())),
+            Self::Card {
+                action: CardAction::List(v),
+            } => Read(R::CardList(v.clone())),
+            Self::Card {
+                action: CardAction::BoardList(v),
+            } => Read(R::CardBoardList(v.clone())),
+            Self::Card {
+                action: CardAction::Get(v),
+            } => Read(R::CardGet(v.clone())),
+            Self::Card {
+                action: CardAction::Search(v),
+            } => Read(R::CardSearch(v.clone())),
+            Self::Card {
+                action: CardAction::Create(v),
+            } => Write(W::CardCreate(v.clone())),
+            Self::Card {
+                action: CardAction::Update(v),
+            } => Write(W::CardUpdate(v.clone())),
+            Self::Card {
+                action: CardAction::Move(v),
+            } => Write(W::CardMove(v.clone())),
+            Self::Card {
+                action: CardAction::Archive(v),
+            } => Write(W::CardArchive(v.clone())),
             Self::Comment {
                 action: CommentAction::List(v),
-            } => R::CommentList(v.clone()),
+            } => Read(R::CommentList(v.clone())),
+            Self::Comment {
+                action: CommentAction::Add(v),
+            } => Write(W::CommentAdd(v.clone())),
+            Self::Comment {
+                action: CommentAction::Update(v),
+            } => Write(W::CommentUpdate(v.clone())),
             Self::Label {
                 action: LabelAction::List(v),
-            } => R::LabelList(v.clone()),
+            } => Read(R::LabelList(v.clone())),
+            Self::Label {
+                action: LabelAction::Create(v),
+            } => Write(W::LabelCreate(v.clone())),
+            Self::Label {
+                action: LabelAction::Add(v),
+            } => Write(W::LabelAdd(v.clone())),
+            Self::Label {
+                action: LabelAction::Remove(v),
+            } => Write(W::LabelRemove(v.clone())),
             Self::Checklist {
                 action: ChecklistAction::List(v),
-            } => R::ChecklistList(v.clone()),
+            } => Read(R::ChecklistList(v.clone())),
+            Self::Checklist {
+                action: ChecklistAction::Create(v),
+            } => Write(W::ChecklistCreate(v.clone())),
+            Self::Checkitem {
+                action: CheckItemAction::Add(v),
+            } => Write(W::CheckItemAdd(v.clone())),
+            Self::Checkitem {
+                action: CheckItemAction::SetState(v),
+            } => Write(W::CheckItemSetState(v.clone())),
             Self::Attachment {
                 action: AttachmentAction::List(v),
-            } => R::AttachmentList(v.clone()),
+            } => Read(R::AttachmentList(v.clone())),
+            Self::Attachment {
+                action: AttachmentAction::AddUrl(v),
+            } => Write(W::AttachmentAddUrl(v.clone())),
             Self::Member {
                 action: MemberAction::List(v),
-            } => R::MemberList(v.clone()),
+            } => Read(R::MemberList(v.clone())),
+            Self::Member {
+                action: MemberAction::Add(v),
+            } => Write(W::MemberAdd(v.clone())),
+            Self::Member {
+                action: MemberAction::Remove(v),
+            } => Write(W::MemberRemove(v.clone())),
         }
     }
 
     /// Rebuilds the action from a JSON object for the command the parser selected.
     pub fn with_input(&self, input: Value) -> Result<Self, CraftError> {
-        Ok(match self {
-            Self::Board { action } => Self::Board {
-                action: match action {
-                    BoardAction::List(_) => BoardAction::List(decode(input)?),
-                    BoardAction::Get(_) => BoardAction::Get(decode(input)?),
-                },
+        let command = self.op().command();
+        Ok(match command {
+            "trello.board.list" => Self::Board {
+                action: BoardAction::List(decode(input)?),
             },
-            Self::List { .. } => Self::List {
+            "trello.board.get" => Self::Board {
+                action: BoardAction::Get(decode(input)?),
+            },
+            "trello.list.list" => Self::List {
                 action: ListAction::List(decode(input)?),
             },
-            Self::Card { action } => Self::Card {
-                action: match action {
-                    CardAction::List(_) => CardAction::List(decode(input)?),
-                    CardAction::BoardList(_) => CardAction::BoardList(decode(input)?),
-                    CardAction::Get(_) => CardAction::Get(decode(input)?),
-                    CardAction::Search(_) => CardAction::Search(decode(input)?),
-                },
+            "trello.card.list" => Self::Card {
+                action: CardAction::List(decode(input)?),
             },
-            Self::Comment { .. } => Self::Comment {
+            "trello.card.board-list" => Self::Card {
+                action: CardAction::BoardList(decode(input)?),
+            },
+            "trello.card.get" => Self::Card {
+                action: CardAction::Get(decode(input)?),
+            },
+            "trello.card.search" => Self::Card {
+                action: CardAction::Search(decode(input)?),
+            },
+            "trello.card.create" => Self::Card {
+                action: CardAction::Create(decode(input)?),
+            },
+            "trello.card.update" => Self::Card {
+                action: CardAction::Update(decode(input)?),
+            },
+            "trello.card.move" => Self::Card {
+                action: CardAction::Move(decode(input)?),
+            },
+            "trello.card.archive" => Self::Card {
+                action: CardAction::Archive(decode(input)?),
+            },
+            "trello.comment.list" => Self::Comment {
                 action: CommentAction::List(decode(input)?),
             },
-            Self::Label { .. } => Self::Label {
+            "trello.comment.add" => Self::Comment {
+                action: CommentAction::Add(decode(input)?),
+            },
+            "trello.comment.update" => Self::Comment {
+                action: CommentAction::Update(decode(input)?),
+            },
+            "trello.label.list" => Self::Label {
                 action: LabelAction::List(decode(input)?),
             },
-            Self::Checklist { .. } => Self::Checklist {
+            "trello.label.create" => Self::Label {
+                action: LabelAction::Create(decode(input)?),
+            },
+            "trello.label.add" => Self::Label {
+                action: LabelAction::Add(decode(input)?),
+            },
+            "trello.label.remove" => Self::Label {
+                action: LabelAction::Remove(decode(input)?),
+            },
+            "trello.checklist.list" => Self::Checklist {
                 action: ChecklistAction::List(decode(input)?),
             },
-            Self::Attachment { .. } => Self::Attachment {
+            "trello.checklist.create" => Self::Checklist {
+                action: ChecklistAction::Create(decode(input)?),
+            },
+            "trello.checkitem.add" => Self::Checkitem {
+                action: CheckItemAction::Add(decode(input)?),
+            },
+            "trello.checkitem.set-state" => Self::Checkitem {
+                action: CheckItemAction::SetState(decode(input)?),
+            },
+            "trello.attachment.list" => Self::Attachment {
                 action: AttachmentAction::List(decode(input)?),
             },
-            Self::Member { .. } => Self::Member {
+            "trello.attachment.add-url" => Self::Attachment {
+                action: AttachmentAction::AddUrl(decode(input)?),
+            },
+            "trello.member.list" => Self::Member {
                 action: MemberAction::List(decode(input)?),
             },
+            "trello.member.add" => Self::Member {
+                action: MemberAction::Add(decode(input)?),
+            },
+            "trello.member.remove" => Self::Member {
+                action: MemberAction::Remove(decode(input)?),
+            },
+            _ => return Err(CraftError::field("/command", "unsupported_trello_command")),
         })
     }
 }
@@ -432,7 +586,7 @@ pub fn register_candidates(registry: &mut Registry) -> Result<(), CraftError> {
             _ => typed!(CardArgs),
         }
     }
-    Ok(())
+    crate::trello_writes::register_candidates(registry)
 }
 
 /// Trusted host authority for one read, independent of any provider response.

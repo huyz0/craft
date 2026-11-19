@@ -322,6 +322,7 @@ pub struct CheckItemStateInput {
     pub card_id: String,
     #[schemars(length(min = 24, max = 24), regex(pattern = "^[0-9a-f]{24}$"))]
     pub item_id: String,
+    #[serde(default = "archived_default")]
     pub complete: bool,
 }
 
@@ -580,7 +581,11 @@ pub fn build(request: &CanonicalRequest) -> Result<NativeCall, CraftError> {
         path_parameters: path,
         query: BTreeMap::new(),
         repeated_query: BTreeMap::new(),
-        body: (!body.is_empty()).then(|| Value::Object(body)),
+        body: if body.is_empty() {
+            None
+        } else {
+            Some(Value::Object(body))
+        },
     })
 }
 

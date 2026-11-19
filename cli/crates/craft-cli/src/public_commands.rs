@@ -71,6 +71,25 @@ impl ProviderModule for CloudCommands {
                 };
             }
             match descriptor.id.as_str() {
+                "trello.card.create" => register!(crate::trello_writes::CardCreateArgs),
+                "trello.card.update" => register!(crate::trello_writes::CardUpdateArgs),
+                "trello.card.move" => register!(crate::trello_writes::CardMoveArgs),
+                "trello.card.archive" => register!(crate::trello_writes::CardArchiveArgs),
+                "trello.comment.add" => register!(crate::trello_writes::CommentAddArgs),
+                "trello.comment.update" => register!(crate::trello_writes::CommentUpdateArgs),
+                "trello.label.create" => register!(crate::trello_writes::LabelCreateArgs),
+                "trello.label.add" | "trello.label.remove" => {
+                    register!(crate::trello_writes::CardLabelArgs)
+                }
+                "trello.member.add" | "trello.member.remove" => {
+                    register!(crate::trello_writes::CardMemberArgs)
+                }
+                "trello.checklist.create" => register!(crate::trello_writes::ChecklistCreateArgs),
+                "trello.checkitem.add" => register!(crate::trello_writes::CheckItemAddArgs),
+                "trello.checkitem.set-state" => {
+                    register!(crate::trello_writes::CheckItemStateArgs)
+                }
+                "trello.attachment.add-url" => register!(crate::trello_writes::AttachmentAddArgs),
                 "trello.board.list" => register!(crate::trello_reads::BoardListArgs),
                 "trello.board.get" | "trello.card.get" => register!(crate::trello_reads::IdArgs),
                 "trello.list.list"

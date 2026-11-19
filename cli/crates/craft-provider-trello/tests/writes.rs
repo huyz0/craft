@@ -94,7 +94,13 @@ fn card_create_sends_a_json_body_and_never_credentials() -> TestResult {
 
 #[test]
 fn path_parameters_and_bodies_follow_the_documented_routes() -> TestResult {
-    let cases: [(&str, Value, &[(&str, &str)], Option<(&str, Value)>); 10] = [
+    type Case<'a> = (
+        &'a str,
+        Value,
+        &'a [(&'a str, &'a str)],
+        Option<(&'a str, Value)>,
+    );
+    let cases: [Case<'_>; 10] = [
         (
             "trello.card.update",
             json!({"id": CARD, "name": "N", "due_complete": true}),

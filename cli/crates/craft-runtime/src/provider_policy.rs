@@ -17,6 +17,7 @@ use crate::profiles::{ProfileStore, begin, commit, invalid_state, state_error};
 pub(crate) const TABLE: &str = "CREATE TABLE provider_policies (profile TEXT NOT NULL COLLATE BINARY REFERENCES profiles(name), class TEXT NOT NULL COLLATE BINARY, revision INTEGER NOT NULL CHECK(revision>=1), payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB))<=65536), PRIMARY KEY(profile,class))";
 
 pub const TRELLO_READ: &str = "trello.read";
+pub const TRELLO_WRITE: &str = "trello.write";
 
 /// Classes a profile can enable. The provider is the prefix before the dot.
 pub const CLASSES: [&str; 4] = [
