@@ -18,6 +18,7 @@ pub(crate) const TABLE: &str = "CREATE TABLE provider_policies (profile TEXT NOT
 
 pub const TRELLO_READ: &str = "trello.read";
 pub const TRELLO_WRITE: &str = "trello.write";
+pub const BITBUCKET_READ: &str = "bitbucket.read";
 
 /// Classes a profile can enable. The provider is the prefix before the dot.
 pub const CLASSES: [&str; 4] = [

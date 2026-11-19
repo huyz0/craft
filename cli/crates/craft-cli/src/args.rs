@@ -25,6 +25,7 @@ pub fn has_action_flags(command: &clap::Command, matches: &clap::ArgMatches) -> 
 pub fn uses_state_context(command: &str) -> bool {
     command.starts_with("profile.")
         || command.starts_with("trello.")
+        || command.starts_with("bitbucket.")
         || matches!(
             command,
             "artifact.get"
@@ -125,6 +126,7 @@ pub fn uses_state_context(command: &str) -> bool {
 
 pub fn accepts_profile_selection(command: &str) -> bool {
     command.starts_with("trello.")
+        || command.starts_with("bitbucket.")
         || matches!(
             command,
             "plan.page-create"
@@ -275,6 +277,10 @@ pub enum Action {
     Trello {
         #[command(subcommand)]
         action: crate::trello_reads::TrelloAction,
+    },
+    Bitbucket {
+        #[command(subcommand)]
+        action: crate::bitbucket_reads::BitbucketAction,
     },
     Jira {
         #[command(subcommand)]

@@ -52,6 +52,7 @@ fn args(kind: PolicyKind) -> PolicySetArgs {
                 PolicyKind::JiraMutation => "jira.issue.update",
                 PolicyKind::TrelloRead => "trello.board.list",
                 PolicyKind::TrelloWrite => "trello.card.create",
+                PolicyKind::BitbucketRead => "bitbucket.repository.list",
             }
             .into(),
         ],
