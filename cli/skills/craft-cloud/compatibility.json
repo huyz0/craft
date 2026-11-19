@@ -4,8 +4,9 @@
   "status": "development",
   "binary_version": "0.1.0",
   "contract_version": "1.0",
-  "contract_snapshot_sha256": "d0b8bf066805e7947e4f681d1d46463b3065669b792bb7dd83fab5f7c9d20da8",
+  "contract_snapshot_sha256": "34f12f85efee026662fa94c5cfc500ec0fa99956e702fba926d900ef54240f9f",
   "providers": [
+    "bitbucket",
     "confluence",
     "jira"
   ],

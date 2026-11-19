@@ -39,3 +39,19 @@ A policy covers the whole workspace. Repositories are limited by what the creden
 - A finished pipeline reports its `result` (for example `SUCCESSFUL`); a running one reports its stage there.
 - A 404 means the resource is absent or not visible; absence is never claimed.
 - Credentials are sent as HTTP Basic and never appear in a URL. Raw diffs and pipeline step logs are plain text, not JSON, and are not read yet.
+
+## Writes
+
+Ten journaled write commands change branches, pull requests and comments. They need a second, separate policy of kind `bitbucket-write` (class `bitbucket.write`), enabled with the same `craft policy set` form and naming each command allowed. `bitbucket.pullrequest.merge` and `bitbucket.pullrequest.decline` are never implied by other entries; enable them on their own.
+
+| Command | Effect |
+| --- | --- |
+| `bitbucket branch create` | New branch from a commit or branch |
+| `bitbucket pullrequest create` / `update` | Open a pull request; change its title, description or destination |
+| `bitbucket comment add` | General, inline (path and line) or reply (parent id) comment |
+| `bitbucket pullrequest approve` / `unapprove` | Set or clear your approval |
+| `bitbucket pullrequest request-changes` / `unrequest-changes` | Set or clear a change request |
+| `bitbucket pullrequest merge` | Merge with an explicit `--merge-strategy` |
+| `bitbucket pullrequest decline` | Decline, optionally with a reason |
+
+Every write takes `--operation-id` and `--apply`. Without `--apply` nothing is sent. A write sends one request and is never replayed: a transport failure or an asynchronous `202` leaves an `unknown` receipt that must be checked with a read, and reusing the operation id is refused. A `409` is reported as a version conflict and failed. Creates and updates are verified against the response; a success that does not show the requested change is reported as a partial apply.

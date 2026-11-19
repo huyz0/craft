@@ -6,6 +6,7 @@ pub mod attachment_download;
 pub mod attachment_reads;
 pub mod auth;
 pub mod bitbucket_reads;
+pub mod bitbucket_writes;
 pub mod catalog;
 pub mod comment_writes;
 pub mod confluence_attachment_download;

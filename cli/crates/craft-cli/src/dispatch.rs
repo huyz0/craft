@@ -47,7 +47,7 @@ pub fn command_id(action: &Action) -> &'static str {
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_command(action),
         Action::Trello { action } => action.op().command(),
-        Action::Bitbucket { action } => action.read().command(),
+        Action::Bitbucket { action } => action.op().command(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -721,7 +721,7 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_arguments(action),
         Action::Trello { action } => action.op().arguments(),
-        Action::Bitbucket { action } => action.read().arguments(),
+        Action::Bitbucket { action } => action.op().arguments(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -1291,12 +1291,17 @@ pub fn execute(
         );
     }
     if let Action::Bitbucket { action: bitbucket } = &action {
-        let read = bitbucket.read();
-        registry.descriptor(read.command())?;
-        registry.validate(read.command(), &read.arguments()?)?;
-        return Ok(crate::bitbucket_reads::execute(
-            read, fields, options, control,
-        ));
+        let op = bitbucket.op();
+        registry.descriptor(op.command())?;
+        registry.validate(op.command(), &op.arguments()?)?;
+        return Ok(match op {
+            crate::bitbucket_reads::BitbucketOp::Read(read) => {
+                crate::bitbucket_reads::execute(read, fields, options, control)
+            }
+            crate::bitbucket_reads::BitbucketOp::Write(write) => {
+                crate::bitbucket_writes::execute(write, fields, options, control)
+            }
+        });
     }
     if let Action::Trello { action: trello } = &action {
         let op = trello.op();

@@ -224,6 +224,7 @@ impl ProviderModule for BitbucketContext {
                 _ => register_one::<PipelinePageInput>(registry, entry)?,
             }
         }
+        crate::writes::register(registry)?;
         Ok(())
     }
 }

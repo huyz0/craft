@@ -1,6 +1,7 @@
 //! Bitbucket reads through a provisioned static grant, a separately enabled read policy and the
 //! shared buffered paging engine. Preparation touches no credential or network.
 
+use crate::bitbucket_writes::BitbucketWriteArgs;
 use crate::dispatch::CommandResult;
 use crate::output::OutputPolicy;
 use crate::profiles::{InvocationOptions, selected_profile_context};
@@ -191,6 +192,7 @@ pub enum RepositoryAction {
 #[derive(Subcommand)]
 pub enum BranchAction {
     List(BranchListArgs),
+    Create(crate::bitbucket_writes::BranchCreateArgs),
 }
 #[derive(Subcommand)]
 pub enum CommitAction {
@@ -201,11 +203,21 @@ pub enum PullrequestAction {
     List(PullRequestListArgs),
     Get(PullRequestArgs),
     Diffstat(PullRequestPageArgs),
+    Create(crate::bitbucket_writes::PullRequestCreateArgs),
+    Update(crate::bitbucket_writes::PullRequestUpdateArgs),
+    Approve(crate::bitbucket_writes::PullRequestChangeArgs),
+    Unapprove(crate::bitbucket_writes::PullRequestChangeArgs),
+    RequestChanges(crate::bitbucket_writes::PullRequestChangeArgs),
+    UnrequestChanges(crate::bitbucket_writes::PullRequestChangeArgs),
+    Merge(crate::bitbucket_writes::PullRequestMergeArgs),
+    Decline(crate::bitbucket_writes::PullRequestDeclineArgs),
 }
 #[derive(Subcommand)]
 pub enum CommentAction {
     /// List a pull request's comments.
     List(PullRequestPageArgs),
+    /// Comment on a pull request.
+    Add(crate::bitbucket_writes::CommentAddArgs),
 }
 #[derive(Subcommand)]
 pub enum PipelineAction {
@@ -292,43 +304,92 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, CraftError>
         .map_err(|_| CraftError::field("/input", "invalid_typed_bitbucket_arguments"))
 }
 
-impl BitbucketAction {
-    pub fn read(&self) -> BitbucketReadArgs {
-        use BitbucketReadArgs as R;
+/// A parsed Bitbucket command: either a read or a journaled write.
+pub enum BitbucketOp {
+    Read(BitbucketReadArgs),
+    Write(BitbucketWriteArgs),
+}
+
+impl BitbucketOp {
+    pub fn command(&self) -> &'static str {
         match self {
-            Self::Repository { action } => match action {
+            Self::Read(read) => read.command(),
+            Self::Write(write) => write.command(),
+        }
+    }
+    pub fn arguments(&self) -> Result<Value, CraftError> {
+        match self {
+            Self::Read(read) => read.arguments(),
+            Self::Write(write) => write.arguments(),
+        }
+    }
+}
+
+impl BitbucketAction {
+    pub fn op(&self) -> BitbucketOp {
+        use BitbucketOp::{Read, Write};
+        use BitbucketReadArgs as R;
+        use BitbucketWriteArgs as W;
+        match self {
+            Self::Repository { action } => Read(match action {
                 RepositoryAction::List(v) => R::RepositoryList(v.clone()),
                 RepositoryAction::Get(v) => R::RepositoryGet(v.clone()),
+            }),
+            Self::Branch { action } => match action {
+                BranchAction::List(v) => Read(R::BranchList(v.clone())),
+                BranchAction::Create(v) => Write(W::BranchCreate(v.clone())),
             },
-            Self::Branch {
-                action: BranchAction::List(v),
-            } => R::BranchList(v.clone()),
             Self::Commit {
                 action: CommitAction::List(v),
-            } => R::CommitList(v.clone()),
+            } => Read(R::CommitList(v.clone())),
             Self::Pullrequest { action } => match action {
-                PullrequestAction::List(v) => R::PullRequestList(v.clone()),
-                PullrequestAction::Get(v) => R::PullRequestGet(v.clone()),
-                PullrequestAction::Diffstat(v) => R::PullRequestDiffstat(v.clone()),
+                PullrequestAction::List(v) => Read(R::PullRequestList(v.clone())),
+                PullrequestAction::Get(v) => Read(R::PullRequestGet(v.clone())),
+                PullrequestAction::Diffstat(v) => Read(R::PullRequestDiffstat(v.clone())),
+                PullrequestAction::Create(v) => Write(W::PullRequestCreate(v.clone())),
+                PullrequestAction::Update(v) => Write(W::PullRequestUpdate(v.clone())),
+                PullrequestAction::Approve(v) => Write(W::PullRequestApprove(v.clone())),
+                PullrequestAction::Unapprove(v) => Write(W::PullRequestUnapprove(v.clone())),
+                PullrequestAction::RequestChanges(v) => {
+                    Write(W::PullRequestRequestChanges(v.clone()))
+                }
+                PullrequestAction::UnrequestChanges(v) => {
+                    Write(W::PullRequestUnrequestChanges(v.clone()))
+                }
+                PullrequestAction::Merge(v) => Write(W::PullRequestMerge(v.clone())),
+                PullrequestAction::Decline(v) => Write(W::PullRequestDecline(v.clone())),
             },
-            Self::Comment {
-                action: CommentAction::List(v),
-            } => R::CommentList(v.clone()),
-            Self::Pipeline { action } => match action {
+            Self::Comment { action } => match action {
+                CommentAction::List(v) => Read(R::CommentList(v.clone())),
+                CommentAction::Add(v) => Write(W::CommentAdd(v.clone())),
+            },
+            Self::Pipeline { action } => Read(match action {
                 PipelineAction::List(v) => R::PipelineList(v.clone()),
                 PipelineAction::Get(v) => R::PipelineGet(v.clone()),
-            },
+            }),
             Self::Step {
                 action: StepAction::List(v),
-            } => R::StepList(v.clone()),
+            } => Read(R::StepList(v.clone())),
         }
     }
 
     /// Rebuilds the action from a JSON object for the command the parser selected.
     pub fn with_input(&self, input: Value) -> Result<Self, CraftError> {
-        let read = BitbucketReadArgs::from_input(self.read().command(), input)?;
+        let command = self.op().command();
+        if provider::is_write(command) {
+            Ok(Self::from_write(BitbucketWriteArgs::decode(
+                command, input,
+            )?))
+        } else {
+            Ok(Self::from_read(BitbucketReadArgs::from_input(
+                command, input,
+            )?))
+        }
+    }
+
+    fn from_read(read: BitbucketReadArgs) -> Self {
         use BitbucketReadArgs as R;
-        Ok(match read {
+        match read {
             R::RepositoryList(v) => Self::Repository {
                 action: RepositoryAction::List(v),
             },
@@ -362,7 +423,43 @@ impl BitbucketAction {
             R::StepList(v) => Self::Step {
                 action: StepAction::List(v),
             },
-        })
+        }
+    }
+
+    fn from_write(write: BitbucketWriteArgs) -> Self {
+        use BitbucketWriteArgs as W;
+        match write {
+            W::BranchCreate(v) => Self::Branch {
+                action: BranchAction::Create(v),
+            },
+            W::PullRequestCreate(v) => Self::Pullrequest {
+                action: PullrequestAction::Create(v),
+            },
+            W::PullRequestUpdate(v) => Self::Pullrequest {
+                action: PullrequestAction::Update(v),
+            },
+            W::CommentAdd(v) => Self::Comment {
+                action: CommentAction::Add(v),
+            },
+            W::PullRequestApprove(v) => Self::Pullrequest {
+                action: PullrequestAction::Approve(v),
+            },
+            W::PullRequestUnapprove(v) => Self::Pullrequest {
+                action: PullrequestAction::Unapprove(v),
+            },
+            W::PullRequestRequestChanges(v) => Self::Pullrequest {
+                action: PullrequestAction::RequestChanges(v),
+            },
+            W::PullRequestUnrequestChanges(v) => Self::Pullrequest {
+                action: PullrequestAction::UnrequestChanges(v),
+            },
+            W::PullRequestMerge(v) => Self::Pullrequest {
+                action: PullrequestAction::Merge(v),
+            },
+            W::PullRequestDecline(v) => Self::Pullrequest {
+                action: PullrequestAction::Decline(v),
+            },
+        }
     }
 }
 
