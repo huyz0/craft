@@ -48,6 +48,10 @@ required-features = ["synthetic-acceptance"]
 name = "trello_host"
 required-features = ["synthetic-acceptance"]
 
+[[test]]
+name = "bitbucket_host"
+required-features = ["synthetic-acceptance"]
+
 [[bin]]
 name = "craft"
 path = "src/main.rs"

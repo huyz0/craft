@@ -33,7 +33,10 @@ impl ProviderModule for CloudCommands {
         let mut candidates = Registry::default();
         match self {
             Self::Trello => crate::trello_reads::register_candidates(&mut candidates)?,
-            Self::Bitbucket => crate::bitbucket_reads::register_candidates(&mut candidates)?,
+            Self::Bitbucket => {
+                crate::bitbucket_reads::register_candidates(&mut candidates)?;
+                crate::bitbucket_writes::register_candidates(&mut candidates)?;
+            }
             Self::Confluence => {
                 crate::confluence_reads::command::register_candidates(&mut candidates)?;
                 crate::confluence_pages::command::register_public(&mut candidates)?;
@@ -93,6 +96,26 @@ impl ProviderModule for CloudCommands {
                     register!(crate::trello_writes::CheckItemStateArgs)
                 }
                 "trello.attachment.add-url" => register!(crate::trello_writes::AttachmentAddArgs),
+                "bitbucket.branch.create" => register!(crate::bitbucket_writes::BranchCreateArgs),
+                "bitbucket.pullrequest.create" => {
+                    register!(crate::bitbucket_writes::PullRequestCreateArgs)
+                }
+                "bitbucket.pullrequest.update" => {
+                    register!(crate::bitbucket_writes::PullRequestUpdateArgs)
+                }
+                "bitbucket.comment.add" => register!(crate::bitbucket_writes::CommentAddArgs),
+                "bitbucket.pullrequest.approve"
+                | "bitbucket.pullrequest.unapprove"
+                | "bitbucket.pullrequest.request-changes"
+                | "bitbucket.pullrequest.unrequest-changes" => {
+                    register!(crate::bitbucket_writes::PullRequestChangeArgs)
+                }
+                "bitbucket.pullrequest.merge" => {
+                    register!(crate::bitbucket_writes::PullRequestMergeArgs)
+                }
+                "bitbucket.pullrequest.decline" => {
+                    register!(crate::bitbucket_writes::PullRequestDeclineArgs)
+                }
                 "bitbucket.repository.list" => register!(crate::bitbucket_reads::PageArgs),
                 "bitbucket.repository.get" => register!(crate::bitbucket_reads::RepoArgs),
                 "bitbucket.branch.list" => register!(crate::bitbucket_reads::BranchListArgs),

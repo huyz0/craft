@@ -37,6 +37,7 @@ pub enum PolicyKind {
     TrelloRead,
     TrelloWrite,
     BitbucketRead,
+    BitbucketWrite,
 }
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -150,7 +151,7 @@ fn validate_target(kind: PolicyKind, target: &ResourceRef) -> Result<(), CraftEr
             ("jira", "site")
         }
         PolicyKind::TrelloRead | PolicyKind::TrelloWrite => ("trello", "account"),
-        PolicyKind::BitbucketRead => ("bitbucket", "workspace"),
+        PolicyKind::BitbucketRead | PolicyKind::BitbucketWrite => ("bitbucket", "workspace"),
         _ => ("jira", "project"),
     };
     if target.provider != provider

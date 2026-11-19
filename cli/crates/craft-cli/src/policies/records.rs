@@ -36,7 +36,10 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
                 8
             } else if matches!(
                 kind,
-                PolicyKind::TrelloRead | PolicyKind::TrelloWrite | PolicyKind::BitbucketRead
+                PolicyKind::TrelloRead
+                    | PolicyKind::TrelloWrite
+                    | PolicyKind::BitbucketRead
+                    | PolicyKind::BitbucketWrite
             ) {
                 16
             } else {
@@ -90,11 +93,15 @@ pub(super) fn validate_operations(kind: PolicyKind, values: &[String]) -> Result
                 ));
             }
         }
-        PolicyKind::BitbucketRead => {
-            if values
-                .iter()
-                .any(|name| !craft_provider_bitbucket::commands().any(|command| command == name))
-            {
+        PolicyKind::BitbucketRead | PolicyKind::BitbucketWrite => {
+            let known = |name: &String| {
+                if kind == PolicyKind::BitbucketRead {
+                    craft_provider_bitbucket::commands().any(|command| command == name)
+                } else {
+                    craft_provider_bitbucket::write_commands().any(|command| command == name)
+                }
+            };
+            if values.iter().any(|name| !known(name)) {
                 return Err(invalid(
                     "/operations",
                     "operation_not_supported_by_policy_kind",
@@ -115,6 +122,7 @@ fn provider_class(kind: PolicyKind) -> &'static str {
     match kind {
         PolicyKind::TrelloWrite => craft_runtime::provider_policy::TRELLO_WRITE,
         PolicyKind::BitbucketRead => craft_runtime::provider_policy::BITBUCKET_READ,
+        PolicyKind::BitbucketWrite => craft_runtime::provider_policy::BITBUCKET_WRITE,
         _ => craft_runtime::provider_policy::TRELLO_READ,
     }
 }
@@ -182,16 +190,11 @@ pub(super) fn get(
             .issue_recovery_policy(name, &target.id, control)?
             .map(|r| snapshot(&r, kind))
             .transpose(),
-        PolicyKind::TrelloRead | PolicyKind::TrelloWrite => store
+        PolicyKind::TrelloRead
+        | PolicyKind::TrelloWrite
+        | PolicyKind::BitbucketRead
+        | PolicyKind::BitbucketWrite => store
             .provider_policy(name, provider_class(kind), control)?
-            .map(|r| snapshot(&r, kind))
-            .transpose(),
-        PolicyKind::BitbucketRead => store
-            .provider_policy(
-                name,
-                craft_runtime::provider_policy::BITBUCKET_READ,
-                control,
-            )?
             .map(|r| snapshot(&r, kind))
             .transpose(),
     }
@@ -371,7 +374,10 @@ pub(super) fn set(
             )?;
             snapshot(&r, kind)
         }
-        PolicyKind::TrelloRead | PolicyKind::TrelloWrite | PolicyKind::BitbucketRead => {
+        PolicyKind::TrelloRead
+        | PolicyKind::TrelloWrite
+        | PolicyKind::BitbucketRead
+        | PolicyKind::BitbucketWrite => {
             let r = store.set_provider_policy(
                 name,
                 craft_runtime::provider_policy::ProviderPolicyUpdate {

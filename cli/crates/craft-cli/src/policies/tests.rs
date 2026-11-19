@@ -53,6 +53,7 @@ fn args(kind: PolicyKind) -> PolicySetArgs {
                 PolicyKind::TrelloRead => "trello.board.list",
                 PolicyKind::TrelloWrite => "trello.card.create",
                 PolicyKind::BitbucketRead => "bitbucket.repository.list",
+                PolicyKind::BitbucketWrite => "bitbucket.pullrequest.approve",
             }
             .into(),
         ],
