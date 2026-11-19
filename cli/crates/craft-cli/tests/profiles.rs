@@ -177,6 +177,7 @@ fn flags_and_json_create_shared_grant_profiles_with_discoverable_write_contracts
     assert_eq!(
         success(&fixture.invoke(&["provider", "list"], None)?)?["data"]["items"],
         json!([
+            {"id":"bitbucket","version":craft_core::VERSION,"deployments":["cloud"]},
             {"id":"confluence","version":craft_core::VERSION,"deployments":["cloud"]},
             {"id":"jira","version":craft_core::VERSION,"deployments":["cloud"]},
             {"id":"trello","version":craft_core::VERSION,"deployments":["cloud"]}

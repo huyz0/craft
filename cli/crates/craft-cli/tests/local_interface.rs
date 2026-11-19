@@ -57,6 +57,17 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "trello.attachment.add-url",
         "trello.member.add",
         "trello.member.remove",
+        "bitbucket.repository.list",
+        "bitbucket.repository.get",
+        "bitbucket.branch.list",
+        "bitbucket.commit.list",
+        "bitbucket.pullrequest.list",
+        "bitbucket.pullrequest.get",
+        "bitbucket.pullrequest.diffstat",
+        "bitbucket.comment.list",
+        "bitbucket.pipeline.list",
+        "bitbucket.pipeline.get",
+        "bitbucket.step.list",
         "policy.get",
         "policy.set",
         "confluence.space.get",
@@ -165,7 +176,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
             .as_array()
             .ok_or("providers")?
             .len(),
-        3
+        4
     );
     let capability = envelope(&invoke(
         &["capabilities", "--command", "confluence.page.create"],

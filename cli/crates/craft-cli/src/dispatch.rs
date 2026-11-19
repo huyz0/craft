@@ -47,6 +47,7 @@ pub fn command_id(action: &Action) -> &'static str {
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_command(action),
         Action::Trello { action } => action.op().command(),
+        Action::Bitbucket { action } => action.read().command(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -366,6 +367,9 @@ pub(crate) fn decode_action(action: Action, input: Value) -> Result<Action, Craf
             }
         }
         Action::Trello { action } => Action::Trello {
+            action: action.with_input(input)?,
+        },
+        Action::Bitbucket { action } => Action::Bitbucket {
             action: action.with_input(input)?,
         },
         Action::Confluence { action } => Action::Confluence {
@@ -717,6 +721,7 @@ pub(crate) fn argument_value(action: &Action) -> Result<Value, CraftError> {
         },
         Action::Confluence { action } => crate::confluence_reads::command::action_arguments(action),
         Action::Trello { action } => action.op().arguments(),
+        Action::Bitbucket { action } => action.read().arguments(),
         Action::Jira {
             action: crate::args::JiraAction::Attachment { action },
         } => match action {
@@ -1285,6 +1290,14 @@ pub fn execute(
             },
         );
     }
+    if let Action::Bitbucket { action: bitbucket } = &action {
+        let read = bitbucket.read();
+        registry.descriptor(read.command())?;
+        registry.validate(read.command(), &read.arguments()?)?;
+        return Ok(crate::bitbucket_reads::execute(
+            read, fields, options, control,
+        ));
+    }
     if let Action::Trello { action: trello } = &action {
         let op = trello.op();
         registry.descriptor(op.command())?;
@@ -1837,6 +1850,7 @@ fn execute_data(
         | Action::Jira { .. }
         | Action::Confluence { .. }
         | Action::Trello { .. }
+        | Action::Bitbucket { .. }
         | Action::Policy { .. }
         | Action::Review { .. } => {
             return Err(CraftError::new(

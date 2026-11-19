@@ -41,6 +41,7 @@ secret-service.workspace = true
 [dev-dependencies]
 craft-provider-confluence = { path = "../craft-provider-confluence" }
 craft-provider-jira = { path = "../craft-provider-jira" }
+craft-provider-bitbucket = { path = "../craft-provider-bitbucket" }
 craft-provider-trello = { path = "../craft-provider-trello" }
 craft-test-support = { path = "../craft-test-support" }
 rustls.workspace = true

@@ -59,6 +59,7 @@ craft-platform = { path = "../craft-platform" }
 craft-workflows = { path = "../craft-workflows" }
 craft-provider-jira = { path = "../craft-provider-jira" }
 craft-provider-confluence = { path = "../craft-provider-confluence" }
+craft-provider-bitbucket = { path = "../craft-provider-bitbucket" }
 craft-provider-trello = { path = "../craft-provider-trello" }
 clap.workspace = true
 serde_json.workspace = true

@@ -12,6 +12,7 @@ enum CloudCommands {
     Confluence,
     Jira,
     Trello,
+    Bitbucket,
 }
 impl ProviderModule for CloudCommands {
     fn manifest(&self) -> ProviderManifest {
@@ -20,6 +21,7 @@ impl ProviderModule for CloudCommands {
                 Self::Confluence => "confluence",
                 Self::Jira => "jira",
                 Self::Trello => "trello",
+                Self::Bitbucket => "bitbucket",
             }
             .into(),
             version: env!("CARGO_PKG_VERSION").into(),
@@ -31,6 +33,7 @@ impl ProviderModule for CloudCommands {
         let mut candidates = Registry::default();
         match self {
             Self::Trello => crate::trello_reads::register_candidates(&mut candidates)?,
+            Self::Bitbucket => crate::bitbucket_reads::register_candidates(&mut candidates)?,
             Self::Confluence => {
                 crate::confluence_reads::command::register_candidates(&mut candidates)?;
                 crate::confluence_pages::command::register_public(&mut candidates)?;
@@ -90,6 +93,20 @@ impl ProviderModule for CloudCommands {
                     register!(crate::trello_writes::CheckItemStateArgs)
                 }
                 "trello.attachment.add-url" => register!(crate::trello_writes::AttachmentAddArgs),
+                "bitbucket.repository.list" => register!(crate::bitbucket_reads::PageArgs),
+                "bitbucket.repository.get" => register!(crate::bitbucket_reads::RepoArgs),
+                "bitbucket.branch.list" => register!(crate::bitbucket_reads::BranchListArgs),
+                "bitbucket.commit.list" => register!(crate::bitbucket_reads::CommitListArgs),
+                "bitbucket.pullrequest.list" => {
+                    register!(crate::bitbucket_reads::PullRequestListArgs)
+                }
+                "bitbucket.pullrequest.get" => register!(crate::bitbucket_reads::PullRequestArgs),
+                "bitbucket.pullrequest.diffstat" | "bitbucket.comment.list" => {
+                    register!(crate::bitbucket_reads::PullRequestPageArgs)
+                }
+                "bitbucket.pipeline.list" => register!(crate::bitbucket_reads::RepoPageArgs),
+                "bitbucket.pipeline.get" => register!(crate::bitbucket_reads::PipelineArgs),
+                "bitbucket.step.list" => register!(crate::bitbucket_reads::PipelinePageArgs),
                 "trello.board.list" => register!(crate::trello_reads::BoardListArgs),
                 "trello.board.get" | "trello.card.get" => register!(crate::trello_reads::IdArgs),
                 "trello.list.list"
@@ -265,6 +282,7 @@ pub(crate) fn register(registry: &mut Registry) -> Result<(), CraftError> {
     registry.register_provider(&CloudCommands::Confluence)?;
     registry.register_provider(&CloudCommands::Jira)?;
     registry.register_provider(&CloudCommands::Trello)?;
+    registry.register_provider(&CloudCommands::Bitbucket)?;
     let mut recovery = Registry::default();
     crate::issue_recovery::command::register_candidate(&mut recovery)?;
     registry.register_typed_handler::<crate::issue_recovery::command::OperationReconcileArgs>(

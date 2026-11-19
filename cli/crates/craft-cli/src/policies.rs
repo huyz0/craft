@@ -36,6 +36,7 @@ pub enum PolicyKind {
     JiraRecovery,
     TrelloRead,
     TrelloWrite,
+    BitbucketRead,
 }
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -149,13 +150,14 @@ fn validate_target(kind: PolicyKind, target: &ResourceRef) -> Result<(), CraftEr
             ("jira", "site")
         }
         PolicyKind::TrelloRead | PolicyKind::TrelloWrite => ("trello", "account"),
+        PolicyKind::BitbucketRead => ("bitbucket", "workspace"),
         _ => ("jira", "project"),
     };
     if target.provider != provider
         || target.deployment != "cloud"
         || target.resource_type != resource
-        || (matches!(resource, "site" | "account") && target.id != target.tenant)
-        || (!matches!(resource, "site" | "account")
+        || (matches!(resource, "site" | "account" | "workspace") && target.id != target.tenant)
+        || (!matches!(resource, "site" | "account" | "workspace")
             && kind != PolicyKind::JiraProjectContext
             && !target
                 .id

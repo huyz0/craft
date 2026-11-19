@@ -599,6 +599,7 @@ dependencies = [
  "clap",
  "craft-core",
  "craft-platform",
+ "craft-provider-bitbucket",
  "craft-provider-confluence",
  "craft-provider-jira",
  "craft-provider-trello",
@@ -653,6 +654,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-provider-bitbucket"
+version = "0.1.0"
+dependencies = [
+ "craft-core",
+ "jsonschema",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "craft-provider-confluence"
 version = "0.1.0"
 dependencies = [
@@ -693,6 +705,7 @@ dependencies = [
  "bytes",
  "craft-core",
  "craft-platform",
+ "craft-provider-bitbucket",
  "craft-provider-confluence",
  "craft-provider-jira",
  "craft-provider-trello",
