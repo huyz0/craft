@@ -2,7 +2,7 @@
 
 Atlassian Document Format is JSON. The page body is `{"representation": "atlas_doc_format", "value": "<the document serialized as a JSON string>"}`. Craft rejects a value that is not an object with `"type": "doc"`, `"version": 1` and a `content` array.
 
-Build ADF with a script or a JSON library, never by hand-concatenating strings: every text node is `{"type": "text", "text": "…"}` and escaping mistakes break the whole body. Every snippet below rendered on a live site.
+Build ADF with a script or JSON library so text nodes such as `{"type": "text", "text": "…"}` are escaped correctly. The examples use node types previously exercised on a live site.
 
 ## Skeleton
 
@@ -18,10 +18,12 @@ An empty paragraph is `{"type": "paragraph"}` with no `content`. Text nodes must
 ## Marks
 
 ```json
-{"type": "text", "text": "bold", "marks": [{"type": "strong"}]}
-{"type": "text", "text": "link", "marks": [{"type": "link", "attrs": {"href": "https://…"}}]}
-{"type": "text", "text": "red", "marks": [{"type": "textColor", "attrs": {"color": "#bf2600"}}]}
-{"type": "text", "text": "highlight", "marks": [{"type": "backgroundColor", "attrs": {"color": "#fedec8"}}]}
+[
+  {"type": "text", "text": "bold", "marks": [{"type": "strong"}]},
+  {"type": "text", "text": "link", "marks": [{"type": "link", "attrs": {"href": "https://…"}}]},
+  {"type": "text", "text": "red", "marks": [{"type": "textColor", "attrs": {"color": "#bf2600"}}]},
+  {"type": "text", "text": "highlight", "marks": [{"type": "backgroundColor", "attrs": {"color": "#fedec8"}}]}
+]
 ```
 
 Others: `em`, `underline`, `strike`, `code`, `subsup` (`{"type": "sub"}` / `sup`). `code` can't combine with other marks.
@@ -37,12 +39,14 @@ Others: `em`, `underline`, `strike`, `code`, `subsup` (`{"type": "sub"}` / `sup`
 ## Inline nodes
 
 ```json
-{"type": "status", "attrs": {"text": "IN PROGRESS", "color": "blue"}}
-{"type": "date", "attrs": {"timestamp": "1796083200000"}}
-{"type": "mention", "attrs": {"id": "ACCOUNT_ID"}}
-{"type": "emoji", "attrs": {"shortName": ":white_check_mark:"}}
-{"type": "inlineCard", "attrs": {"url": "SITE/browse/PROJ-1"}}
-{"type": "hardBreak"}
+[
+  {"type": "status", "attrs": {"text": "IN PROGRESS", "color": "blue"}},
+  {"type": "date", "attrs": {"timestamp": "1796083200000"}},
+  {"type": "mention", "attrs": {"id": "ACCOUNT_ID"}},
+  {"type": "emoji", "attrs": {"shortName": ":white_check_mark:"}},
+  {"type": "inlineCard", "attrs": {"url": "SITE/browse/PROJ-1"}},
+  {"type": "hardBreak"}
+]
 ```
 
 Status `color`: `neutral`, `blue`, `green`, `yellow`, `red`, `purple`. Date `timestamp` is a string of milliseconds at UTC midnight of the date (compute it, for example `calendar.timegm(date.timetuple()) * 1000`).
@@ -50,8 +54,10 @@ Status `color`: `neutral`, `blue`, `green`, `yellow`, `red`, `purple`. Date `tim
 ## Cards
 
 ```json
-{"type": "blockCard", "attrs": {"url": "SITE/browse/PROJ-2"}}
-{"type": "embedCard", "attrs": {"url": "https://…", "layout": "center", "width": 100}}
+[
+  {"type": "blockCard", "attrs": {"url": "SITE/browse/PROJ-2"}},
+  {"type": "embedCard", "attrs": {"url": "https://…", "layout": "center", "width": 100}}
+]
 ```
 
 For a Jira issue table use the `jira` macro as an extension rather than a `blockCard` with `datasource`, which needs site-specific IDs:
@@ -72,7 +78,9 @@ Any storage macro maps to an `extension` (block) or `inlineExtension` (inline) w
 ## Expand
 
 ```json
-{"type": "expand", "attrs": {"title": "Sample webhook payload"}, "content": [ … ]}
+{"type": "expand", "attrs": {"title": "Sample webhook payload"}, "content": [
+  {"type": "paragraph", "content": [{"type": "text", "text": "The payload identifies the issue and event."}]}
+]}
 ```
 
 Inside an `expand`, a nested collapsible must be `nestedExpand`, not `expand`.
@@ -89,8 +97,8 @@ Inside an `expand`, a nested collapsible must be `nestedExpand`, not `expand`.
 {"type": "table", "attrs": {"layout": "default", "width": 760, "isNumberColumnEnabled": false}, "content": [
   {"type": "tableRow", "content": [
     {"type": "tableHeader", "attrs": {"colwidth": [90]}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "ID"}]}]},
-    {"type": "tableHeader", "attrs": {"colwidth": [470]}, "content": [ … ]},
-    {"type": "tableHeader", "attrs": {"colwidth": [200]}, "content": [ … ]}
+    {"type": "tableHeader", "attrs": {"colwidth": [470]}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Summary"}]}]},
+    {"type": "tableHeader", "attrs": {"colwidth": [200]}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Status"}]}]}
   ]}
 ]}
 ```
@@ -100,16 +108,22 @@ Every cell repeats its column's width in `colwidth` (one number, or one per span
 ## Layouts, tasks, decisions
 
 ```json
-{"type": "layoutSection", "content": [
-  {"type": "layoutColumn", "attrs": {"width": 50}, "content": [ … ]},
-  {"type": "layoutColumn", "attrs": {"width": 50}, "content": [ … ]}
-]}
-{"type": "taskList", "attrs": {"localId": "tasks-1"}, "content": [
-  {"type": "taskItem", "attrs": {"localId": "task-1", "state": "TODO"}, "content": [{"type": "text", "text": "Open task"}]}
-]}
-{"type": "decisionList", "attrs": {"localId": "dec-1"}, "content": [
-  {"type": "decisionItem", "attrs": {"localId": "dec-1-1", "state": "DECIDED"}, "content": [{"type": "text", "text": "We use Rust."}]}
-]}
+[
+  {"type": "layoutSection", "content": [
+    {"type": "layoutColumn", "attrs": {"width": 50}, "content": [
+      {"type": "paragraph", "content": [{"type": "text", "text": "Left column"}]}
+    ]},
+    {"type": "layoutColumn", "attrs": {"width": 50}, "content": [
+      {"type": "paragraph", "content": [{"type": "text", "text": "Right column"}]}
+    ]}
+  ]},
+  {"type": "taskList", "attrs": {"localId": "tasks-1"}, "content": [
+    {"type": "taskItem", "attrs": {"localId": "task-1", "state": "TODO"}, "content": [{"type": "text", "text": "Open task"}]}
+  ]},
+  {"type": "decisionList", "attrs": {"localId": "dec-1"}, "content": [
+    {"type": "decisionItem", "attrs": {"localId": "dec-1-1", "state": "DECIDED"}, "content": [{"type": "text", "text": "We use Rust."}]}
+  ]}
+]
 ```
 
 Layout column widths add up to 100. Task `state` is `TODO` or `DONE`. Task and decision items hold inline content directly, not paragraphs. `localId` values must be unique in the document.
