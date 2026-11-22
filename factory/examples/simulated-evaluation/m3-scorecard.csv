@@ -1,0 +1,9 @@
+comparison_path,work_item,task_class,outcome,review_kind,started_attempts,finished_attempts,abandoned_attempts,repair_cycles,input_tokens,cached_input_tokens,output_tokens,material_misses,queue_minutes,elapsed_minutes,human_specification_minutes,human_steering_minutes,human_review_minutes,human_repair_minutes,metered_cost,currency,acceptance_evidence
+Ordinary,INPUT-1,input validation,verified draft,simulated,1,1,0,0,1100,240,120,0,0,18,4,3,6,2,0.18,USD,fixture:simulated/INPUT-1/ordinary
+Factory,INPUT-1,input validation,verified draft,simulated,1,1,0,0,850,180,100,0,1,13,4,1,4,0,0.14,USD,fixture:simulated/INPUT-1/factory
+Ordinary,CI-2,CI repair,rejected,simulated,2,2,0,1,1850,600,210,1,1,29,5,4,8,6,0.30,USD,fixture:simulated/CI-2/ordinary
+Factory,CI-2,CI repair,verified draft,simulated,2,2,0,1,1500,475,180,0,2,23,5,2,6,3,0.25,USD,fixture:simulated/CI-2/factory
+Ordinary,API-3,dependency compatibility,verified draft,simulated,2,1,1,0,2200,510,230,0,3,30,6,5,7,3,0.39,USD,fixture:simulated/API-3/ordinary
+Factory,API-3,dependency compatibility,verified draft,simulated,2,2,0,1,2000,620,220,0,4,26,6,2,7,4,0.35,USD,fixture:simulated/API-3/factory
+Ordinary,DOC-4,documentation and context,abandoned,simulated,1,0,1,0,550,100,45,0,0,8,3,2,0,0,0.09,USD,fixture:simulated/DOC-4/ordinary
+Factory,DOC-4,documentation and context,verified draft,simulated,1,1,0,0,600,100,55,0,1,9,3,1,3,1,0.10,USD,fixture:simulated/DOC-4/factory
