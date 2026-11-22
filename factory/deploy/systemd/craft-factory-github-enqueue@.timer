@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll the approved Craft Factory GitHub enqueue policy for %i
+
+[Timer]
+OnActiveSec=30s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

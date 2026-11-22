@@ -1,0 +1,137 @@
+rule_files:
+  - craft-factory.rules.yml
+
+evaluation_interval: 30s
+
+tests:
+  # Actionable conditions wait for their hold times.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x12'
+      - series: 'craft_queue_recovery_active{job="craft-factory-queue",instance="queue:8443"}'
+        values: '0+0x12'
+      - series: 'craft_queue_paused{job="craft-factory-queue",instance="queue:8443"}'
+        values: '0+0x12'
+      - series: 'craft_queue_held_publications{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x12'
+      - series: 'craft_queue_overdue_leases{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x12'
+      - series: 'craft_queue_queued{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x12'
+      - series: 'craft_queue_standing_delegation_blocked{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x5 0+0x6'
+      - series: 'craft_queue_oldest_queued_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '900+30x12'
+      - series: 'craft_queue_pending_review_assignments{job="craft-factory-queue",instance="queue:8443"}'
+        values: '2+0x10 0+0x1'
+      - series: 'craft_queue_oldest_pending_review_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '14400+30x10 stale _'
+      - series: 'craft_queue_waiting_verification_candidates{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x10 0+0x1'
+      - series: 'craft_queue_oldest_waiting_verification_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '900+30x10 stale _'
+    alert_rule_test:
+      - {eval_time: 4m30s, alertname: CraftQueueBacklogAging, exp_alerts: []}
+      - {eval_time: 4m30s, alertname: CraftQueueLeaseOverdue, exp_alerts: []}
+      - {eval_time: 4m30s, alertname: CraftQueuePublicationHeld, exp_alerts: []}
+      - {eval_time: 1m30s, alertname: CraftQueueStandingDelegationBlocked, exp_alerts: []}
+      - {eval_time: 4m30s, alertname: CraftQueueReviewWaiting, exp_alerts: []}
+      - eval_time: 5m
+        alertname: CraftQueueBacklogAging
+        exp_alerts:
+          - exp_labels: &queue {job: craft-factory-queue, instance: "queue:8443", severity: warning}
+            exp_annotations: {summary: Craft queue work is waiting to start}
+      - eval_time: 5m
+        alertname: CraftQueueLeaseOverdue
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue has leases awaiting takeover}
+      - eval_time: 5m
+        alertname: CraftQueuePublicationHeld
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue has publications awaiting reconciliation}
+      - eval_time: 2m
+        alertname: CraftQueueStandingDelegationBlocked
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue work needs a standing delegation check}
+      - {eval_time: 3m, alertname: CraftQueueStandingDelegationBlocked, exp_alerts: []}
+      - eval_time: 5m
+        alertname: CraftQueueReviewWaiting
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: A current Craft queue review assignment is waiting for a decision}
+      - {eval_time: 5m30s, alertname: CraftQueueReviewWaiting, exp_alerts: []}
+      - {eval_time: 4m30s, alertname: CraftQueueVerificationWaiting, exp_alerts: []}
+      - eval_time: 5m
+        alertname: CraftQueueVerificationWaiting
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: A Craft queue candidate is waiting for an independent verifier}
+      - {eval_time: 5m30s, alertname: CraftQueueVerificationWaiting, exp_alerts: []}
+
+  # Recovery and scrape failures remain visible during a pause.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x12 0+0x5'
+      - series: 'craft_queue_recovery_active{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_paused{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_overdue_leases{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_queued{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_standing_delegation_blocked{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_oldest_queued_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '900+30x18'
+      - series: 'craft_queue_pending_review_assignments{job="craft-factory-queue",instance="queue:8443"}'
+        values: '2+0x18'
+      - series: 'craft_queue_oldest_pending_review_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '14400+30x18'
+      - series: 'craft_queue_waiting_verification_candidates{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x18'
+      - series: 'craft_queue_oldest_waiting_verification_seconds{job="craft-factory-queue",instance="queue:8443"}'
+        values: '900+30x18'
+    alert_rule_test:
+      - {eval_time: 1m30s, alertname: CraftQueueRecoveryPending, exp_alerts: []}
+      - eval_time: 2m
+        alertname: CraftQueueRecoveryPending
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue recovery needs operator action}
+      - {eval_time: 6m, alertname: CraftQueueBacklogAging, exp_alerts: []}
+      - {eval_time: 6m, alertname: CraftQueueLeaseOverdue, exp_alerts: []}
+      - {eval_time: 6m, alertname: CraftQueueStandingDelegationBlocked, exp_alerts: []}
+      - {eval_time: 6m, alertname: CraftQueueReviewWaiting, exp_alerts: []}
+      - {eval_time: 6m, alertname: CraftQueueVerificationWaiting, exp_alerts: []}
+      - {eval_time: 7m, alertname: CraftQueueRecoveryPending, exp_alerts: []}
+      - {eval_time: 8m, alertname: CraftQueueScrapeUnavailable, exp_alerts: []}
+      - eval_time: 8m30s
+        alertname: CraftQueueScrapeUnavailable
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue metrics scrape is unavailable}
+
+  # A recorded overrun remains actionable while intake is paused.
+  - interval: 30s
+    input_series:
+      - series: 'up{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x6 0 1+0x5'
+      - series: 'craft_queue_paused{job="craft-factory-queue",instance="queue:8443"}'
+        values: '1+0x13'
+      - series: 'craft_queue_token_overrun_attempts_15m{job="craft-factory-queue",instance="queue:8443"}'
+        values: '0 1+0x9 0+0x3'
+    alert_rule_test:
+      - {eval_time: 2m, alertname: CraftQueueTokenOverrun, exp_alerts: []}
+      - eval_time: 2m30s
+        alertname: CraftQueueTokenOverrun
+        exp_alerts:
+          - exp_labels: *queue
+            exp_annotations: {summary: Craft queue recorded worker usage above its token reservation}
+      - {eval_time: 3m30s, alertname: CraftQueueTokenOverrun, exp_alerts: []}
+      - {eval_time: 6m30s, alertname: CraftQueueTokenOverrun, exp_alerts: []}

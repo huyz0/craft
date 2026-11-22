@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "draft": {
+    "reference": "https://forge.example.invalid/team/repo/pull/42",
+    "head": "0000000000000000000000000000000000000000"
+  },
+  "source": "operator_observed",
+  "actor": "Replace with the observed reviewer or verifier",
+  "evidence": "Replace with the stable URL of the check, review, or outcome",
+  "note": "Record the observed result and any uncertainty."
+}

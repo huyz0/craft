@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll the approved Craft Factory shared CI lane
+
+[Timer]
+OnActiveSec=30s
+OnUnitInactiveSec=5min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

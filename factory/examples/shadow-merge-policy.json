@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "repository": "team/service",
+  "base_branch": "main",
+  "protection_revision": "fixture:main-restrictions/7",
+  "observation_issuer": "fixture:forge-exporter",
+  "approval_reference": "fixture:merge-policy/1",
+  "allowed_paths": [
+    "docs"
+  ],
+  "protected_paths": [
+    "docs/runbooks"
+  ],
+  "max_changed_paths": 3,
+  "max_snapshot_age_seconds": 120,
+  "max_review_age_seconds": 3600,
+  "minimum_approvals": 1,
+  "eligible_reviewers": [
+    "fixture:reviewer-1"
+  ],
+  "required_checks": [
+    {
+      "name": "Verify changes",
+      "issuer": "fixture:trusted-pipeline"
+    }
+  ]
+}

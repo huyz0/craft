@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "target": {
+    "service": "sample-api",
+    "environment": "staging",
+    "region": "au-east",
+    "resource": "sample-api-blue"
+  },
+  "coverage": { "from": 1795238300, "to": 1795238400 },
+  "observation": {
+    "source": "fixture telemetry export",
+    "reference": "fixture:staging-incident/17",
+    "observed_at": 1795238405
+  },
+  "logs": [
+    {
+      "timestamp": 1795238350,
+      "version": {
+        "deployment_id": "sample-rollout-17",
+        "config_revision": "sample-config-42",
+        "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "code": "UPSTREAM_TIMEOUT",
+      "severity": "warn"
+    },
+    {
+      "timestamp": 1795238370,
+      "version": {
+        "deployment_id": "sample-rollout-16",
+        "config_revision": "sample-config-41",
+        "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "code": "UPSTREAM_TIMEOUT",
+      "severity": "error"
+    }
+  ],
+  "metrics": [
+    {
+      "timestamp": 1795238360,
+      "version": {
+        "deployment_id": "sample-rollout-17",
+        "config_revision": "sample-config-42",
+        "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "metric": { "name": "request_latency_p95", "unit": "ms" },
+      "value": 425.0
+    }
+  ]
+}

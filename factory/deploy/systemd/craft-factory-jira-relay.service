@@ -1,0 +1,12 @@
+[Unit]
+Description=Craft Factory Jira standing pickup relay
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/craft-factory/jira-relay.env
+LoadCredential=CRAFT_FACTORY_INTAKE_TOKEN:%h/.config/craft-factory/intake-token
+ExecStart=/opt/craft-factory/craft-factory poll-standing-jira %h/.config/craft-factory/jira-watch.json --queue ${CRAFT_FACTORY_QUEUE_URL} --ca %h/.config/craft-factory/queue-ca.pem --budget-seconds 105 --cursor-db %h/.config/craft-factory/jira-relay.db --report-file %h/.config/craft-factory/jira-last-report.json
+TimeoutStartSec=2min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

@@ -2,6 +2,8 @@
 
 The active implementation package now lives in [`cli/`](../../cli/README.md), with [applied lightweight SDD](../../cli/SDD.md), [Rust design](../../cli/openspec/changes/build-cloud-cli/design.md), [detailed task ledger](../../cli/openspec/changes/build-cloud-cli/tasks.md), and [coding/comment standard](../../cli/docs/coding-standard.md). That ledger owns task status and sequencing. The documents below remain supporting research/contracts; the older milestone table is not the active delivery ledger.
 
+The [software factory delivery plan](factory-delivery-plan.md) proposes milestones, tasks, acceptance evidence, and release decisions for the separate factory workflow.
+
 ## Craft: the AI software factory
 
 **Craft** is the project name and **`craft`** is its CLI command. It is an extensible cloud CLI for the AI software factory, initially Jira and Confluence, later Bitbucket, Trello, and other systems. It covers general resource operations, attachments, comments and status, with shared JSON, OAuth, native credential storage, policy and recovery. The factory workflow adds a normal Confluence plan page for human review, then creates Jira tickets from the approved revision. Other authorized issue creation remains available.

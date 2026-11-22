@@ -1,0 +1,14 @@
+[Unit]
+Description=Observe one approved Craft Factory GitHub issue for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/github-issue-relay/%i
+EnvironmentFile=%h/.config/craft-factory/github-issue-relay/%i/relay.env
+LoadCredential=queue-intake:%h/.config/craft-factory/github-issue-relay/%i/intake-token
+UnsetEnvironment=CRAFT_FACTORY_INTAKE_TOKEN CRAFT_FACTORY_INTAKE_TOKEN_FILE CRAFT_FACTORY_OPERATOR_TOKEN CRAFT_FACTORY_OPERATOR_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory poll-standing-github-issue github-watch.json work-order-template.json --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem --intake-token-file %d/queue-intake --report-file last-report.json
+TimeoutStartSec=1min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

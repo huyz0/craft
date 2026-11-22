@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "baseline_profile": {"path": "baseline-profile.json", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"},
+  "challenger_profile": {"path": "challenger-profile.json", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+  "cases": [
+    {
+      "id": "api-field",
+      "task_class": "cross-repo-release",
+      "seed_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "baseline": {
+        "attempts": [{"path": "api-field/baseline-1/run.json", "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"}],
+        "review": {
+          "proposal_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "reviewer": "Release reviewer",
+          "evidence": "example:decision-record",
+          "decision": "accepted"
+        }
+      },
+      "challenger": {
+        "attempts": [{"path": "api-field/challenger-1/run.json", "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"}]
+      }
+    }
+  ]
+}

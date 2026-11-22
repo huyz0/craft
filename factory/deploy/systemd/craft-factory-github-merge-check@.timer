@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Craft Factory GitHub merge evidence for %i
+
+[Timer]
+OnActiveSec=20s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Observe one approved Craft Factory shared CI lane
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/craft-factory/shared-ci.env
+LoadCredential=CRAFT_FACTORY_INTAKE_TOKEN:%h/.config/craft-factory/shared-ci-intake-token
+ExecStart=/opt/craft-factory/craft-factory shared-work --queue ${CRAFT_FACTORY_QUEUE_URL} --ca %h/.config/craft-factory/queue-ca.pem poll-ci-lane %h/.config/craft-factory/shared-ci.json --digest ${CRAFT_FACTORY_CI_LANE_DIGEST} $CRAFT_FACTORY_CI_LANE_MODE
+TimeoutStartSec=5min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

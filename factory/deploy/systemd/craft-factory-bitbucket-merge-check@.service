@@ -1,0 +1,15 @@
+[Unit]
+Description=Check Craft Factory Bitbucket merges for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/merge/bitbucket-%i
+EnvironmentFile=%h/.config/craft-factory/merge/bitbucket-%i/check.env
+LoadCredential=CRAFT_FACTORY_VERIFIER_TOKEN:%h/.config/craft-factory/merge/bitbucket-%i/verifier-token
+LoadCredential=CRAFT_FACTORY_BITBUCKET_EVIDENCE_TOKEN:%h/.config/craft-factory/merge/bitbucket-%i/bitbucket-token
+UnsetEnvironment=CRAFT_FACTORY_VERIFIER_TOKEN CRAFT_FACTORY_VERIFIER_TOKEN_FILE CRAFT_FACTORY_BITBUCKET_EVIDENCE_TOKEN CRAFT_FACTORY_BITBUCKET_EVIDENCE_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory shared-ops --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem check-bitbucket-merges --policy policy.json --policy-digest ${CRAFT_FACTORY_MERGE_POLICY_DIGEST} --cursor-db cursor.db --report-file last-report.json --budget-seconds 60
+TimeoutStartSec=90s
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077
