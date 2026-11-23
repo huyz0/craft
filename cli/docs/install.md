@@ -58,7 +58,7 @@ you installed. Leave neighboring user or team skills in place.
 | Linux | Workspace gate and a real Secret Service vault ([platform qualification](evidence/platform-qualification.md)) |
 | macOS | Built and smoke-tested in release CI only; Keychain vault not live-tested |
 | Skills | Checked against the contract and executable by `tools/skills_qualify.py` ([evidence](evidence/skills-qualification.md)) |
-| Codex, Claude Code skill loading | Unqualified |
+| Codex and Claude Code | Scoped Windows session evidence. Broad host qualification is open. See [workflow session results](evidence/skill-workflow-sessions.md). |
 
 ## Cut a release
 

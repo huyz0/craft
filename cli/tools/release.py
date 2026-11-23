@@ -167,10 +167,11 @@ def read_archive(path, expected):
     for name, data in files.items():
         entry = manifest["files"][name]
         require(entry["size"] == len(data) and entry["sha256"] == digest(data), "Payload mismatch: " + name)
-    for needed in ("schemas/local-contracts.json", "tools/skills.py",
-                   "skills/craft-cloud/reference-index.json", "skills/craft-cloud/SKILL.md",
+    for needed in ("schemas/local-contracts.json", "skills/craft-cloud/SKILL.md",
                    "skills/confluence-pages/SKILL.md", "skills/atlassian-design/SKILL.md"):
         require(needed in files, "Missing " + needed)
+    require(("tools/skills.py" in files) == ("skills/craft-cloud/reference-index.json" in files),
+            "Skill companion and reference catalog must be bundled together")
     compat = json.loads(files["skills/craft-cloud/compatibility.json"])
     require(compat["binary_version"] == manifest["version"]
             and compat["contract_snapshot_sha256"]

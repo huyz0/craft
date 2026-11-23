@@ -33,8 +33,11 @@ class SkillTests(unittest.TestCase):
                 self.assertLessEqual(len(matches), 3)
         self.assertEqual(skills.find(self.bundle, "publish banana bread", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "create and read a shopping list", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "plan a birthday party", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "show me whiteboards", None)["matches"][0]["reference"],
                          "references/whiteboards.md")
+        self.assertEqual(skills.find(self.bundle, "Verify a published Confluence page", None)
+                         ["matches"][0]["reference"], "references/verification.md")
         self.assertEqual(skills.find(self.bundle, "recovery", "confluence-pages")["matches"], [])
 
     def test_synthetic_session_requests(self):
@@ -112,6 +115,16 @@ class SkillTests(unittest.TestCase):
         self.assertEqual(targets, {
             "codex": self.project / ".agents/skills", "claude-code": self.project / "alt-config/skills",
         })
+
+    def test_user_install_with_overlapping_host_directories(self):
+        with patch.object(Path, "home", return_value=self.project), patch.dict(
+            "os.environ", {"CLAUDE_CONFIG_DIR": str(self.project / ".agents")}
+        ):
+            entries = list(skills.installations(self.bundle, skills.targets(skills.HOSTS, "user", self.project)))
+            skills.install(entries)
+        self.assertEqual(len(entries), 6)
+        self.assertEqual({detail["status"] for detail, _, _ in entries}, {"installed"})
+        self.assertEqual(len({path for _, path, _ in entries}), 3)
 
     def test_doctor_validates_binary_identity(self):
         identity = {"product": "Craft AI Factory CLI", "version": self.compatibility["binary_version"],

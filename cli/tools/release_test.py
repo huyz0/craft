@@ -47,6 +47,16 @@ class ReleaseTests(unittest.TestCase):
         files, manifest = release.read_archive(path, sha)
         self.assertEqual(manifest["version"], release.version())
 
+    def test_archive_without_skill_companion_remains_verifiable(self):
+        def legacy(members, manifest):
+            for name in ("tools/skills.py", "skills/craft-cloud/reference-index.json"):
+                del members[name]
+                del manifest["files"][name]
+            members["manifest.json"] = release.encoded(manifest)
+        path, sha = self.archive(legacy)
+        files, _ = release.read_archive(path, sha)
+        self.assertNotIn("tools/skills.py", files)
+
     def test_wrong_digest(self):
         path, _ = self.archive()
         with self.assertRaises(ValueError):

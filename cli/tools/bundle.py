@@ -19,10 +19,11 @@ MAX_ARCHIVE = 256 * 1024 * 1024
 MAX_FILE = 128 * 1024 * 1024
 MAX_TOTAL = 240 * 1024 * 1024
 SKILL_FILES = {"SKILL.md", "compatibility.json", "references/lists.md",
-               "references/writes.md", "references/plan-review.md", "references/recovery.md",
-               "references/issue-to-pr.md", "references/whiteboards.md", "references/whiteboard-scenes.md"}
+               "references/writes.md", "references/plan-review.md", "references/recovery.md"}
+ADDED_REFERENCES = {"references/issue-to-pr.md", "references/whiteboards.md", "references/whiteboard-scenes.md"}
 PAYLOAD = {"bin/craft.exe", "schemas/local-contracts.json", "dependency-inventory.json",
-           "README.txt"} | {"skills/craft-cloud/" + name for name in SKILL_FILES}
+           "README.txt"} | {"skills/craft-cloud/" + name for name in SKILL_FILES | ADDED_REFERENCES}
+LEGACY_PAYLOAD = PAYLOAD - {"skills/craft-cloud/" + name for name in ADDED_REFERENCES}
 PRODUCT = "Craft AI Factory CLI"
 
 
@@ -56,7 +57,7 @@ def host():
 
 
 def check_payload(files, manifest):
-    require(set(files) == PAYLOAD, "Unexpected or missing payload")
+    require(set(files) in (PAYLOAD, LEGACY_PAYLOAD), "Unexpected or missing payload")
     require(isinstance(manifest, dict) and set(manifest) == {
         "format", "product", "version", "status", "platform", "files"}, "Invalid manifest shape")
     require(type(manifest["format"]) is int and manifest["format"] == 1
@@ -66,7 +67,7 @@ def check_payload(files, manifest):
             and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", manifest["version"]), "Invalid version")
     require(manifest["platform"] == host() and sys.platform == "win32",
             "Bundle platform does not match this Windows host")
-    require(isinstance(manifest["files"], dict) and set(manifest["files"]) == PAYLOAD,
+    require(isinstance(manifest["files"], dict) and set(manifest["files"]) == set(files),
             "Manifest payload mismatch")
     for name, data in files.items():
         entry = manifest["files"][name]
@@ -116,7 +117,7 @@ def prepare(binary, binary_sha256, output):
     inventory = document(files["dependency-inventory.json"])
     require(inventory["lock_sha256"] == digest((ROOT / "Cargo.lock").read_bytes().replace(b"\r\n", b"\n")),
             "Dependency inventory does not match Cargo.lock")
-    for name in SKILL_FILES:
+    for name in SKILL_FILES | ADDED_REFERENCES:
         files["skills/craft-cloud/" + name] = (ROOT / "skills/craft-cloud" / name).read_bytes()
     files["README.txt"] = (
         "Craft AI Factory CLI. Internal local development bundle.\n"
@@ -156,7 +157,7 @@ def verified(archive, expected_digest):
     files = {}
     with zipfile.ZipFile(io.BytesIO(data)) as source:
         entries = source.infolist()
-        require(len(entries) == len(PAYLOAD) + 1, "Unexpected archive member count")
+        require(len(entries) in (len(PAYLOAD) + 1, len(LEGACY_PAYLOAD) + 1), "Unexpected archive member count")
         total = 0
         for entry in entries:
             require(entry.filename in PAYLOAD | {"manifest.json"} and entry.filename not in files,

@@ -3,7 +3,7 @@
     "path": "craft-cloud/references/issue-to-pr.md",
     "title": "Trace a Jira issue to a pull request",
     "description": "Read the Jira issue, resolve linked code changes, and verify the repository, PR and revision.",
-    "aliases": "pr prs pull bitbucket github code-review repository revision"
+    "aliases": "pr prs pullrequest bitbucket github code-review repository revision"
   },
   {
     "path": "craft-cloud/references/plan-review.md",

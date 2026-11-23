@@ -17,10 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ("codex", "claude-code")
 SKILL_NAMES = ("atlassian-design", "confluence-pages", "craft-cloud")
 STOP_WORDS = set("a an and by can for from how i in it me my of on the this to use with".split())
+GENERIC_ALIASES = set(
+    "approval approved backlog cells clipboard columns nodes permissions plan policy preview rendered "
+    "rendering repository revision rows table timed verify widths".split()
+)
 
 
 def terms(text):
-    return set(re.findall(r"[a-z0-9]+", text.casefold())) - STOP_WORDS
+    normalized = re.sub(r"\bpull[ -]+requests?\b", "pullrequest", text.casefold())
+    return set(re.findall(r"[a-z0-9]+", normalized)) - STOP_WORDS
 
 
 def references(bundle):
@@ -54,12 +59,15 @@ def find(bundle, query, skill):
         owner, relative = item["path"].split("/", 1)
         if skill and owner != skill:
             continue
-        title = words & terms(item["title"])
+        title_terms = terms(item["title"])
+        title = words & title_terms
         aliases = words & terms(item["aliases"])
         description = words & terms(item["description"])
-        if not aliases:
+        exact_title = title == title_terms
+        has_signal = aliases and (len(words) == 1 or len(aliases) > 1 or aliases - GENERIC_ALIASES)
+        if not exact_title and not has_signal:
             continue
-        score = 3 * len(title) + 4 * len(aliases) + len(description)
+        score = 100 * exact_title + 3 * len(title) + 4 * len(aliases) + len(description)
         matches.append((score, item["path"], {
             "skill": owner, "reference": relative, "title": item["title"],
             "description": item["description"],
@@ -168,7 +176,10 @@ def install(entries):
     for detail, directory, _ in entries:
         if detail["status"] not in ("missing", "installed"):
             raise ValueError(detail.get("error") or f"Existing skill conflicts with the bundle: {directory}")
+    copied = set()
     for detail, directory, files in entries:
+        if directory in copied:
+            detail["status"] = "installed"
         if detail["status"] == "installed":
             continue
         directory.parent.mkdir(parents=True, exist_ok=True)
@@ -194,6 +205,7 @@ def install(entries):
                     path.rmdir()
             raise
         detail["status"] = "installed"
+        copied.add(directory)
 
 
 def binary_status(root, selected, compatibility):
