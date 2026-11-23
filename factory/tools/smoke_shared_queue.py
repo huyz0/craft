@@ -427,12 +427,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--postgres-bin", type=Path, help="Directory containing the PostgreSQL binaries")
     parser.add_argument("--confluence-fixture", type=Path, help="Compiled disposable Craft connector fixture for CI")
+    parser.add_argument("--scratch-parent", type=Path, help="Existing directory for the disposable fixture")
     args = parser.parse_args()
     if sys.platform not in {"linux", "win32"} or (sys.platform == "linux" and os.geteuid() == 0):
         parser.error("run the smoke test on Windows or as a non-root Linux user")
     postgres_bin = args.postgres_bin.resolve(strict=True) if args.postgres_bin else None
     confluence_fixture = args.confluence_fixture.resolve(strict=True) if args.confluence_fixture else None
-    with TemporaryDirectory(prefix="craft-smoke-", dir="/tmp" if sys.platform == "linux" else None) as scratch:
+    parent = args.scratch_parent.resolve(strict=True) if args.scratch_parent else (
+        "/tmp" if sys.platform == "linux" else None)
+    with TemporaryDirectory(prefix="craft-smoke-", dir=parent) as scratch:
         print(json.dumps(smoke(Path(__file__).resolve().parents[1], Path(scratch), postgres_bin, confluence_fixture)))
 
 
