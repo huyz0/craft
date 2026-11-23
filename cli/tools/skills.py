@@ -20,6 +20,7 @@ STOP_WORDS = set(
     "a an and are by can find for from how i in it me my of on please search show tell the this to "
     "use what with".split()
 )
+DISTINCTIVE_ALIASES = set("adf drawio idempotency lozenge lozenges mermaid reconcile whiteboard whiteboards xhtml".split())
 
 
 def terms(text):
@@ -63,7 +64,7 @@ def find(bundle, query, skill):
         aliases = words & terms(item["aliases"])
         description = words & terms(item["description"])
         exact_title = title == title_terms
-        has_signal = aliases and len(title | aliases | description) >= min(2, len(words))
+        has_signal = aliases and (aliases & DISTINCTIVE_ALIASES or len(title | aliases) >= min(2, len(words)))
         if not exact_title and not has_signal:
             continue
         score = 100 * exact_title + 3 * len(title) + 4 * len(aliases) + len(description)
@@ -208,7 +209,8 @@ def anchored_directory(path, parent=None):
         with windows_directory_lock(path):
             yield None
     else:
-        fd = os.open(relative_path(path, parent), os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY,
+        access = getattr(os, "O_PATH", os.O_RDONLY)
+        fd = os.open(relative_path(path, parent), access | os.O_NOFOLLOW | os.O_DIRECTORY,
                      dir_fd=parent)
         try:
             yield fd
@@ -221,10 +223,12 @@ def write_skill(directory, files):
         # Anchor the selected base first and retain every ancestor through publication or cleanup.
         skills, config, base = directory.parents[:3]
         parent = stack.enter_context(anchored_directory(base))
+        parents = {base: parent}
         for path in (config, skills):
             with suppress(FileExistsError):
                 os.mkdir(relative_path(path, parent), dir_fd=parent)
             parent = stack.enter_context(anchored_directory(path, parent))
+            parents[path] = parent
 
         committed = False
 
@@ -251,6 +255,9 @@ def write_skill(directory, files):
             stack.callback(cleanup, output, fd, os.unlink)
             with os.fdopen(created, "wb") as handle:
                 handle.write(content)
+        for path, fd in (parents | anchors).items():
+            if fd is not None and not os.path.samestat(os.fstat(fd), path.stat(follow_symlinks=False)):
+                raise ValueError(f"Skill installation directory moved: {path}")
         committed = True
 
 

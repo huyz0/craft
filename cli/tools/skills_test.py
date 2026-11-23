@@ -36,12 +36,15 @@ class SkillTests(unittest.TestCase):
         self.assertEqual(skills.find(self.bundle, "create and read a shopping list", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "plan a birthday party", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "renew a passport after a timeout", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "choose columns for a CSV export", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "show me whiteboards", None)["matches"][0]["reference"],
                          "references/whiteboards.md")
         self.assertEqual(skills.find(self.bundle, "Verify a published Confluence page", None)
                          ["matches"][0]["reference"], "references/verification.md")
         self.assertEqual(skills.find(self.bundle, "add a table to a Confluence page", None)
                          ["matches"][0]["reference"], "references/tables.md")
+        self.assertEqual(skills.find(self.bundle, "How do I add a lozenge?", None)
+                         ["matches"][0]["reference"], "references/adf.md")
         self.assertEqual(skills.find(self.bundle, "recovery", "confluence-pages")["matches"], [])
 
     def test_synthetic_session_requests(self):
@@ -122,6 +125,25 @@ class SkillTests(unittest.TestCase):
                 os.close(fd)
                 self.assertTrue((moved / "check").is_file())
                 self.assertFalse((self.project / "check").exists())
+
+    @unittest.skipIf(sys.platform == "win32", "Windows prevents the directory move while anchored")
+    def test_moved_discovery_directory_cannot_report_success(self):
+        entries = self.entries()
+        discovery = self.project / ".agents"
+        moved = self.project / "moved"
+        fdopen = os.fdopen
+
+        def move_before_writing(fd, mode):
+            if discovery.is_dir() and not moved.exists():
+                discovery.rename(moved)
+                discovery.symlink_to(self.project / "elsewhere", target_is_directory=True)
+            return fdopen(fd, mode)
+
+        with patch.object(skills.os, "fdopen", side_effect=move_before_writing):
+            with self.assertRaisesRegex(ValueError, "directory moved"):
+                skills.install(entries)
+        self.assertFalse((self.project / "elsewhere").exists())
+        self.assertEqual(list((moved / "skills").iterdir()), [])
 
     def test_doctor_keeps_other_results_when_one_reference_directory_is_redirected(self):
         skills.install(self.entries())
