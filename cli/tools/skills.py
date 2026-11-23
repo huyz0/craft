@@ -1,7 +1,7 @@
 """Search bundled Craft skill references, install them, or diagnose an install."""
 
 import argparse
-from contextlib import suppress
+from contextlib import ExitStack, contextmanager, suppress
 import hashlib
 import json
 import os
@@ -16,10 +16,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ("codex", "claude-code")
 SKILL_NAMES = ("atlassian-design", "confluence-pages", "craft-cloud")
-STOP_WORDS = set("a an and by can for from how i in it me my of on the this to use with".split())
-GENERIC_ALIASES = set(
-    "approval approved backlog cells clipboard columns nodes permissions plan policy preview rendered "
-    "rendering repository revision rows table timed verify widths".split()
+STOP_WORDS = set(
+    "a an and are by can find for from how i in it me my of on please search show tell the this to "
+    "use what with".split()
 )
 
 
@@ -64,7 +63,7 @@ def find(bundle, query, skill):
         aliases = words & terms(item["aliases"])
         description = words & terms(item["description"])
         exact_title = title == title_terms
-        has_signal = aliases and (len(words) == 1 or len(aliases) > 1 or aliases - GENERIC_ALIASES)
+        has_signal = aliases and len(title | aliases | description) >= min(2, len(words))
         if not exact_title and not has_signal:
             continue
         score = 100 * exact_title + 3 * len(title) + 4 * len(aliases) + len(description)
@@ -172,6 +171,89 @@ def installations(bundle, destinations):
             yield detail, directory, expected
 
 
+@contextmanager
+def windows_directory_lock(path):
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                       wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.restype = wintypes.HANDLE
+    close = kernel.CloseHandle
+    close.argtypes = [wintypes.HANDLE]
+    # Read attributes without sharing write or delete. Open the reparse point itself.
+    list_directory_and_read_attributes, share_read, open_existing = 0x81, 1, 3
+    open_directory_no_follow = 0x02000000 | 0x00200000
+    handle = create(str(path), list_directory_and_read_attributes, share_read, None,
+                    open_existing, open_directory_no_follow, None)
+    if handle == wintypes.HANDLE(-1).value:
+        raise OSError(ctypes.get_last_error(), f"Cannot lock skill directory: {path}")
+    try:
+        if path_type(path) != "directory":
+            raise ValueError(f"Unsafe skill directory: {path}")
+        yield None
+    finally:
+        close(handle)
+
+
+def relative_path(path, parent):
+    return path if parent is None else path.name
+
+
+@contextmanager
+def anchored_directory(path, parent=None):
+    if sys.platform == "win32":
+        with windows_directory_lock(path):
+            yield None
+    else:
+        fd = os.open(relative_path(path, parent), os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY,
+                     dir_fd=parent)
+        try:
+            yield fd
+        finally:
+            os.close(fd)
+
+
+def write_skill(directory, files):
+    with ExitStack() as stack:
+        # Anchor the selected base first and retain every ancestor through publication or cleanup.
+        skills, config, base = directory.parents[:3]
+        parent = stack.enter_context(anchored_directory(base))
+        for path in (config, skills):
+            with suppress(FileExistsError):
+                os.mkdir(relative_path(path, parent), dir_fd=parent)
+            parent = stack.enter_context(anchored_directory(path, parent))
+
+        committed = False
+
+        def cleanup(path, fd, remove):
+            if not committed:
+                with suppress(OSError):
+                    remove(relative_path(path, fd), dir_fd=fd)
+
+        def make_directory(path, fd):
+            os.mkdir(relative_path(path, fd), dir_fd=fd)
+            stack.callback(cleanup, path, fd, os.rmdir)
+            return stack.enter_context(anchored_directory(path, fd))
+
+        anchors = {directory: make_directory(directory, parent)}
+        for name, content in files.items():
+            output = directory / name
+            for folder in reversed(output.relative_to(directory).parents):
+                path = directory / folder
+                if path not in anchors:
+                    anchors[path] = make_directory(path, anchors[path.parent])
+            fd = anchors[output.parent]
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+            created = os.open(relative_path(output, fd), flags, 0o666, dir_fd=fd)
+            stack.callback(cleanup, output, fd, os.unlink)
+            with os.fdopen(created, "wb") as handle:
+                handle.write(content)
+        committed = True
+
+
 def install(entries):
     for detail, directory, _ in entries:
         if detail["status"] not in ("missing", "installed"):
@@ -182,28 +264,7 @@ def install(entries):
             detail["status"] = "installed"
         if detail["status"] == "installed":
             continue
-        directory.parent.mkdir(parents=True, exist_ok=True)
-        directory.mkdir()
-        created_dirs = [directory]
-        created_files = []
-        try:
-            for name, content in files.items():
-                output = directory / name
-                for parent in reversed(output.parents):
-                    if parent != directory and parent.is_relative_to(directory) and parent not in created_dirs:
-                        parent.mkdir()
-                        created_dirs.append(parent)
-                with output.open("xb") as handle:
-                    created_files.append(output)
-                    handle.write(content)
-        except OSError:
-            for path in reversed(created_files):
-                with suppress(OSError):
-                    path.unlink()
-            for path in reversed(created_dirs):
-                with suppress(OSError):
-                    path.rmdir()
-            raise
+        write_skill(directory, files)
         detail["status"] = "installed"
         copied.add(directory)
 

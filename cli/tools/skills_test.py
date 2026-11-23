@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -34,10 +35,13 @@ class SkillTests(unittest.TestCase):
         self.assertEqual(skills.find(self.bundle, "publish banana bread", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "create and read a shopping list", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "plan a birthday party", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "renew a passport after a timeout", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "show me whiteboards", None)["matches"][0]["reference"],
                          "references/whiteboards.md")
         self.assertEqual(skills.find(self.bundle, "Verify a published Confluence page", None)
                          ["matches"][0]["reference"], "references/verification.md")
+        self.assertEqual(skills.find(self.bundle, "add a table to a Confluence page", None)
+                         ["matches"][0]["reference"], "references/tables.md")
         self.assertEqual(skills.find(self.bundle, "recovery", "confluence-pages")["matches"], [])
 
     def test_synthetic_session_requests(self):
@@ -93,6 +97,31 @@ class SkillTests(unittest.TestCase):
             skills.install(entries)
         self.assertEqual({detail["status"] for detail, _, _ in entries}, {"unsafe", "missing"})
         self.assertEqual(list(other.iterdir()), [])
+
+    def test_discovery_directory_redirected_after_preflight_is_refused(self):
+        entries = self.entries()
+        other = self.project / "other"
+        other.mkdir()
+        self.redirect_directory(self.project / ".agents", other)
+        with self.assertRaises((OSError, ValueError)):
+            skills.install(entries)
+        self.assertEqual(list(other.iterdir()), [])
+
+    def test_open_directory_guard_keeps_the_original_directory(self):
+        original = self.project / "original"
+        moved = self.project / "moved"
+        original.mkdir()
+        with skills.anchored_directory(original) as anchor:
+            if sys.platform == "win32":
+                with self.assertRaises(PermissionError):
+                    original.rename(moved)
+            else:
+                original.rename(moved)
+                original.symlink_to(self.project, target_is_directory=True)
+                fd = os.open("check", os.O_WRONLY | os.O_CREAT | os.O_EXCL, dir_fd=anchor)
+                os.close(fd)
+                self.assertTrue((moved / "check").is_file())
+                self.assertFalse((self.project / "check").exists())
 
     def test_doctor_keeps_other_results_when_one_reference_directory_is_redirected(self):
         skills.install(self.entries())
