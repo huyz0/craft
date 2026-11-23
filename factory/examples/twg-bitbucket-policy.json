@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "twg": "C:/path/to/twg.exe",
+  "profile": "replace-with-approved-read-profile",
+  "site": "replace-with-your-site.atlassian.net",
+  "workspace": "replace-with-workspace-slug",
+  "repository": "replace-with-repository-slug",
+  "base_branch": "main",
+  "required_steps": ["Verify candidate"],
+  "check_definitions": ["tests"]
+}

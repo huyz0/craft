@@ -1,0 +1,15 @@
+[Unit]
+Description=Dispatch one approved Craft Factory GitHub enqueue for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/enqueue/%i
+EnvironmentFile=%h/.config/craft-factory/enqueue/%i/publisher.env
+LoadCredential=queue-publisher:%h/.config/craft-factory/enqueue/%i/publisher-token
+LoadCredential=github-writer:%h/.config/craft-factory/enqueue/%i/github-writer-token
+UnsetEnvironment=CRAFT_FACTORY_PUBLISHER_TOKEN CRAFT_FACTORY_PUBLISHER_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory shared-github-enqueue --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem --queue-token-file %d/queue-publisher poll ${CRAFT_FACTORY_ENQUEUE_POLICY_ID} --repository-map repository-map.json --checkout-root %h/.config/craft-factory/enqueue/%i/checkouts --policy policy.json --gh ${CRAFT_FACTORY_GH_PATH} --github-token-file %d/github-writer --report-file last-report.json
+TimeoutStartSec=3min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

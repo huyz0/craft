@@ -1,0 +1,8 @@
+{
+  "id": "release-planning",
+  "model": "approved-planning-model",
+  "reasoning_effort": "medium",
+  "timeout_seconds": 120,
+  "max_attempts": 1,
+  "approval_reference": "example:planning-profile-approval"
+}

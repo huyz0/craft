@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "workspace": "huyz0",
+  "repository": "craft-factory-mvp-pilot",
+  "base_branch": "main",
+  "craft": "D:/work/craft-wt-bitbucket/cli/target/debug/craft.exe",
+  "craft_state": "C:/path/to/private/Craft-Bitbucket",
+  "craft_profile": "bitbucket-huyz0",
+  "required_steps": ["Verify candidate"],
+  "check_definitions": []
+}

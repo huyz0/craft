@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Craft Factory standing Jira observations
+
+[Timer]
+OnActiveSec=15s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

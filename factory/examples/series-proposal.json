@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "api-field-rollout",
+  "owner": "Release owner",
+  "source": {"location": "repo:decisions/api-field.md", "revision": "1111111111111111111111111111111111111111"},
+  "compatibility": "Publish the optional field first. Existing consumers must tolerate responses with and without it.",
+  "rollback": "Disable the consumer flag before removing the upstream field. Withdraw the affected rollout observation to block remaining work.",
+  "members": [
+    {
+      "repository": "example/api",
+      "observer": "api-observer",
+      "target": {"service": "api", "environment": "staging", "region": "au", "resource": "deployment/api"},
+      "token_limit": 12000,
+      "requires_rollout_proof": true,
+      "work_order": {
+        "schema_version": 1,
+        "id": "api-add-optional-field",
+        "issue": "APP-101",
+        "owner": "API owner",
+        "repository": "example/api",
+        "base": "1111111111111111111111111111111111111111",
+        "intent": "Add the optional field to API responses.",
+        "acceptance": ["Both the existing and updated client contract checks pass."],
+        "scope": ["src/response", "tests/contracts"],
+        "context": [{"location": "jira:APP-101", "revision": "fixture-approved-intent-1"}],
+        "skill": {"location": "repo:skills/api-contract/SKILL.md", "revision": "1111111111111111111111111111111111111111"},
+        "require_native_checks": true
+      }
+    },
+    {
+      "repository": "example/consumer",
+      "observer": "consumer-observer",
+      "target": {"service": "consumer", "environment": "staging", "region": "au", "resource": "deployment/consumer"},
+      "token_limit": 10000,
+      "requires_rollout_proof": true,
+      "work_order": {
+        "schema_version": 1,
+        "id": "consumer-read-optional-field",
+        "issue": "APP-102",
+        "owner": "Consumer owner",
+        "repository": "example/consumer",
+        "base": "2222222222222222222222222222222222222222",
+        "intent": "Read the new field behind the consumer flag.",
+        "acceptance": ["The client handles an absent field and keeps its existing behavior when the flag is disabled."],
+        "scope": ["src/client", "tests/client"],
+        "context": [{"location": "jira:APP-102", "revision": "fixture-approved-intent-2"}],
+        "skill": {"location": "repo:skills/client-contract/SKILL.md", "revision": "2222222222222222222222222222222222222222"},
+        "require_native_checks": true
+      }
+    }
+  ]
+}

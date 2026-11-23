@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll one approved CI repair lane
+
+[Timer]
+OnActiveSec=1min
+OnUnitInactiveSec=5min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

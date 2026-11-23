@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "require_native_checks": true,
+  "id": "PILOT-1",
+  "issue": "PILOT-1",
+  "owner": "Replace with the Jira assignee",
+  "repository": "D:/work/example-repo",
+  "base": "0000000000000000000000000000000000000000",
+  "intent": "Add a focused regression test for an agreed behavior.",
+  "acceptance": ["The test fails against the known bad behavior and passes against the candidate."],
+  "scope": ["tests"],
+  "context": [
+    {
+      "location": "jira:PILOT-1",
+      "revision": "Replace with the reviewed intent revision or snapshot digest"
+    }
+  ],
+  "skill": {
+    "location": "repo:factory/skills/verify-candidate/SKILL.md",
+    "revision": "Replace with the approved skill commit"
+  }
+}

@@ -1,0 +1,92 @@
+groups:
+  - name: craft-factory-queue
+    interval: 30s
+    rules:
+      - alert: CraftQueueScrapeUnavailable
+        expr: up{job="craft-factory-queue"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue metrics scrape is unavailable
+      - alert: CraftQueueRecoveryPending
+        expr: craft_queue_recovery_active{job="craft-factory-queue"} == 1 and up{job="craft-factory-queue"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue recovery needs operator action
+      - alert: CraftQueuePublicationHeld
+        expr: craft_queue_held_publications{job="craft-factory-queue"} > 0 and up{job="craft-factory-queue"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue has publications awaiting reconciliation
+      - alert: CraftQueueLeaseOverdue
+        expr: |
+          craft_queue_overdue_leases{job="craft-factory-queue"} > 0
+          and craft_queue_paused{job="craft-factory-queue"} == 0
+          and craft_queue_recovery_active{job="craft-factory-queue"} == 0
+          and up{job="craft-factory-queue"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue has leases awaiting takeover
+      - alert: CraftQueueBacklogAging
+        expr: |
+          craft_queue_oldest_queued_seconds{job="craft-factory-queue"} >= 900
+          and craft_queue_queued{job="craft-factory-queue"} > 0
+          and craft_queue_paused{job="craft-factory-queue"} == 0
+          and craft_queue_recovery_active{job="craft-factory-queue"} == 0
+          and up{job="craft-factory-queue"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue work is waiting to start
+      - alert: CraftQueueStandingDelegationBlocked
+        expr: |
+          craft_queue_standing_delegation_blocked{job="craft-factory-queue"} > 0
+          and craft_queue_paused{job="craft-factory-queue"} == 0
+          and craft_queue_recovery_active{job="craft-factory-queue"} == 0
+          and up{job="craft-factory-queue"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue work needs a standing delegation check
+      - alert: CraftQueueReviewWaiting
+        expr: |
+          craft_queue_oldest_pending_review_seconds{job="craft-factory-queue"} >= 14400
+          and craft_queue_pending_review_assignments{job="craft-factory-queue"} > 0
+          and craft_queue_paused{job="craft-factory-queue"} == 0
+          and craft_queue_recovery_active{job="craft-factory-queue"} == 0
+          and up{job="craft-factory-queue"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: A current Craft queue review assignment is waiting for a decision
+      - alert: CraftQueueVerificationWaiting
+        expr: |
+          craft_queue_oldest_waiting_verification_seconds{job="craft-factory-queue"} >= 900
+          and craft_queue_waiting_verification_candidates{job="craft-factory-queue"} > 0
+          and craft_queue_paused{job="craft-factory-queue"} == 0
+          and craft_queue_recovery_active{job="craft-factory-queue"} == 0
+          and up{job="craft-factory-queue"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: A Craft queue candidate is waiting for an independent verifier
+      - alert: CraftQueueTokenOverrun
+        expr: |
+          craft_queue_token_overrun_attempts_15m{job="craft-factory-queue"} > 0
+          and up{job="craft-factory-queue"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Craft queue recorded worker usage above its token reservation

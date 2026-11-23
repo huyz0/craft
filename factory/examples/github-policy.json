@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "repository": "owner/repository",
+  "base_branch": "main",
+  "reviewer_ids": [],
+  "minimum_merge_approvals": 0,
+  "check_definitions": ["ci", "scripts/run-required-tests.py"],
+  "required_checks": [
+    {"name": "Verify candidate", "app_id": 12345}
+  ]
+}

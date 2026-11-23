@@ -1,0 +1,22 @@
+[Unit]
+Description=Craft Factory shared queue
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+User=craft-queue
+Group=craft-queue
+LoadCredential=CRAFT_DATABASE_URL:/etc/craft-factory/secrets/database-url
+ExecStart=/opt/craft-factory/shared/craft-factory-queue --bind 127.0.0.1:8443 --certificate /etc/craft-factory/queue/server.pem --private-key /etc/craft-factory/queue/key.pem --identities /etc/craft-factory/queue/identities.json
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=45s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

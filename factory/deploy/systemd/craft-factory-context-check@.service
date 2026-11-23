@@ -1,0 +1,14 @@
+[Unit]
+Description=Check approved Craft Factory Confluence context for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/context-check/%i
+EnvironmentFile=%h/.config/craft-factory/context-check/%i/check.env
+LoadCredential=context-reader:%h/.config/craft-factory/context-check/%i/context-reader-token
+UnsetEnvironment=CRAFT_FACTORY_CONTEXT_READER_TOKEN CRAFT_FACTORY_CONTEXT_READER_TOKEN_FILE CRAFT_FACTORY_OPERATOR_TOKEN CRAFT_FACTORY_OPERATOR_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory shared-ops --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem check-confluence-context confluence-policy.json --context-reader --context-reader-token-file %d/context-reader --require-current --report-file last-report.json
+TimeoutStartSec=1min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

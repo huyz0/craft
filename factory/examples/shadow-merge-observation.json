@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "issuer": "fixture:forge-exporter",
+  "evidence": "fixture:pull-request/101/snapshot/4",
+  "policy_digest": "sha256:c6aeb634164263f6bb929d153b3ed09a7dc057e293369fe5c0f83e2ca9970dee",
+  "repository": "team/service",
+  "draft_url": "https://bitbucket.org/team/service/pull-requests/101",
+  "base_branch": "main",
+  "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "author": "fixture:author",
+  "open": true,
+  "draft": false,
+  "mergeable": true,
+  "protected": true,
+  "protection_revision": "fixture:main-restrictions/7",
+  "observed_at": 1795238400,
+  "checks": [
+    {
+      "name": "Verify changes",
+      "issuer": "fixture:trusted-pipeline",
+      "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "passed": true,
+      "evidence": "fixture:pipeline/18/verify"
+    }
+  ],
+  "reviews": [
+    {
+      "actor": "fixture:reviewer-1",
+      "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decision": "approved",
+      "decided_at": 1795238300,
+      "evidence": "fixture:pull-request/101/review/8"
+    }
+  ]
+}

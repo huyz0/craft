@@ -1,0 +1,14 @@
+[Unit]
+Description=Observe one Craft Factory GitHub enqueue candidate for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/readiness/%i
+EnvironmentFile=%h/.config/craft-factory/readiness/%i/verifier.env
+LoadCredential=queue-verifier:%h/.config/craft-factory/readiness/%i/verifier-token
+UnsetEnvironment=CRAFT_FACTORY_VERIFIER_TOKEN CRAFT_FACTORY_VERIFIER_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory shared-ops --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem poll-github-readiness --repository-map repository-map.json --checkout-root %h/.config/craft-factory/readiness/%i/checkouts --policy policy.json --gh ${CRAFT_FACTORY_GH_PATH} --approved-protection-digest ${CRAFT_FACTORY_GITHUB_PROTECTION_DIGEST} --verifier-token-file %d/queue-verifier --report-file last-report.json
+TimeoutStartSec=3min
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

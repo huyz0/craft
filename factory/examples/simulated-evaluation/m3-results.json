@@ -1,0 +1,187 @@
+{
+  "fixture_sha256": "27626e4931d76ce0bd2b981b098dde4bb64bf0a259f18f55d18addc0cf6e7913",
+  "paths": {
+    "Factory": {
+      "accepted_changes": 0,
+      "by_task_class": {
+        "CI repair": {
+          "verified draft": 1
+        },
+        "dependency compatibility": {
+          "verified draft": 1
+        },
+        "documentation and context": {
+          "verified draft": 1
+        },
+        "input validation": {
+          "verified draft": 1
+        }
+      },
+      "cases": 4,
+      "human_active_minutes": {
+        "missing_cases": 0,
+        "observed_total": "52",
+        "recorded_cases": 4
+      },
+      "measurements": {
+        "abandoned_attempts": {
+          "missing_cases": 0,
+          "observed_total": 0,
+          "recorded_cases": 4
+        },
+        "cached_input_tokens": {
+          "missing_cases": 0,
+          "observed_total": 1375,
+          "recorded_cases": 4
+        },
+        "elapsed_minutes": {
+          "missing_cases": 0,
+          "observed_total": "71",
+          "recorded_cases": 4
+        },
+        "finished_attempts": {
+          "missing_cases": 0,
+          "observed_total": 6,
+          "recorded_cases": 4
+        },
+        "input_tokens": {
+          "missing_cases": 0,
+          "observed_total": 4950,
+          "recorded_cases": 4
+        },
+        "material_misses": {
+          "missing_cases": 0,
+          "observed_total": 0,
+          "recorded_cases": 4
+        },
+        "output_tokens": {
+          "missing_cases": 0,
+          "observed_total": 555,
+          "recorded_cases": 4
+        },
+        "queue_minutes": {
+          "missing_cases": 0,
+          "observed_total": "8",
+          "recorded_cases": 4
+        },
+        "repair_cycles": {
+          "missing_cases": 0,
+          "observed_total": 2,
+          "recorded_cases": 4
+        },
+        "started_attempts": {
+          "missing_cases": 0,
+          "observed_total": 6,
+          "recorded_cases": 4
+        }
+      },
+      "metered_cost": {
+        "missing_cases": 0,
+        "observed_totals": {
+          "USD": "0.84"
+        },
+        "per_accepted_change": null,
+        "recorded_cases": 4
+      },
+      "outcomes": {
+        "verified draft": 4
+      },
+      "review_kinds": {
+        "simulated": 4
+      }
+    },
+    "Ordinary": {
+      "accepted_changes": 0,
+      "by_task_class": {
+        "CI repair": {
+          "rejected": 1
+        },
+        "dependency compatibility": {
+          "verified draft": 1
+        },
+        "documentation and context": {
+          "abandoned": 1
+        },
+        "input validation": {
+          "verified draft": 1
+        }
+      },
+      "cases": 4,
+      "human_active_minutes": {
+        "missing_cases": 0,
+        "observed_total": "64",
+        "recorded_cases": 4
+      },
+      "measurements": {
+        "abandoned_attempts": {
+          "missing_cases": 0,
+          "observed_total": 2,
+          "recorded_cases": 4
+        },
+        "cached_input_tokens": {
+          "missing_cases": 0,
+          "observed_total": 1450,
+          "recorded_cases": 4
+        },
+        "elapsed_minutes": {
+          "missing_cases": 0,
+          "observed_total": "85",
+          "recorded_cases": 4
+        },
+        "finished_attempts": {
+          "missing_cases": 0,
+          "observed_total": 4,
+          "recorded_cases": 4
+        },
+        "input_tokens": {
+          "missing_cases": 0,
+          "observed_total": 5700,
+          "recorded_cases": 4
+        },
+        "material_misses": {
+          "missing_cases": 0,
+          "observed_total": 1,
+          "recorded_cases": 4
+        },
+        "output_tokens": {
+          "missing_cases": 0,
+          "observed_total": 605,
+          "recorded_cases": 4
+        },
+        "queue_minutes": {
+          "missing_cases": 0,
+          "observed_total": "4",
+          "recorded_cases": 4
+        },
+        "repair_cycles": {
+          "missing_cases": 0,
+          "observed_total": 1,
+          "recorded_cases": 4
+        },
+        "started_attempts": {
+          "missing_cases": 0,
+          "observed_total": 6,
+          "recorded_cases": 4
+        }
+      },
+      "metered_cost": {
+        "missing_cases": 0,
+        "observed_totals": {
+          "USD": "0.96"
+        },
+        "per_accepted_change": null,
+        "recorded_cases": 4
+      },
+      "outcomes": {
+        "abandoned": 1,
+        "rejected": 1,
+        "verified draft": 2
+      },
+      "review_kinds": {
+        "simulated": 4
+      }
+    }
+  },
+  "provenance": "simulated",
+  "schema_version": 1
+}

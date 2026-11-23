@@ -1,0 +1,14 @@
+[Unit]
+Description=Check Craft Factory GitHub merges for %i
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.config/craft-factory/merge/github-%i
+EnvironmentFile=%h/.config/craft-factory/merge/github-%i/check.env
+LoadCredential=CRAFT_FACTORY_VERIFIER_TOKEN:%h/.config/craft-factory/merge/github-%i/verifier-token
+UnsetEnvironment=CRAFT_FACTORY_VERIFIER_TOKEN CRAFT_FACTORY_VERIFIER_TOKEN_FILE
+ExecStart=/opt/craft-factory/craft-factory shared-ops --queue ${CRAFT_FACTORY_QUEUE_URL} --ca queue-ca.pem check-github-merges --policy policy.json --policy-digest ${CRAFT_FACTORY_MERGE_POLICY_DIGEST} --gh ${CRAFT_FACTORY_GH_PATH} --cursor-db cursor.db --report-file last-report.json --budget-seconds 60 $CRAFT_FACTORY_GITHUB_CLOSURE_MODE
+TimeoutStartSec=90s
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+UMask=0077

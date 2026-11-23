@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll Craft Factory GitHub enqueue readiness for %i
+
+[Timer]
+OnActiveSec=30s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

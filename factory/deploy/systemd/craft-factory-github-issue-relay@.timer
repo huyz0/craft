@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh the Craft Factory GitHub issue observation for %i
+
+[Timer]
+OnActiveSec=15s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

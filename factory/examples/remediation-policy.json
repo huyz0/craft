@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "change": {
+    "repository": "bitbucket:example/sample-api",
+    "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "pull_request": "fixture:pull-requests/16",
+    "work_item": "SAMPLE-42",
+    "intent_reference": "fixture:decisions/sample-timeouts",
+    "intent_revision": "7",
+    "approval_reference": "fixture:approvals/42"
+  },
+  "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "release_max_age_seconds": 120,
+  "required_targets": [
+    {
+      "target": {
+        "service": "sample-api",
+        "environment": "staging",
+        "region": "au-east",
+        "resource": "sample-api-blue"
+      },
+      "config_revision": "sample-config-42"
+    }
+  ]
+}

@@ -1,0 +1,395 @@
+name: Factory checks
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: factory-checks-${{ github.event_name == 'pull_request' && github.run_attempt == '1' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.run_attempt == '1' }}
+
+permissions:
+  contents: read
+
+env:
+  KIT_PROFILE: ${{ github.event_name == 'workflow_dispatch' && 'release' || 'dev' }}
+  KIT_BUILD_DIR: ${{ github.event_name == 'workflow_dispatch' && 'release' || 'debug' }}
+  CARGO_TARGET_DIR: ${{ github.workspace }}/factory/target
+
+jobs:
+  scope:
+    name: Select Factory checks
+    runs-on: ubuntu-latest
+    outputs:
+      lane: ${{ steps.scope.outputs.lane }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Test Factory CI tools
+        run: python3 -B -m unittest discover -s factory/tools
+      - name: Select the lane from the merge checkout
+        id: scope
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 factory/tools/check_ci_scope.py select
+      - name: Validate Factory documentation
+        run: python3 factory/tools/check_ci_scope.py validate-docs
+  offline:
+    name: Offline checks (windows-latest)
+    needs: scope
+    if: ${{ needs.scope.outputs.lane == 'full' }}
+    runs-on: windows-latest
+    outputs:
+      cache-hit: ${{ steps.cargo_cache.outputs.cache-hit }}
+      cache-result: ${{ steps.cargo_cache.outcome }}
+    defaults:
+      run:
+        working-directory: factory
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the pinned toolchain
+        run: rustup show
+      - name: Restore Cargo cache
+        id: cargo_cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            factory/target
+          key: factory-offline-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.KIT_PROFILE }}-${{ hashFiles('factory/rust-toolchain.toml', 'factory/Cargo.lock', 'factory/shared/Cargo.lock') }}
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --locked --offline --all-targets -- -D warnings
+      - name: Run credential-free workflows
+        id: windows_tests
+        run: cargo test --locked --offline
+      - name: Qualify the Windows shared-service kit after extraction
+        id: windows_kit
+        shell: pwsh
+        run: |
+          if ($env:KIT_PROFILE -eq 'release') {
+            cargo build --locked --profile $env:KIT_PROFILE
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          cargo build --locked --profile $env:KIT_PROFILE --manifest-path shared/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $delivery = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP 'factory-delivery')
+          $archive = Join-Path $delivery.FullName 'craft-factory-shared-windows-x64.zip'
+          $binaries = Join-Path $env:CARGO_TARGET_DIR $env:KIT_BUILD_DIR
+          ./tools/package-windows.ps1 -Launcher (Join-Path $binaries 'craft-factory.exe') `
+            -QueueService (Join-Path $binaries 'craft-factory-queue.exe') -Output $archive -FullQualification
+      - name: Verify the extracted Windows queue and Confluence reports
+        id: queue_smoke
+        shell: pwsh
+        run: |
+          if (!$env:PGBIN) { throw 'The Windows runner must provide PostgreSQL binaries through PGBIN.' }
+          $archive = Join-Path $env:RUNNER_TEMP 'factory-delivery/craft-factory-shared-windows-x64.zip'
+          $archiveDigest = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $kit = Join-Path $env:RUNNER_TEMP 'factory-kit'
+          Expand-Archive -LiteralPath $archive -DestinationPath $kit
+          $fixture = Join-Path $env:RUNNER_TEMP 'craft-confluence-fixture.exe'
+          rustc tests/fixtures/agent.rs -o $fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $smoke = python -B (Join-Path $kit 'tools/smoke_shared_queue.py') --postgres-bin $env:PGBIN --confluence-fixture $fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $smoke
+          $report = @{ archive_sha256 = $archiveDigest; result = (($smoke -join "`n") | ConvertFrom-Json -AsHashtable) }
+          $report | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-smoke-report.json')
+      - name: Qualify the extracted Windows queue over HTTPS
+        id: windows_queue_https
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          python -B tools/qualify_windows_queue.py (Join-Path $env:RUNNER_TEMP 'factory-kit') --postgres-bin $env:PGBIN
+      - name: Record Windows release qualification
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          KIT_CHECK_LAUNCHER_TESTS: ${{ steps.windows_tests.outcome }}
+          KIT_CHECK_EXTRACTED_KIT: ${{ steps.windows_kit.outcome }}
+          KIT_CHECK_CI_REPAIR: ${{ steps.windows_kit.outcome }}
+          KIT_CHECK_QUEUE_SMOKE: ${{ steps.queue_smoke.outcome }}
+          KIT_CHECK_QUEUE_HTTPS: ${{ steps.windows_queue_https.outcome }}
+        run: |
+          python tools/release_kit_receipt.py write (Join-Path $env:RUNNER_TEMP 'factory-delivery/craft-factory-shared-windows-x64.zip') `
+            --windows-smoke-report (Join-Path $env:RUNNER_TEMP 'windows-smoke-report.json')
+      - name: Retain the qualified Windows kit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: craft-factory-shared-windows-x64-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/factory-delivery/craft-factory-shared-windows-x64.zip
+            ${{ runner.temp }}/factory-delivery/SHA256SUMS
+            ${{ runner.temp }}/factory-delivery/qualification.json
+          if-no-files-found: error
+          compression-level: 0
+  shared-queue:
+    name: Shared PostgreSQL queue
+    needs: scope
+    if: ${{ needs.scope.outputs.lane == 'full' }}
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cargo_cache.outputs.cache-hit }}
+      cache-result: ${{ steps.cargo_cache.outcome }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: craft_factory_test
+          POSTGRES_PASSWORD: factory-ci-only
+        options: >-
+          --health-cmd "pg_isready -U postgres -d craft_factory_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432/tcp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the pinned toolchain
+        working-directory: factory
+        run: rustup show
+      - name: Restore Cargo cache
+        id: cargo_cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            factory/target
+          key: factory-queue-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.KIT_PROFILE }}-${{ hashFiles('factory/rust-toolchain.toml', 'factory/Cargo.lock', 'factory/shared/Cargo.lock') }}
+      - name: Exercise contention and lease takeover
+        id: queue_sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+          PGUSER: postgres
+          PGDATABASE: craft_factory_test
+          PGPASSWORD: factory-ci-only
+        run: python3 factory/shared/test_queue.py
+      - name: Build the authenticated shared service
+        working-directory: factory/shared
+        run: |
+          cargo fetch --locked
+          cargo fmt --all -- --check
+          cargo clippy --locked --offline --all-targets -- -D warnings
+          cargo build --locked --offline --profile "$KIT_PROFILE"
+      - name: Prepare the Linux runner sandbox and Prometheus tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y bubblewrap
+          mkdir "$RUNNER_TEMP/factory-prometheus"
+          cd "$RUNNER_TEMP/factory-prometheus"
+          apt-get download prometheus
+          dpkg-deb -x prometheus_*.deb .
+          if [ ! -x usr/bin/promtool ]; then
+            apt-get download promtool
+            dpkg-deb -x promtool_*.deb .
+          fi
+          echo "CRAFT_TEST_PROMETHEUS=$PWD/usr/bin/prometheus" >> "$GITHUB_ENV"
+      - name: Fetch locked launcher dependencies
+        working-directory: factory
+        run: cargo fetch --locked
+      - name: Check launcher formatting and lint
+        working-directory: factory
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --locked --offline --all-targets -- -D warnings
+      - name: Run credential-free Linux workflows
+        id: linux_tests
+        working-directory: factory
+        run: cargo test --locked --offline
+      - name: Build the Linux release launcher
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: factory
+        run: cargo build --locked --offline --release
+      - name: Package and extract the Linux shared-service kit
+        id: linux_kit
+        run: |
+          mkdir "$RUNNER_TEMP/factory-delivery"
+          archive="$RUNNER_TEMP/factory-delivery/craft-factory-shared-linux-x64.tar.gz"
+          binaries="$CARGO_TARGET_DIR/$KIT_BUILD_DIR"
+          python3 factory/tools/package_linux.py --launcher "$binaries/craft-factory" \
+            --queue-service "$binaries/craft-factory-queue" --output "$archive"
+          mkdir "$RUNNER_TEMP/factory-kit"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/factory-kit"
+          mkdir "$RUNNER_TEMP/factory-units"
+          for unit in "$RUNNER_TEMP/factory-kit/deploy/systemd/"*.service "$RUNNER_TEMP/factory-kit/deploy/systemd/"*.timer; do
+            sed "s|/opt/craft-factory/|$RUNNER_TEMP/factory-kit/|g" "$unit" \
+              > "$RUNNER_TEMP/factory-units/$(basename "$unit")"
+          done
+          systemd-analyze verify --man=no "$RUNNER_TEMP/factory-units/"*.service "$RUNNER_TEMP/factory-units/"*.timer
+          cd "$RUNNER_TEMP/factory-kit/deploy/prometheus"
+          "$RUNNER_TEMP/factory-prometheus/usr/bin/promtool" check rules craft-factory.rules.yml
+          "$RUNNER_TEMP/factory-prometheus/usr/bin/promtool" test rules craft-factory.rules.test.yml
+      - name: Smoke test the installed Linux queue with a private database
+        id: queue_smoke
+        shell: bash
+        run: |
+          postgres_bin="$(pg_config --bindir)"
+          cd "$RUNNER_TEMP"
+          python3 -B "$RUNNER_TEMP/factory-kit/tools/smoke_shared_queue.py" --postgres-bin "$postgres_bin"
+      - name: Verify CI repair and coordinator behavior from the extracted Linux kit
+        id: linux_repair
+        shell: bash
+        working-directory: factory
+        run: python3 -B tools/qualify_launcher.py "$RUNNER_TEMP/factory-kit/craft-factory"
+      - name: Install the extracted kit and exercise its HTTPS interfaces
+        id: queue_https
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+          PGUSER: postgres
+          PGPASSWORD: factory-ci-only
+          PGDATABASE: craft_factory_https_test
+          CRAFT_TEST_DATABASE_URL: postgres://craft_test_service:disposable-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/craft_factory_https_test
+          FACTORY_REQUIRE_CLAUDE_FIXTURE: "1"
+        run: |
+          createdb -l C craft_factory_https_test
+          kit="$RUNNER_TEMP/factory-kit"
+          python3 factory/shared/test_service.py "$kit/shared/craft-factory-queue" \
+            --launcher "$kit/craft-factory" --install-assets "$kit/shared"
+      - name: Qualify native Linux workers and standing Jira and GitHub repair
+        if: github.event_name == 'workflow_dispatch'
+        id: native_workers
+        run: |
+          workers="$RUNNER_TEMP/factory-native-workers"
+          mkdir "$workers"
+          curl --fail --silent --show-error --retry 2 --max-time 120 \
+            https://registry.npmjs.org/@openai/codex/-/codex-0.171.0-alpha.13-linux-x64.tgz -o "$workers/codex.tgz"
+          curl --fail --silent --show-error --retry 2 --max-time 120 \
+            https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64/-/claude-code-linux-x64-2.1.330.tgz -o "$workers/claude.tgz"
+          bash factory/tools/qualify_native_release_workers.sh \
+            "$RUNNER_TEMP/factory-kit" "$workers/codex.tgz" "$workers/claude.tgz" "$(pg_config --bindir)" \
+            "$RUNNER_TEMP/factory-delivery/native-worker-comparison.json"
+      - name: Record Linux release qualification
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          KIT_CHECK_LAUNCHER_TESTS: ${{ steps.linux_tests.outcome }}
+          KIT_CHECK_EXTRACTED_KIT: ${{ steps.linux_kit.outcome }}
+          KIT_CHECK_CI_REPAIR: ${{ steps.linux_repair.outcome }}
+          KIT_CHECK_QUEUE_SQL: ${{ steps.queue_sql.outcome }}
+          KIT_CHECK_QUEUE_HTTPS: ${{ steps.queue_https.outcome }}
+          KIT_CHECK_QUEUE_SMOKE: ${{ steps.queue_smoke.outcome }}
+          KIT_CHECK_NATIVE_WORKERS: ${{ steps.native_workers.outcome }}
+        run: python3 factory/tools/release_kit_receipt.py write "$RUNNER_TEMP/factory-delivery/craft-factory-shared-linux-x64.tar.gz"
+      - name: Retain the qualified Linux kit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: craft-factory-shared-linux-x64-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/factory-delivery/craft-factory-shared-linux-x64.tar.gz
+            ${{ runner.temp }}/factory-delivery/SHA256SUMS
+            ${{ runner.temp }}/factory-delivery/qualification.json
+            ${{ runner.temp }}/factory-delivery/native-worker-comparison.json
+          if-no-files-found: error
+          compression-level: 0
+  timing:
+    name: Report Factory timing
+    needs: [scope, offline, shared-queue]
+    if: ${{ !cancelled() && needs.scope.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Summarize this run attempt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LANE: ${{ needs.scope.outputs.lane }}
+          WINDOWS_HIT: ${{ needs.offline.outputs.cache-hit }}
+          WINDOWS_RESULT: ${{ needs.offline.outputs.cache-result }}
+          LINUX_HIT: ${{ needs.shared-queue.outputs.cache-hit }}
+          LINUX_RESULT: ${{ needs.shared-queue.outputs.cache-result }}
+        run: |
+          cache_state() {
+            case "$1:$2" in
+              success:true) echo hit ;;
+              success:false|success:) echo 'no exact hit' ;;
+              *) echo unavailable ;;
+            esac
+          }
+          gh api --hostname github.com \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            | python3 -B factory/tools/summarize_ci_timing.py --run-id "$GITHUB_RUN_ID" \
+              --attempt "$GITHUB_RUN_ATTEMPT" --lane "$LANE" \
+              --windows-cache "$(cache_state "$WINDOWS_RESULT" "$WINDOWS_HIT")" \
+              --linux-cache "$(cache_state "$LINUX_RESULT" "$LINUX_HIT")" \
+              >> "$GITHUB_STEP_SUMMARY"
+  required:
+    name: Factory required checks
+    needs: [scope, offline, shared-queue]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the selected checks
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          LANE: ${{ needs.scope.outputs.lane }}
+          OFFLINE_RESULT: ${{ needs.offline.result }}
+          QUEUE_RESULT: ${{ needs.shared-queue.result }}
+        run: |
+          test "$SCOPE_RESULT" = success || exit 1
+          case "$LANE" in
+            docs) test "$OFFLINE_RESULT" = skipped && test "$QUEUE_RESULT" = skipped ;;
+            full) test "$OFFLINE_RESULT" = success && test "$QUEUE_RESULT" = success ;;
+            *) echo 'Factory CI did not report a valid lane.' >&2; exit 1 ;;
+          esac
+  release-bundle:
+    name: Assemble qualified Factory release
+    needs: [required, offline, shared-queue]
+    if: ${{ github.event_name == 'workflow_dispatch' && needs.required.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download the qualified Windows kit
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: craft-factory-shared-windows-x64-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-release/windows
+      - name: Download the qualified Linux kit
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: craft-factory-shared-linux-x64-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-release/linux
+      - name: Verify both kits belong to this release attempt
+        run: |
+          python3 -B factory/tools/release_kit_receipt.py bundle "$RUNNER_TEMP/factory-release" \
+            --source-commit "$GITHUB_SHA" --workflow-commit "$GITHUB_WORKFLOW_SHA" \
+            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+      - name: Verify and install both bundled kits into fresh directories
+        run: |
+          for platform in windows linux; do
+            python3 -B factory/tools/release_kit_receipt.py install-bundle \
+              "$RUNNER_TEMP/factory-release" "$RUNNER_TEMP/factory-installed-$platform" --platform "$platform" \
+              --source-commit "$GITHUB_SHA" --workflow-commit "$GITHUB_WORKFLOW_SHA" \
+              --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+          done
+          "$RUNNER_TEMP/factory-installed-linux/craft-factory" --version
+          "$RUNNER_TEMP/factory-installed-linux/shared/craft-factory-queue" --help >/dev/null
+          python3 -B "$RUNNER_TEMP/factory-installed-linux/tools/smoke_shared_queue.py" --postgres-bin "$(pg_config --bindir)"
+      - name: Retain the complete release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: craft-factory-release-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-release
+          if-no-files-found: error
+          compression-level: 0

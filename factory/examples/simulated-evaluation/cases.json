@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "provenance": "simulated",
+  "cases": [
+    {
+      "id": "INPUT-1", "class": "input validation", "file": "validation.txt",
+      "intent": "Reject blank values while preserving nonblank values.",
+      "expected": "blank:reject\nnonblank:accept\n",
+      "ordinary": ["verified draft", 1, 1, 0, 0, 0, 18, [4, 3, 6, 2], 1100, 240, 120, "0.18", 0],
+      "factory": ["verified draft", 1, 1, 0, 0, 1, 13, [4, 1, 4, 0], 850, 180, 100, "0.14", 0],
+      "codex": {"tokens": 140, "candidate": "blank:reject\nnonblank:accept\n"},
+      "claude": {"tokens": 210, "candidate": "blank:reject\nnonblank:accept\n"}
+    },
+    {
+      "id": "CI-2", "class": "CI repair", "file": "pipeline.txt",
+      "intent": "Repair the test entry point while keeping the protected check enabled.",
+      "expected": "entry:test\nprotected:enabled\n",
+      "ordinary": ["rejected", 2, 2, 0, 1, 1, 29, [5, 4, 8, 6], 1850, 600, 210, "0.30", 1],
+      "factory": ["verified draft", 2, 2, 0, 1, 2, 23, [5, 2, 6, 3], 1500, 475, 180, "0.25", 0],
+      "codex": {"tokens": 160, "candidate": "entry:test\nprotected:disabled\n"},
+      "claude": {"tokens": 260, "candidate": "entry:test\nprotected:enabled\n"}
+    },
+    {
+      "id": "API-3", "class": "dependency compatibility", "file": "compatibility.txt",
+      "intent": "Keep compatibility with both the old and new dependency contracts.",
+      "expected": "old:compatible\nnew:compatible\n",
+      "ordinary": ["verified draft", 2, 1, 1, 0, 3, 30, [6, 5, 7, 3], 2200, 510, 230, "0.39", 0],
+      "factory": ["verified draft", 2, 2, 0, 1, 4, 26, [6, 2, 7, 4], 2000, 620, 220, "0.35", 0],
+      "codex": {"tokens": 190, "candidate": "old:compatible\nnew:compatible\n"},
+      "claude": {"tokens": 290, "candidate": "old:incompatible\nnew:compatible\n"}
+    },
+    {
+      "id": "DOC-4", "class": "documentation and context", "file": "runbook.txt",
+      "intent": "Document how to pause and reconcile an uncertain publication.",
+      "expected": "pause:intake\nreconcile:publication\n",
+      "ordinary": ["abandoned", 1, 0, 1, 0, 0, 8, [3, 2, 0, 0], 550, 100, 45, "0.09", 0],
+      "factory": ["verified draft", 1, 1, 0, 0, 1, 9, [3, 1, 3, 1], 600, 100, 55, "0.10", 0],
+      "codex": {"tokens": 105, "candidate": "pause:intake\nreconcile:publication\n"},
+      "claude": {"tokens": null, "candidate": null}
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Check one approved GitHub CI repair lane
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/craft-factory/ci-repair/digests.env
+ExecStart=/opt/craft-factory/craft-factory --state %h/.local/state/craft-factory/ci-repair/state.db run-ci-cycle %h/.config/craft-factory/ci-repair/work-order.json --order-digest ${CRAFT_FACTORY_CI_ORDER_DIGEST} --github-policy %h/.config/craft-factory/ci-repair/github-policy.json --policy-digest ${CRAFT_FACTORY_CI_POLICY_DIGEST} --gh /usr/bin/gh --attempt-root %h/.local/state/craft-factory/ci-repair/attempts --codex /usr/local/bin/codex --codex-home %h/.local/state/craft-factory/ci-repair/codex-home --report-file %h/.local/state/craft-factory/ci-repair/last-report.json
+TimeoutStartSec=20min
+UMask=0077

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "inventory": [
+    {
+      "target": {
+        "service": "sample-api",
+        "environment": "staging",
+        "region": "au-east",
+        "resource": "sample-api-blue"
+      },
+      "owner": "Sample API team",
+      "running": {
+        "deployment_id": "sample-rollout-17",
+        "config_revision": "sample-config-42",
+        "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "observation": {
+        "source": "fixture inventory",
+        "reference": "fixture:inventory/17",
+        "observed_at": 1795238340
+      }
+    }
+  ],
+  "deployments": [
+    {
+      "target": {
+        "service": "sample-api",
+        "environment": "staging",
+        "region": "au-east",
+        "resource": "sample-api-blue"
+      },
+      "version": {
+        "deployment_id": "sample-rollout-17",
+        "config_revision": "sample-config-42",
+        "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "repository": "bitbucket:example/sample-api",
+      "deployed_at": 1795238100,
+      "observation": {
+        "source": "fixture deployment history",
+        "reference": "fixture:deployments/17",
+        "observed_at": 1795238320
+      }
+    }
+  ],
+  "builds": [
+    {
+      "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repository": "bitbucket:example/sample-api",
+      "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "built_at": 1795238060,
+      "observation": {
+        "source": "fixture build provenance",
+        "reference": "fixture:builds/78",
+        "observed_at": 1795238090
+      }
+    }
+  ],
+  "changes": [
+    {
+      "repository": "bitbucket:example/sample-api",
+      "result_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "pull_request": "fixture:pull-requests/16",
+      "work_item": "SAMPLE-42",
+      "intent_reference": "fixture:decisions/sample-timeouts",
+      "intent_revision": "7",
+      "approval_reference": "fixture:approvals/42",
+      "merged_at": 1795238000,
+      "observation": {
+        "source": "fixture forge and decision record",
+        "reference": "fixture:changes/16",
+        "observed_at": 1795238030
+      }
+    }
+  ]
+}

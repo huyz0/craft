@@ -1,6 +1,6 @@
 # AI software factory research
 
-Research date: **8 November 2026** (Australia/Sydney). SDD means **spec-driven development** throughout this collection.
+Initial research date: **8 November 2026** (Australia/Sydney). See the [20 November requirements and pilot brief](factory-requirements-and-pilot.md) for the latest factory synthesis. SDD means **spec-driven development** throughout this collection.
 
 An AI software factory is a repeatable delivery system in which agents turn agreed requirements into architecture decisions, bounded implementation tasks, code, tests, review findings, and release evidence. Codex or Claude Code supplies the coding execution loop. The factory supplies durable work state, coordination, validation, and delivery controls.
 
@@ -12,6 +12,10 @@ The follow-up on tracking, outer loops, human coordination, identity, and billin
 
 | Document | What it answers |
 | --- | --- |
+| [Factory requirements and pilot](factory-requirements-and-pilot.md) | 20 November synthesis of team roles, dispatch, reviewer capacity, compliance, operations, upgrades, and model routing, with pilot acceptance cases |
+| [Factory MVP and end state](factory-mvp-and-end-state.md) | Independent votes, selected first release, mature components, and the order and criteria for adding them |
+| [Factory architecture and technology stack](factory-architecture-and-stack.md) | Stack ballot, execution and trust boundaries, component choices, and when to add shared infrastructure |
+| [Factory delivery plan](../plans/factory-delivery-plan.md) | Implementation milestones, task dependencies, acceptance evidence, and the independent delivery review |
 | [Findings and synthesis](ai-software-factory-study.md) | What the evidence supports, what has changed recently, and the limits of current approaches |
 | [Reference architecture](reference-architecture.md) | How spec, architecture, coding, evaluation, review, and delivery agents could work together |
 | [Tools and execution](tools-and-execution.md) | Spec Kit, OpenSpec, BMAD, Kiro, Codex, Claude Code, and orchestration choices |
