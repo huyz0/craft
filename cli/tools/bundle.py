@@ -19,7 +19,8 @@ MAX_ARCHIVE = 256 * 1024 * 1024
 MAX_FILE = 128 * 1024 * 1024
 MAX_TOTAL = 240 * 1024 * 1024
 SKILL_FILES = {"SKILL.md", "compatibility.json", "references/lists.md",
-               "references/writes.md", "references/plan-review.md", "references/recovery.md"}
+               "references/writes.md", "references/plan-review.md", "references/recovery.md",
+               "references/issue-to-pr.md", "references/whiteboards.md", "references/whiteboard-scenes.md"}
 PAYLOAD = {"bin/craft.exe", "schemas/local-contracts.json", "dependency-inventory.json",
            "README.txt"} | {"skills/craft-cloud/" + name for name in SKILL_FILES}
 PRODUCT = "Craft AI Factory CLI"
@@ -83,7 +84,8 @@ def check_payload(files, manifest):
             and compatibility["hosts"] == {"codex": "unqualified", "claude-code": "unqualified"}
             and compatibility["live_provider_qualification"] == "not_established_by_skill_validation",
             "Unsupported qualification claims")
-    require(compatibility["contract_snapshot_sha256"] == digest(files["schemas/local-contracts.json"])
+    require(compatibility["contract_snapshot_sha256"]
+            == digest(files["schemas/local-contracts.json"].replace(b"\r\n", b"\n"))
             and compatibility["binary_version"] == manifest["version"]
             and compatibility["contract_version"] == contract["contract_version"]
             and compatibility["status"] == "development"
@@ -112,7 +114,7 @@ def prepare(binary, binary_sha256, output):
              "schemas/local-contracts.json": (ROOT / "schemas/local-contracts.json").read_bytes(),
              "dependency-inventory.json": (ROOT / "docs/evidence/dependency-inventory.json").read_bytes()}
     inventory = document(files["dependency-inventory.json"])
-    require(inventory["lock_sha256"] == digest((ROOT / "Cargo.lock").read_bytes()),
+    require(inventory["lock_sha256"] == digest((ROOT / "Cargo.lock").read_bytes().replace(b"\r\n", b"\n")),
             "Dependency inventory does not match Cargo.lock")
     for name in SKILL_FILES:
         files["skills/craft-cloud/" + name] = (ROOT / "skills/craft-cloud" / name).read_bytes()

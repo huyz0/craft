@@ -15,6 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ("codex", "claude-code")
+SKILL_NAMES = ("atlassian-design", "confluence-pages", "craft-cloud")
 STOP_WORDS = set("a an and by can for from how i in it me my of on the this to use with".split())
 
 
@@ -56,9 +57,9 @@ def find(bundle, query, skill):
         title = words & terms(item["title"])
         aliases = words & terms(item["aliases"])
         description = words & terms(item["description"])
-        if not words or len(title | aliases | description) < min(2, len(words)):
+        if not aliases:
             continue
-        score = 3 * len(title) + 2 * len(aliases) + len(description)
+        score = 3 * len(title) + 4 * len(aliases) + len(description)
         matches.append((score, item["path"], {
             "skill": owner, "reference": relative, "title": item["title"],
             "description": item["description"],
@@ -69,6 +70,8 @@ def find(bundle, query, skill):
 
 def compatible_bundle(root):
     bundle = root / "skills"
+    if not all((bundle / name / "SKILL.md").is_file() for name in SKILL_NAMES):
+        raise ValueError("The bundle is missing a required skill")
     compatibility = json.loads((bundle / "craft-cloud/compatibility.json").read_text(encoding="utf-8"))
     snapshot = (root / "schemas/local-contracts.json").read_bytes().replace(b"\r\n", b"\n")
     if (hashlib.sha256(snapshot).hexdigest() != compatibility["contract_snapshot_sha256"]
@@ -132,29 +135,39 @@ def installations(bundle, destinations):
         for path in sorted(bundle.glob("*/SKILL.md"))
     }
     for host, config, skills in destinations:
+        directory_error = None
         for directory in (config, skills):
             kind = path_type(directory)
             if kind not in ("missing", "directory"):
-                raise ValueError(f"Unsafe {host} discovery directory ({kind}): {directory}")
+                directory_error = f"Unsafe {host} discovery directory ({kind}): {directory}"
+                break
         for name, expected in sources.items():
             directory = skills / name
+            detail = {"host": host, "skill": name, "path": str(directory)}
+            if directory_error:
+                yield {**detail, "status": "unsafe", "error": directory_error}, directory, expected
+                continue
             kind = path_type(directory)
-            detail = {"host": host, "skill": name, "path": str(directory), "status": kind}
+            detail["status"] = kind
             if kind == "directory":
-                actual = inventory(directory)
-                detail["status"] = "installed" if actual == expected else "conflict"
-                if detail["status"] == "conflict":
-                    detail["differences"] = [
-                        path.as_posix() for path in sorted(actual.keys() | expected.keys())
-                        if actual.get(path) != expected.get(path)
-                    ]
+                try:
+                    actual = inventory(directory)
+                except (OSError, ValueError) as error:
+                    detail.update(status="unsafe", error=str(error))
+                else:
+                    detail["status"] = "installed" if actual == expected else "conflict"
+                    if detail["status"] == "conflict":
+                        detail["differences"] = [
+                            path.as_posix() for path in sorted(actual.keys() | expected.keys())
+                            if actual.get(path) != expected.get(path)
+                        ]
             yield detail, directory, expected
 
 
 def install(entries):
     for detail, directory, _ in entries:
         if detail["status"] not in ("missing", "installed"):
-            raise ValueError(f"Existing skill conflicts with the bundle: {directory}")
+            raise ValueError(detail.get("error") or f"Existing skill conflicts with the bundle: {directory}")
     for detail, directory, files in entries:
         if detail["status"] == "installed":
             continue
@@ -212,7 +225,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     discover = commands.add_parser("find")
     discover.add_argument("query")
-    discover.add_argument("--skill", choices=("craft-cloud", "confluence-pages", "atlassian-design"))
+    discover.add_argument("--skill", choices=SKILL_NAMES)
     for name in ("install", "doctor"):
         command = commands.add_parser(name)
         command.add_argument("--host", choices=(*HOSTS, "both"), required=True)

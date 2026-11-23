@@ -13,7 +13,7 @@ class SkillTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        self.project = Path(directory.name)
+        self.project = Path(directory.name).resolve()
         self.bundle, self.compatibility = skills.compatible_bundle(skills.ROOT)
 
     def entries(self):
@@ -32,7 +32,17 @@ class SkillTests(unittest.TestCase):
                 self.assertEqual(matches[0]["reference"], f"references/{reference}")
                 self.assertLessEqual(len(matches), 3)
         self.assertEqual(skills.find(self.bundle, "publish banana bread", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "create and read a shopping list", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "show me whiteboards", None)["matches"][0]["reference"],
+                         "references/whiteboards.md")
         self.assertEqual(skills.find(self.bundle, "recovery", "confluence-pages")["matches"], [])
+
+    def test_synthetic_session_requests(self):
+        fixtures = json.loads((skills.ROOT / "tools/skill_session_fixtures.json").read_text(encoding="utf-8"))
+        for case, reference in {"issue-to-pr": "issue-to-pr", "plan-to-tickets": "plan-review",
+                                "interrupted-write": "recovery"}.items():
+            matches = skills.find(self.bundle, fixtures[case]["request"], None)["matches"]
+            self.assertEqual(matches[0]["reference"], f"references/{reference}.md")
 
     def test_idempotent_project_install_preserves_other_skill(self):
         other_skill = self.project / ".agents/skills/my-skill/SKILL.md"
@@ -60,10 +70,7 @@ class SkillTests(unittest.TestCase):
         self.assertFalse((self.project / ".agents").exists())
         self.assertEqual(claude_skill.read_text(encoding="utf-8"), "user edit")
 
-    def test_redirected_skill_directory_refused(self):
-        redirected = self.project / ".agents"
-        other = self.project / "other"
-        other.mkdir()
+    def redirect_directory(self, redirected, other):
         try:
             if sys.platform == "win32":
                 import _winapi
@@ -72,9 +79,29 @@ class SkillTests(unittest.TestCase):
                 redirected.symlink_to(other, target_is_directory=True)
         except (NotImplementedError, OSError) as error:
             self.skipTest(f"Creating symlinks is unavailable: {error}")
+
+    def test_redirected_discovery_directory_refused(self):
+        other = self.project / "other"
+        other.mkdir()
+        self.redirect_directory(self.project / ".agents", other)
+        entries = self.entries()
         with self.assertRaisesRegex(ValueError, "Unsafe codex discovery directory"):
-            self.entries()
+            skills.install(entries)
+        self.assertEqual({detail["status"] for detail, _, _ in entries}, {"unsafe", "missing"})
         self.assertEqual(list(other.iterdir()), [])
+
+    def test_doctor_keeps_other_results_when_one_reference_directory_is_redirected(self):
+        skills.install(self.entries())
+        candidate = self.project / ".claude/skills/craft-cloud/redirect"
+        other = self.project / "other"
+        other.mkdir()
+        self.redirect_directory(candidate, other)
+        results = [detail for detail, _, _ in self.entries()]
+        self.assertEqual(len(results), 6)
+        unsafe = next(detail for detail in results if detail["status"] == "unsafe")
+        self.assertEqual(unsafe["host"], "claude-code")
+        self.assertIn(str(candidate), unsafe["error"])
+        self.assertEqual(sum(result["status"] == "installed" for result in results), 5)
 
     def test_user_targets_respect_claude_config(self):
         with patch.object(Path, "home", return_value=self.project), patch.dict(

@@ -9,8 +9,10 @@ on:
       - 'cli/schemas/local-contracts.json'
       - 'cli/skills/**'
       - 'cli/tools/skills*.py'
+      - 'cli/tools/skill_session_fixtures.json'
       - 'cli/tools/runtime_skill.py'
       - 'cli/tools/release*.py'
+      - 'cli/tools/bundle*.py'
 permissions:
   contents: read
 jobs:
@@ -31,3 +33,5 @@ jobs:
       - run: python tools/skills_qualify.py check
       - run: python -m unittest skills_qualify_test skills_test release_test
         working-directory: cli/tools
+      - if: runner.os == 'Windows'
+        run: python tools/bundle_test.py
