@@ -20,7 +20,7 @@ STOP_WORDS = set(
     "a an and are by can find for from how i in it me my of on please search show tell the this to "
     "use what with".split()
 )
-DISTINCTIVE_ALIASES = set("adf drawio idempotency lozenge lozenges mermaid reconcile whiteboard whiteboards xhtml".split())
+DISTINCTIVE_ALIASES = set("adf drawio lozenge lozenges mermaid whiteboard whiteboards xhtml".split())
 
 
 def terms(text):
@@ -232,14 +232,18 @@ def write_skill(directory, files):
 
         committed = False
 
-        def cleanup(path, fd, remove):
+        def cleanup(path, fd, identity, remove):
             if not committed:
                 with suppress(OSError):
-                    remove(relative_path(path, fd), dir_fd=fd)
+                    target = relative_path(path, fd)
+                    if os.path.samestat(identity, os.stat(target, dir_fd=fd, follow_symlinks=False)):
+                        remove(target, dir_fd=fd)
 
         def make_directory(path, fd):
-            os.mkdir(relative_path(path, fd), dir_fd=fd)
-            stack.callback(cleanup, path, fd, os.rmdir)
+            target = relative_path(path, fd)
+            os.mkdir(target, dir_fd=fd)
+            identity = os.stat(target, dir_fd=fd, follow_symlinks=False)
+            stack.callback(cleanup, path, fd, identity, os.rmdir)
             return stack.enter_context(anchored_directory(path, fd))
 
         anchors = {directory: make_directory(directory, parent)}
@@ -252,28 +256,35 @@ def write_skill(directory, files):
             fd = anchors[output.parent]
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
             created = os.open(relative_path(output, fd), flags, 0o666, dir_fd=fd)
-            stack.callback(cleanup, output, fd, os.unlink)
             with os.fdopen(created, "wb") as handle:
+                stack.callback(cleanup, output, fd, os.fstat(created), os.unlink)
                 handle.write(content)
         for path, fd in (parents | anchors).items():
             if fd is not None and not os.path.samestat(os.fstat(fd), path.stat(follow_symlinks=False)):
                 raise ValueError(f"Skill installation directory moved: {path}")
+        fd = anchors[directory]
+        identity = os.fstat(fd) if fd is not None else directory.stat(follow_symlinks=False)
         committed = True
+        return identity
 
 
 def install(entries):
     for detail, directory, _ in entries:
         if detail["status"] not in ("missing", "installed"):
             raise ValueError(detail.get("error") or f"Existing skill conflicts with the bundle: {directory}")
-    copied = set()
+    installed = {}
     for detail, directory, files in entries:
-        if directory in copied:
-            detail["status"] = "installed"
-        if detail["status"] == "installed":
-            continue
-        write_skill(directory, files)
+        if directory not in installed:
+            if detail["status"] == "installed":
+                installed[directory] = directory.stat(follow_symlinks=False)
+            else:
+                installed[directory] = write_skill(directory, files)
         detail["status"] = "installed"
-        copied.add(directory)
+    for directory, identity in installed.items():
+        paths = (directory.parent.parent, directory.parent, directory)
+        if (any(path_type(path) != "directory" for path in paths)
+                or not os.path.samestat(identity, directory.stat(follow_symlinks=False))):
+            raise ValueError(f"Skill installation directory moved: {directory}")
 
 
 def binary_status(root, selected, compatibility):

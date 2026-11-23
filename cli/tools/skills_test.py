@@ -37,6 +37,7 @@ class SkillTests(unittest.TestCase):
         self.assertEqual(skills.find(self.bundle, "plan a birthday party", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "renew a passport after a timeout", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "choose columns for a CSV export", None)["matches"], [])
+        self.assertEqual(skills.find(self.bundle, "reconcile a bank statement", None)["matches"], [])
         self.assertEqual(skills.find(self.bundle, "show me whiteboards", None)["matches"][0]["reference"],
                          "references/whiteboards.md")
         self.assertEqual(skills.find(self.bundle, "Verify a published Confluence page", None)
@@ -144,6 +145,41 @@ class SkillTests(unittest.TestCase):
                 skills.install(entries)
         self.assertFalse((self.project / "elsewhere").exists())
         self.assertEqual(list((moved / "skills").iterdir()), [])
+
+    @unittest.skipIf(sys.platform == "win32", "Windows prevents the directory move while anchored")
+    def test_cleanup_preserves_a_replacement_directory(self):
+        entries = self.entries()
+        target = entries[0][1]
+        moved = self.project / "moved-skill"
+        fdopen = os.fdopen
+
+        def replace_before_writing(fd, mode):
+            if not moved.exists():
+                target.rename(moved)
+                target.mkdir()
+            return fdopen(fd, mode)
+
+        with patch.object(skills.os, "fdopen", side_effect=replace_before_writing):
+            with self.assertRaisesRegex(ValueError, "directory moved"):
+                skills.install(entries)
+        self.assertTrue(target.is_dir())
+        self.assertEqual(list(moved.iterdir()), [])
+
+    def test_install_rechecks_skills_written_before_a_later_copy(self):
+        entries = self.entries()
+        first, second = entries[0][1], entries[1][1]
+        moved = self.project / "moved-skill"
+        write_skill = skills.write_skill
+
+        def move_previous(directory, files):
+            if directory == second:
+                first.rename(moved)
+            return write_skill(directory, files)
+
+        with patch.object(skills, "write_skill", side_effect=move_previous):
+            with self.assertRaisesRegex(ValueError, "directory moved"):
+                skills.install(entries)
+        self.assertTrue((moved / "SKILL.md").is_file())
 
     def test_doctor_keeps_other_results_when_one_reference_directory_is_redirected(self):
         skills.install(self.entries())

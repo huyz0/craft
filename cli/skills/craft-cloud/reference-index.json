@@ -15,7 +15,7 @@
     "path": "craft-cloud/references/recovery.md",
     "title": "Recover an interrupted write",
     "description": "Locate the recorded operation, handle an unknown send outcome and reconcile before any retry.",
-    "aliases": "recover recovery timeout timed interrupted sent_unknown reconcile journal replay"
+    "aliases": "recover recovery timeout timed interrupted sent_unknown reconcile operation journal replay"
   },
   {
     "path": "craft-cloud/references/lists.md",
