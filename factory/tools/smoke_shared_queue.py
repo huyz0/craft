@@ -3,6 +3,7 @@
 import argparse
 import base64
 from contextlib import contextmanager
+import csv
 from datetime import datetime
 from hashlib import sha256
 from http.client import HTTPSConnection
@@ -24,6 +25,17 @@ from uuid import uuid4
 from disposable_tls import create_tls_files
 
 
+def allow_windows_fixture_user(root):
+    # An elevated Python process can create an owner-only directory owned by Administrators.
+    # PostgreSQL drops that group before it reads the initdb password and creates the cluster.
+    system = Path(os.environ["SystemRoot"]) / "System32"
+    identity = subprocess.check_output(
+        [system / "whoami.exe", "/user", "/fo", "csv", "/nh"], text=True, timeout=10)
+    _, sid = next(csv.reader(identity.splitlines()))
+    subprocess.run([system / "icacls.exe", root, "/grant", f"*{sid}:(OI)(CI)M"],
+                   stdout=subprocess.DEVNULL, check=True, timeout=10)
+
+
 @contextmanager
 def private_postgres(root, env, tools):
     data = root / "postgres"
@@ -31,6 +43,7 @@ def private_postgres(root, env, tools):
     initdb = [tools["initdb"], "--no-locale", "--encoding=UTF8", "--pgdata", data]
     password_file = None
     if os.name == "nt":
+        allow_windows_fixture_user(root)
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = str(listener.getsockname()[1])
