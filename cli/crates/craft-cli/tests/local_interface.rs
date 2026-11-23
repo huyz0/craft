@@ -29,6 +29,34 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
         "artifact.get",
         "artifact.export",
         "auth.provision",
+        "auth.provision-static",
+        "trello.board.list",
+        "trello.board.get",
+        "trello.list.list",
+        "trello.card.list",
+        "trello.card.board-list",
+        "trello.card.get",
+        "trello.card.search",
+        "trello.comment.list",
+        "trello.label.list",
+        "trello.checklist.list",
+        "trello.attachment.list",
+        "trello.member.list",
+        "trello.card.create",
+        "trello.card.update",
+        "trello.card.move",
+        "trello.card.archive",
+        "trello.comment.add",
+        "trello.comment.update",
+        "trello.label.create",
+        "trello.label.add",
+        "trello.label.remove",
+        "trello.checklist.create",
+        "trello.checkitem.add",
+        "trello.checkitem.set-state",
+        "trello.attachment.add-url",
+        "trello.member.add",
+        "trello.member.remove",
         "policy.get",
         "policy.set",
         "confluence.space.get",
@@ -137,7 +165,7 @@ fn reviewed_setup_and_cloud_commands_are_discoverable_without_login()
             .as_array()
             .ok_or("providers")?
             .len(),
-        2
+        3
     );
     let capability = envelope(&invoke(
         &["capabilities", "--command", "confluence.page.create"],

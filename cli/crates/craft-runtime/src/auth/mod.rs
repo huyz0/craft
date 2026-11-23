@@ -5,7 +5,7 @@ mod prompt;
 mod service;
 mod wire;
 
-pub use input::read_service_credentials_from_stdin;
+pub use input::{read_service_credentials_from_stdin, read_static_credentials_from_stdin};
 pub use prompt::read_service_credentials_interactively;
 
 /// Validates a configured service product/cloud target without constructing a session or request.
@@ -17,5 +17,6 @@ pub fn validate_service_target(
 
 pub use service::{
     AuthFailure, ProductIdentity, ServiceCredentials, ServiceGrantReceipt, ServiceOAuthClient,
-    ServiceSession, ServiceToken, TokenMetadata, VerifiedServiceAccess,
+    ServiceSession, ServiceToken, StaticCredentials, StaticGrantReceipt, TokenMetadata,
+    VerifiedServiceAccess,
 };

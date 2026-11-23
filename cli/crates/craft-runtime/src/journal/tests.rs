@@ -316,7 +316,7 @@ fn legacy_migration_is_atomic_and_preserves_settings_profiles_and_preferences()
     drop(journal);
     drop(profiles);
     fixture.raw()?.execute_batch(
-        "DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; PRAGMA user_version=1;",
+        "DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; PRAGMA user_version=1;",
     )?;
     let deadline = InvocationControl::new(
         Arc::new(MigrationClock(AtomicUsize::new(0))),
@@ -352,10 +352,10 @@ fn legacy_migration_is_atomic_and_preserves_settings_profiles_and_preferences()
         fixture
             .raw()?
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
-        13
+        14
     );
     drop(migrated);
-    fixture.raw()?.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE operation_records (unrecognized TEXT); PRAGMA user_version=1;")?;
+    fixture.raw()?.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE operation_records (unrecognized TEXT); PRAGMA user_version=1;")?;
     assert!(ProfileStore::open(&fixture.root, &invocation).is_err());
     assert_eq!(
         fixture

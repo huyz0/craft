@@ -383,7 +383,7 @@ fn field_policy_migration_conflicts_and_triggers_rollback_without_repair() -> Te
     let files = Files::new()?;
     drop(files.setup()?);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE field_read_policies(foreign_data TEXT); PRAGMA user_version=1;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; DROP TABLE issue_read_policies; DROP TABLE project_read_policies; DROP TABLE provider_cursors; DROP TABLE create_policies; DROP TABLE operation_records; CREATE TABLE field_read_policies(foreign_data TEXT); PRAGMA user_version=1;")?;
     assert!(ProfileStore::open(&files.root, &control()?).is_err());
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
@@ -542,7 +542,7 @@ fn field_configuration_migration_preserves_settings_policies_journal_and_both_cu
     )?;
     drop(store);
     let raw = files.raw()?;
-    raw.execute_batch("DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; PRAGMA user_version=6;")?;
+    raw.execute_batch("DROP TABLE IF EXISTS provider_policies; DROP TABLE IF EXISTS confluence_admin_policies; DROP TABLE IF EXISTS review_policies; DROP TABLE confluence_write_policies; DROP TABLE confluence_read_policies; DROP TABLE issue_recovery_policies; DROP TABLE issue_mutation_policies; DROP TABLE field_read_policies; PRAGMA user_version=6;")?;
     let migrated = ProfileStore::open(&files.root, &control)?;
     assert_eq!(migrated.settings(), &settings);
     assert_eq!(migrated.get("factory", &control)?, profile);
@@ -592,7 +592,7 @@ fn field_configuration_migration_preserves_settings_policies_journal_and_both_cu
     assert_eq!(resumed.items, vec![json!({"id":"2"})]);
     assert_eq!(
         raw.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))?,
-        13
+        14
     );
     Ok(())
 }

@@ -169,3 +169,20 @@ fn aliases_and_auth_modes_are_strict_and_do_not_normalize() {
     assert_eq!("service".parse::<AuthMode>().ok(), Some(AuthMode::Service));
     assert!("Delegated".parse::<AuthMode>().is_err());
 }
+
+#[test]
+fn trello_and_bitbucket_templates_use_their_own_static_credential_authorities()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut trello = input();
+    trello.provider = "trello".into();
+    trello.defaults.clear();
+    let mut bitbucket = trello.clone();
+    bitbucket.provider = "bitbucket".into();
+    assert_eq!(trello.authority()?, "trello-key-token");
+    assert_eq!(bitbucket.authority()?, "bitbucket-api-token");
+    assert_ne!(trello.authority()?, input().authority()?);
+    // A Jira project default is not a Trello board default.
+    trello.defaults = input().defaults;
+    assert!(trello.authority().is_err());
+    Ok(())
+}

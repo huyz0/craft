@@ -98,7 +98,7 @@ pub fn execute(
 ) -> Result<DispatchOutput, CraftError> {
     let arguments = match &action {
         AuthAction::Status(arguments) | AuthAction::Doctor(arguments) => arguments,
-        AuthAction::Provision(_) => return Err(invalid_output()),
+        AuthAction::Provision(_) | AuthAction::ProvisionStatic(_) => return Err(invalid_output()),
     };
     for name in [arguments.name.as_deref(), options.profile]
         .into_iter()
@@ -165,7 +165,9 @@ pub fn execute(
                 live_verified: false,
             })
         }
-        AuthAction::Provision(_) => return Err(invalid_output()),
+        AuthAction::Provision(_) | AuthAction::ProvisionStatic(_) => {
+            return Err(invalid_output());
+        }
     }
     .map_err(|_| invalid_output())?;
     let data = match projection {

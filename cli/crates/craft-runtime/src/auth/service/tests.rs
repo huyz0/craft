@@ -15,6 +15,7 @@ mod cache_tests;
 mod identity_tests;
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 mod native_tests;
+mod static_grant_tests;
 
 const TOKEN: &str = "service-bearer-sentinel";
 const CLIENT_ID: &str = "synthetic client &+日本語";
