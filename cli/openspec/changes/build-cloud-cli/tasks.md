@@ -1410,7 +1410,7 @@ A task is complete only when its own acceptance, dependencies and linked evidenc
 
 **Done when:** Portable format is not mistaken for identical host behavior; no global automatic install or credential-bearing skill content.
 
-**Evidence:** none
+**Evidence:** docs/evidence/skill-workflow-sessions.md
 
 ### adversarial-interface-corpus
 

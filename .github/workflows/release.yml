@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: python tools/skills_qualify.py check --binary "target/release/craft$([ "$RUNNER_OS" = Windows ] && echo .exe)"
       - name: Skill tool tests
-        run: python -m unittest skills_qualify_test release_test
+        run: python -m unittest skills_qualify_test skills_test release_test
         working-directory: cli/tools
       - name: Package
         shell: bash
@@ -42,6 +42,8 @@ jobs:
           sum=$(cut -d' ' -f1 dist/SHA256SUMS | head -1)
           python tools/release.py install --archive "$archive" --sha256 "$sum" --destination "$(pwd -W 2>/dev/null || pwd)/installed"
           installed/bin/craft version
+          python installed/tools/skills.py install --host both --scope project --project installed
+          python installed/tools/skills.py doctor --host both --scope project --project installed
       - uses: actions/upload-artifact@v4
         with:
           name: craft-${{ matrix.os }}

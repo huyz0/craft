@@ -16,7 +16,7 @@ import bundle
 @unittest.skipUnless(sys.platform == "win32", "Windows development bundle acceptance")
 class BundleTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=bundle.ROOT / "target")
+        self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.files = {name: b"fixture" for name in bundle.PAYLOAD}
@@ -67,6 +67,14 @@ class BundleTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             bundle.install(archive, checksum, destination)
         self.assertFalse(destination.exists())
+
+    def test_legacy_archive_can_still_be_installed(self):
+        self.files = {name: self.files[name] for name in bundle.LEGACY_PAYLOAD}
+        archive, checksum = self.archive()
+        destination = self.root / "legacy"
+        bundle.install(archive, checksum, destination)
+        self.assertEqual((destination / "skills/craft-cloud/SKILL.md").read_bytes(),
+                         self.files["skills/craft-cloud/SKILL.md"])
 
     def test_unsafe_duplicate_link_and_oversized_members_are_rejected(self):
         for name in ["../escaped", "bin/craft.exe", "C:/escaped", "bin\\craft.exe"]:

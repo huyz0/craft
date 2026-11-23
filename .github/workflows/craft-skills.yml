@@ -1,0 +1,37 @@
+name: Craft skills
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/craft-skills.yml'
+      - '.github/workflows/release.yml'
+      - 'cli/Cargo.toml'
+      - 'cli/CHANGELOG.md'
+      - 'cli/schemas/local-contracts.json'
+      - 'cli/skills/**'
+      - 'cli/tools/skills*.py'
+      - 'cli/tools/skill_session_fixtures.json'
+      - 'cli/tools/runtime_skill.py'
+      - 'cli/tools/release*.py'
+      - 'cli/tools/bundle*.py'
+permissions:
+  contents: read
+jobs:
+  skill-tools:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/skills_qualify.py check
+      - run: python -m unittest skills_qualify_test skills_test release_test
+        working-directory: cli/tools
+      - if: runner.os == 'Windows'
+        run: python tools/bundle_test.py

@@ -32,11 +32,16 @@ Validation does not prove permissions, freshness or review. Never put credential
 
 Read only the reference needed now:
 
+- [Issue to PR](references/issue-to-pr.md): trace a Jira ticket to a source-control change.
 - [Lists](references/lists.md): continuation, budgets and response fields.
 - [Writes](references/writes.md): preview, apply, policy and receipts.
 - [Plan review](references/plan-review.md): shared draft page through reviewed tickets.
 - [Recovery](references/recovery.md): failures, uncertain sends and existing runs.
 - [Whiteboards](references/whiteboards.md): create from templates, draw scenes by paste, read boards by copy.
+
+For unfamiliar workflows, use the installed release's `tools/skills.py` with
+Python and `find "<intent>"`. The catalog names the owning skill and relative
+reference. Load only the relevant match and use the CLI schema for command syntax.
 
 To write what goes inside a Confluence page (panels, lozenges, Jira links, tables, diagrams, page width), use the companion `confluence-pages` skill (`skills/confluence-pages`).
 

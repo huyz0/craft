@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kit", type=Path, help="Extracted Windows shared-service kit")
     parser.add_argument("--postgres-bin", required=True, type=Path, help="PostgreSQL tools directory")
+    parser.add_argument("--scratch-parent", type=Path, help="Existing directory for the disposable fixture")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("run qualification on Windows")
@@ -34,7 +35,8 @@ def main():
     env = {name: value for name, value in os.environ.items() if not name.upper().startswith(("PG", "CRAFT_"))}
     env["PATH"] = os.pathsep.join((str(postgres_bin), str(Path(find_openssl(env)).parent), env["PATH"]))
     env["PYTHONUNBUFFERED"] = "1"
-    with TemporaryDirectory(prefix="craft-windows-queue-") as scratch:
+    parent = args.scratch_parent.resolve(strict=True) if args.scratch_parent else None
+    with TemporaryDirectory(prefix="craft-windows-queue-", dir=parent) as scratch:
         root = Path(scratch)
         with private_postgres(root, env, tools) as pg:
             database = "craft_factory_https_fixture"

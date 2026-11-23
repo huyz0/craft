@@ -73,18 +73,20 @@ def payload(binary):
     name = "bin/craft.exe" if sys.platform == "win32" else "bin/craft"
     files[name] = binary.read_bytes()
     files["schemas/local-contracts.json"] = (ROOT / "schemas/local-contracts.json").read_bytes()
+    files["tools/skills.py"] = (ROOT / "tools/skills.py").read_bytes()
     inventory = ROOT / "docs/evidence/dependency-inventory.json"
     files["dependency-inventory.json"] = inventory.read_bytes()
     require(json.loads(files["dependency-inventory.json"])["lock_sha256"]
-            == digest((ROOT / "Cargo.lock").read_bytes()), "Dependency inventory does not match Cargo.lock")
+            == digest((ROOT / "Cargo.lock").read_bytes().replace(b"\r\n", b"\n")),
+            "Dependency inventory does not match Cargo.lock")
     for path in sorted((ROOT / "skills").rglob("*")):
         if path.is_file():
             files[path.relative_to(ROOT).as_posix()] = path.read_bytes()
     files["CHANGELOG.md"] = (ROOT / "CHANGELOG.md").read_bytes()
     files["README.txt"] = (
         f"{PRODUCT} {version()} ({CHANNEL}).\n"
-        "Run bin/craft version and bin/craft --help. Skills are under skills/; copy them into a host's\n"
-        "skill directory yourself or use `release.py install --skills-dir`.\n"
+        "Run bin/craft version and bin/craft --help. Run python tools/skills.py --help to search,\n"
+        "install or diagnose the bundled skills for Codex and Claude Code.\n"
         "Preview build: unsigned, no redistribution license selected, host skill loading unqualified.\n"
         "SHA-256 in SHA256SUMS detects corruption against an independently retained digest; it is not a signature.\n"
         "Native vault and live provider behavior is qualified only where docs/install.md says so.\n"
@@ -168,6 +170,8 @@ def read_archive(path, expected):
     for needed in ("schemas/local-contracts.json", "skills/craft-cloud/SKILL.md",
                    "skills/confluence-pages/SKILL.md", "skills/atlassian-design/SKILL.md"):
         require(needed in files, "Missing " + needed)
+    require(("tools/skills.py" in files) == ("skills/craft-cloud/reference-index.json" in files),
+            "Skill companion and reference catalog must be bundled together")
     compat = json.loads(files["skills/craft-cloud/compatibility.json"])
     require(compat["binary_version"] == manifest["version"]
             and compat["contract_snapshot_sha256"]

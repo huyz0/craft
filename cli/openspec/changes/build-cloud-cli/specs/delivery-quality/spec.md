@@ -48,6 +48,17 @@ The shipped skill SHALL have a short entrypoint and directly linked conditional 
 - **THEN** its local links and cited commands/flags are checked against the contract snapshot, compatibility identifies development status and unqualified hosts, and optional tokenizer measurements report the actual encoding without claiming host token savings.
 - **AND** skill-only changes select offline skill checks rather than unrelated native provider matrices; command-contract changes also recheck skill compatibility.
 
+#### Scenario: Find a workflow reference
+- **WHEN** an agent searches the bundled reference catalog by workflow intent
+- **THEN** offline search returns up to three deterministic matches with their owning skill and relative reference, or an empty result for unrelated intent.
+- **AND** search indexes curated metadata without opening reference bodies or consulting a provider.
+
+#### Scenario: Install and diagnose project and user skills
+- **WHEN** an operator explicitly selects Codex or Claude Code and project or user scope
+- **THEN** the release companion installs the compatible bundle into the host's discovery directory and treats an identical install as a successful no-op.
+- **AND** existing conflicting or redirected skill content is refused before copying, and unrelated skills remain untouched.
+- **AND** read-only doctor reports missing or changed files and checks the selected Craft executable's product, version and contract version. A doctor pass alone does not qualify runtime loading.
+
 ### Requirement: Measured agent efficiency
 Token/call/latency goals SHALL be measured over correctly completed tasks, including cold discovery, warm reuse, failures, recovery and artifact fidelity.
 

@@ -18,7 +18,7 @@ def inventory():
         ["cargo", "metadata", "--format-version", "1", "--locked", "--offline"],
         cwd=ROOT, text=True, encoding="utf-8",
     ))
-    lock_bytes = (ROOT / "Cargo.lock").read_bytes()
+    lock_bytes = (ROOT / "Cargo.lock").read_bytes().replace(b"\r\n", b"\n")
     locked = tomllib.loads(lock_bytes.decode("utf-8"))
     checksums = {
         (package["name"], package["version"], package.get("source")): package.get("checksum")
@@ -39,7 +39,7 @@ def inventory():
         if not local and not (package["license"] or package["license_file"]):
             raise ValueError("Dependency has no declared license metadata")
         manifest = Path(package["manifest_path"])
-        manifest_hash = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        manifest_hash = hashlib.sha256(manifest.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
         dependencies = []
         for dependency in node["deps"]:
             target = packages[dependency["pkg"]]

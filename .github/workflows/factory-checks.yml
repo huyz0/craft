@@ -99,7 +99,7 @@ jobs:
           $fixture = Join-Path $env:RUNNER_TEMP 'craft-confluence-fixture.exe'
           rustc tests/fixtures/agent.rs -o $fixture
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $smoke = python -B (Join-Path $kit 'tools/smoke_shared_queue.py') --postgres-bin $env:PGBIN --confluence-fixture $fixture
+          $smoke = python -B (Join-Path $kit 'tools/smoke_shared_queue.py') --postgres-bin $env:PGBIN --confluence-fixture $fixture --scratch-parent $env:RUNNER_TEMP
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $smoke
           $report = @{ archive_sha256 = $archiveDigest; result = (($smoke -join "`n") | ConvertFrom-Json -AsHashtable) }
@@ -109,7 +109,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
-          python -B tools/qualify_windows_queue.py (Join-Path $env:RUNNER_TEMP 'factory-kit') --postgres-bin $env:PGBIN
+          python -B tools/qualify_windows_queue.py (Join-Path $env:RUNNER_TEMP 'factory-kit') --postgres-bin $env:PGBIN --scratch-parent $env:RUNNER_TEMP
       - name: Record Windows release qualification
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -254,7 +254,7 @@ jobs:
           CRAFT_TEST_DATABASE_URL: postgres://craft_test_service:disposable-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/craft_factory_https_test
           FACTORY_REQUIRE_CLAUDE_FIXTURE: "1"
         run: |
-          createdb -l C craft_factory_https_test
+          createdb --template=template0 --locale=C craft_factory_https_test
           kit="$RUNNER_TEMP/factory-kit"
           python3 factory/shared/test_service.py "$kit/shared/craft-factory-queue" \
             --launcher "$kit/craft-factory" --install-assets "$kit/shared"

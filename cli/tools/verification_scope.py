@@ -99,7 +99,8 @@ def select(paths, force_full=False):
                 checks.add("planning-selftest")
             elif name == "contracts.py":
                 checks.add("contracts")
-            elif name == "runtime_skill.py":
+            elif name in {"runtime_skill.py", "skills.py", "skills_test.py", "skills_qualify.py",
+                         "skills_qualify_test.py", "skill_session_fixtures.json", "release.py", "release_test.py"}:
                 checks.add("runtime-skill")
             elif name in {"bundle.py", "bundle_test.py"}:
                 checks.add("bundle")
@@ -172,6 +173,7 @@ def selftest():
     assert select(["tools/README.md"])["scope"] == "planning"
     skill = select(["skills/craft-cloud/SKILL.md", "skills/craft-cloud/compatibility.json"])
     assert skill["checks"] == ["planning", "runtime-skill"] and not skill["hosts"] and not skill["packages"]
+    assert select(["tools/skill_session_fixtures.json"])["checks"] == ["planning", "runtime-skill"]
     assert "runtime-skill" in select(["schemas/local-contracts.json"])["checks"]
     assert select(["crates/craft-cli/src/saved_requests.rs"])["hosts"] == ["jira_create_host", "jira_issue_mutation_host"]
     assert select(["crates/craft-cli/src/issue_comments.rs"])["hosts"] == ["jira_issue_reads_host"]
