@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "lock_sha256": "c3c13c40b7159828e2e92464a8b82a8c71e58644fbb0eff3f6a537bb6b2d1b0a",
+  "lock_sha256": "0ce2470cc4f7d8e603ce6b5e1866fadd21cb774d06126597ec2574d384a5b5f5",
   "packages": [
     {
       "name": "aes",
@@ -1876,7 +1876,7 @@
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "5dfb41ea312bc7b9b3dea543dd34a74f99fb8d9728a18cfd5af1b507e253278d",
+      "manifest_sha256": "af03d4b90d2bbb6b8c106d6a0a19b0cc1abc154e1081bb24de6ec02ff9433a9d",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",
@@ -1912,6 +1912,13 @@
         },
         {
           "package": "craft-provider-jira",
+          "version": "0.1.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "craft-provider-trello",
           "version": "0.1.0",
           "kinds": [
             "normal"
@@ -2265,11 +2272,59 @@
       ]
     },
     {
+      "name": "craft-provider-trello",
+      "version": "0.1.0",
+      "source": "workspace",
+      "checksum": null,
+      "manifest_sha256": "8e5488c4b6a940265d6531a0767ee2530021916de36c77ca3acc308f380e1848",
+      "license": null,
+      "license_file": null,
+      "rust_version": "1.99.1",
+      "features": [],
+      "dependencies": [
+        {
+          "package": "craft-core",
+          "version": "0.1.0",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "jsonschema",
+          "version": "0.61.0",
+          "kinds": [
+            "dev"
+          ]
+        },
+        {
+          "package": "schemars",
+          "version": "1.2.3",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "serde",
+          "version": "1.0.229",
+          "kinds": [
+            "normal"
+          ]
+        },
+        {
+          "package": "serde_json",
+          "version": "1.0.151",
+          "kinds": [
+            "normal"
+          ]
+        }
+      ]
+    },
+    {
       "name": "craft-runtime",
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "0e8b9786b53802d326018b3a3ec8be6f19af8ceb26c092b31765affff811ce88",
+      "manifest_sha256": "e6e8149d1ffb24f9df079bf7091cd2de6d4cdca844e75e6c08a6dd1e6f3d1b45",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",
@@ -2312,6 +2367,13 @@
         },
         {
           "package": "craft-provider-jira",
+          "version": "0.1.0",
+          "kinds": [
+            "dev"
+          ]
+        },
+        {
+          "package": "craft-provider-trello",
           "version": "0.1.0",
           "kinds": [
             "dev"
@@ -2471,7 +2533,7 @@
       "version": "0.1.0",
       "source": "workspace",
       "checksum": null,
-      "manifest_sha256": "54e143a43ab439864ed657dbe267d052f499e93633b09b0ec8121196cfc585d8",
+      "manifest_sha256": "83ce38da555d208970bc0601af55b2584cc5a6de9b36d6a888b1f5f0a01d8f96",
       "license": null,
       "license_file": null,
       "rust_version": "1.99.1",

@@ -13,7 +13,7 @@ import release
 class ReleaseTests(unittest.TestCase):
     def archive(self, mutate=None):
         files = {name: path.read_bytes() for name, path in (
-            (n, release.ROOT / n) for n in ("schemas/local-contracts.json",))}
+            (n, release.ROOT / n) for n in ("schemas/local-contracts.json", "tools/skills.py"))}
         for path in (release.ROOT / "skills").rglob("*"):
             if path.is_file():
                 files[path.relative_to(release.ROOT).as_posix()] = path.read_bytes()

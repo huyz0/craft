@@ -1,0 +1,74 @@
+[
+  {
+    "path": "craft-cloud/references/issue-to-pr.md",
+    "title": "Trace a Jira issue to a pull request",
+    "description": "Read the Jira issue, resolve linked code changes, and verify the repository, PR and revision.",
+    "aliases": "jira issue ticket related linked pr prs pull requests trace bitbucket github"
+  },
+  {
+    "path": "craft-cloud/references/plan-review.md",
+    "title": "Publish Jira tickets from an approved plan",
+    "description": "Prepare a Confluence plan review, verify human approval, preview Jira tickets and apply the reviewed dependency batches.",
+    "aliases": "reviewed draft approval review plan backlog issue creation tickets publish apply"
+  },
+  {
+    "path": "craft-cloud/references/recovery.md",
+    "title": "Recover an interrupted write",
+    "description": "Locate the recorded operation, handle an unknown send outcome and reconcile before any retry.",
+    "aliases": "recovery failed timeout interrupted sent unknown resume operation receipt reconcile journal replay"
+  },
+  {
+    "path": "craft-cloud/references/lists.md",
+    "title": "Read paged collections and resume scans",
+    "description": "Select fields, carry continuation state and export bounded collection artifacts.",
+    "aliases": "list paging cursor pagination max bytes scan fields projection batch"
+  },
+  {
+    "path": "craft-cloud/references/writes.md",
+    "title": "Prepare authorized writes",
+    "description": "Select a profile and target, validate input, and inspect the operation and receipt after applying changes.",
+    "aliases": "mutate write policy preview apply idempotency permissions typed input create update"
+  },
+  {
+    "path": "craft-cloud/references/whiteboards.md",
+    "title": "Create and read Confluence whiteboards",
+    "description": "Create boards from a template or read existing board content through the clipboard workflow.",
+    "aliases": "confluence whiteboard copy paste board template"
+  },
+  {
+    "path": "craft-cloud/references/whiteboard-scenes.md",
+    "title": "Encode a whiteboard scene",
+    "description": "Check scene shapes and connections, encode clipboard content and inspect decoded scene data.",
+    "aliases": "whiteboard scene nodes edges arrows clipboard encode decode draw diagram"
+  },
+  {
+    "path": "confluence-pages/references/adf.md",
+    "title": "Compose Atlassian Document Format",
+    "description": "Structure ADF documents with valid nodes, marks, layouts and macros for Confluence pages.",
+    "aliases": "atlassian document format adf JSON rich text panel lozenge node"
+  },
+  {
+    "path": "confluence-pages/references/diagrams.md",
+    "title": "Add diagrams to Confluence pages",
+    "description": "Choose a diagram representation and verify that it renders on the intended page.",
+    "aliases": "diagram mermaid drawio image flowchart architecture render attachment"
+  },
+  {
+    "path": "confluence-pages/references/storage-format.md",
+    "title": "Compose Confluence storage format",
+    "description": "Use supported storage XML, macros, page links and layouts.",
+    "aliases": "xhtml xml storage macro layout page markup"
+  },
+  {
+    "path": "confluence-pages/references/tables.md",
+    "title": "Build readable Confluence tables",
+    "description": "Choose table structure, widths and cell content for the page layout.",
+    "aliases": "tables columns rows widths cells comparison"
+  },
+  {
+    "path": "confluence-pages/references/verification.md",
+    "title": "Verify a published Confluence page",
+    "description": "Read back the stored body and confirm intended visible content without overwriting human edits.",
+    "aliases": "page readback verify publish rendering confirmed content revision"
+  }
+]

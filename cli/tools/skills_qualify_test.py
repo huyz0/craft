@@ -54,7 +54,7 @@ class QualifierTests(unittest.TestCase):
     def test_content_hash_ignores_line_endings(self):
         before = q.content_hash(self.skills / "atlassian-design")
         path = self.skills / "atlassian-design/SKILL.md"
-        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
         self.assertEqual(before, q.content_hash(self.skills / "atlassian-design"))
 
 

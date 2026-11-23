@@ -99,7 +99,8 @@ def select(paths, force_full=False):
                 checks.add("planning-selftest")
             elif name == "contracts.py":
                 checks.add("contracts")
-            elif name == "runtime_skill.py":
+            elif name in {"runtime_skill.py", "skills.py", "skills_test.py", "skills_qualify.py",
+                         "skills_qualify_test.py", "release.py", "release_test.py"}:
                 checks.add("runtime-skill")
             elif name in {"bundle.py", "bundle_test.py"}:
                 checks.add("bundle")

@@ -160,6 +160,8 @@ def focused_commands(selection):
         commands.extend([[sys.executable, "tools/contracts.py", mode] for mode in ["check", "selftest"]])
     if "runtime-skill" in checks:
         commands.extend([[sys.executable, "tools/runtime_skill.py", mode] for mode in ["check", "selftest"]])
+        commands.append([sys.executable, "-m", "unittest", "discover", "-s", "tools", "-p", "skills*_test.py"])
+        commands.append([sys.executable, "tools/release_test.py"])
     if "bundle" in checks:
         commands.append([sys.executable, "tools/bundle_test.py"])
     if "jira-conformance" in checks:
@@ -401,6 +403,8 @@ def main():
             [sys.executable, "tools/plan.py", "check"],
             [sys.executable, "tools/runtime_skill.py", "check"],
             [sys.executable, "tools/runtime_skill.py", "selftest"],
+            [sys.executable, "-m", "unittest", "discover", "-s", "tools", "-p", "skills*_test.py"],
+            [sys.executable, "tools/release_test.py"],
             [sys.executable, "tools/bundle_test.py"],
             [sys.executable, "tools/dependencies.py"],
             [sys.executable, "tools/providers.py", "check"],

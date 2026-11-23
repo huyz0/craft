@@ -1,0 +1,36 @@
+{
+  "issue-to-pr": {
+    "request": "Trace Jira issue DEMO-42 to the pull request and tell me what revision you found.",
+    "jira_read": {
+      "key": "DEMO-42",
+      "description": "Replace the export timeout. Code review: https://bitbucket.org/example/demo/pull-requests/17"
+    },
+    "source_control_read": {
+      "url": "https://bitbucket.org/example/demo/pull-requests/17",
+      "repository": "example/demo",
+      "number": 17,
+      "source_revision": "846a28dbdc1387950e2f747628df0ea19002a3e4"
+    }
+  },
+  "plan-to-tickets": {
+    "request": "I'm ready to publish Jira tickets from the approved plan on Confluence page 901. Tell me how to proceed with this review.",
+    "review": {
+      "current_page_revision": 8,
+      "approved_page_revision": 7,
+      "eligible_human_reviewers": 2,
+      "approval_quorum": 2,
+      "old_preview_artifact": "preview-revision-7"
+    }
+  },
+  "interrupted-write": {
+    "request": "The Jira write timed out. Work out how I should recover it.",
+    "local_operation": {
+      "operation_id": "op-demo-timeout",
+      "state": "sent_unknown",
+      "original_profile": "sandbox-demo",
+      "original_state_root": "fixture-state",
+      "saved_request": "captured",
+      "confirmed_resource": null
+    }
+  }
+}

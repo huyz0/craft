@@ -20,6 +20,7 @@ import tomllib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import runtime_skill  # noqa: E402
+import skills  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "skills"
@@ -158,6 +159,7 @@ def check_binary(binary, reports):
 
 
 def check(binary=None, strict=False):
+    skills.references(SKILLS)
     contract = json.loads(CONTRACT.read_bytes())
     reports = [check_skill(directory, contract) for directory in skill_dirs()]
     require({r["name"] for r in reports} >= {"craft-cloud", "confluence-pages", "atlassian-design"},
