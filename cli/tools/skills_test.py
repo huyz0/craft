@@ -40,6 +40,7 @@ class SkillTests(unittest.TestCase):
     def test_synthetic_session_requests(self):
         fixtures = json.loads((skills.ROOT / "tools/skill_session_fixtures.json").read_text(encoding="utf-8"))
         for case, reference in {"issue-to-pr": "issue-to-pr", "plan-to-tickets": "plan-review",
+                                "plan-to-tickets-approved": "plan-review",
                                 "interrupted-write": "recovery"}.items():
             matches = skills.find(self.bundle, fixtures[case]["request"], None)["matches"]
             self.assertEqual(matches[0]["reference"], f"references/{reference}.md")

@@ -92,7 +92,7 @@ def check_skill(directory, contract):
             if re.match(r"[a-z]+://", target):
                 continue
             file_part, _, anchor = target.partition("#")
-            resolved = (path.parent / file_part).resolve() if file_part else path
+            resolved = (path.parent / file_part if file_part else path).resolve()
             require(resolved.is_relative_to(SKILLS.resolve()) and resolved.is_file(),
                     f"{name}: broken or escaping link {target} in {path.name}")
             require(not anchor or anchor in anchors(resolved.read_text(encoding="utf-8")),
