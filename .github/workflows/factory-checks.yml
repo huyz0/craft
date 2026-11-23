@@ -254,7 +254,7 @@ jobs:
           CRAFT_TEST_DATABASE_URL: postgres://craft_test_service:disposable-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/craft_factory_https_test
           FACTORY_REQUIRE_CLAUDE_FIXTURE: "1"
         run: |
-          createdb -l C craft_factory_https_test
+          createdb --template=template0 --locale=C craft_factory_https_test
           kit="$RUNNER_TEMP/factory-kit"
           python3 factory/shared/test_service.py "$kit/shared/craft-factory-queue" \
             --launcher "$kit/craft-factory" --install-assets "$kit/shared"
