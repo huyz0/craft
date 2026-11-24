@@ -28,5 +28,7 @@ dependency-update-input
 dependency-scan-refresh
 dependency-compatibility-policy
 dependency-compatibility-run
+ci-verification-policy
+ci-verification-run
 shadow-merge-policy
 shadow-merge-observation

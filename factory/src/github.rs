@@ -110,7 +110,7 @@ impl Policy {
         )?)))
     }
 
-    fn protects(&self, path: &str) -> bool {
+    pub(crate) fn protects(&self, path: &str) -> bool {
         let path = path.to_ascii_lowercase();
         [
             ".github/workflows",
@@ -155,6 +155,16 @@ pub(crate) fn validate_gh(gh: &Path) -> Result<()> {
         return reject("the Windows GitHub CLI must be an executable file");
     }
     Ok(())
+}
+
+pub(crate) fn read_pinned_policy(path: &Path, pin: Option<&str>) -> Result<(Policy, String)> {
+    let bytes = craft_factory_evidence::release_trace::read_evidence(path, 128 * 1024)
+        .map_err(|e| e.to_string())?;
+    let digest = craft_factory_evidence::sha256(&bytes);
+    if pin.is_some_and(|pin| pin != digest) {
+        return reject("CI policy does not match the approved digest");
+    }
+    Ok((serde_json::from_slice(&bytes)?, digest))
 }
 
 fn read(gh: &Path, endpoint: &str, fields: &[String]) -> Result<Value> {
@@ -206,6 +216,87 @@ fn read_evidence_output(command: &mut Command, timeout: Duration) -> Result<Vec<
         return reject("GitHub CLI could not read the configured repository evidence");
     }
     Ok(output)
+}
+
+pub(crate) fn check_ci_draft_refs(
+    gh: &Path,
+    policy: &Policy,
+    base: &str,
+    branch: &str,
+    head: &str,
+) -> Result<()> {
+    let source = read(
+        gh,
+        &format!("repos/{}/git/ref/heads/{branch}", policy.repository),
+        &[],
+    )?;
+    if source["ref"] != format!("refs/heads/{branch}")
+        || source["object"]["type"] != "commit"
+        || source["object"]["sha"] != head
+        || ci_branch_tip(policy, gh)? != base
+    {
+        return reject("GitHub base or staged candidate branch has moved");
+    }
+    Ok(())
+}
+
+pub(crate) fn create_verified_ci_draft(
+    gh: &Path,
+    policy: &Policy,
+    branch: &str,
+    base: &str,
+    head: &str,
+    body: &str,
+) -> Result<String> {
+    let mut command = evidence_command(gh);
+    command
+        .args([
+            "--method",
+            "POST",
+            &format!("repos/{}/pulls", policy.repository),
+        ])
+        .args(["-f", "title=Repair the approved CI failure"])
+        .arg("-f")
+        .arg(format!("head={branch}"))
+        .arg("-f")
+        .arg(format!("base={}", policy.base_branch))
+        .arg("-f")
+        .arg(format!("body={body}"))
+        .args(["-F", "draft=true"]);
+    let response = (|| {
+        let (status, bytes) = crate::process_tree::read_bounded(
+            &mut command,
+            "GitHub draft publication",
+            Duration::from_secs(12),
+            1024 * 1024,
+        )?;
+        if !status.success() {
+            return reject("GitHub did not confirm the write");
+        }
+        let pr: Value = serde_json::from_slice(&bytes)?;
+        let number = pr["number"]
+            .as_u64()
+            .filter(|number| *number > 0)
+            .ok_or("missing PR number")?;
+        let url = format!("https://github.com/{}/pull/{number}", policy.repository);
+        if pr["html_url"] != url
+            || pr["draft"] != true
+            || pr["state"] != "open"
+            || pr["head"]["ref"] != branch
+            || pr["head"]["sha"] != head
+            || pr["head"]["repo"]["full_name"] != policy.repository
+            || pr["base"]["ref"] != policy.base_branch
+            || pr["base"]["sha"] != base
+            || pr["base"]["repo"]["full_name"] != policy.repository
+        {
+            return reject("GitHub returned a draft for a different target");
+        }
+        check_ci_draft_refs(gh, policy, base, branch, head)?;
+        Ok(url)
+    })();
+    response.map_err(|_: Box<dyn std::error::Error>| {
+        "draft publication could not be confirmed; inspect the publication hold and reconcile the native PR before retrying".into()
+    })
 }
 
 fn read_queue_pr(gh: &Path, repository: &str, number: u64) -> Result<Value> {

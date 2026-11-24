@@ -206,6 +206,47 @@ If Bitbucket returns incomplete target details for a newer pipeline, Craft block
 
 When an admitted failure cannot be confirmed, `run-ci-repair` gives the current reason and `status <work-id>` retains one `ci_dispatch_blocked` event across scheduler restarts. A subsequent poll blocked by the review slot names its occupant. Retry after a temporary provider failure. If the repair is obsolete, use `cancel <work-id> --reason <reason>` to release the slot and keep the admission history. That admission still counts toward the rolling limit.
 
+### Require independent CI evidence before opening a draft
+
+For a local GitHub repair lane, create a policy conforming to
+`craft-factory schema ci-verification-policy`. Pin the SHA-256 of the policy
+file as `ci_verification_policy_digest` on the work-order template before
+admission. Set `require_native_checks` to true. The policy names the verifier
+and its Ed25519 public key, pins the trusted harness digest, lists protected
+repository paths, and defines at least one `regression` and one `preserve` check.
+Keep the private signing key exclusively with the verifier.
+
+Use clean checkouts of the admitted base and submitted candidate. For the
+candidate, use `prepare-verification` without `--handoff` before publication.
+Run the same independently controlled harness on both checkouts. A regression
+check must observe the expected assertion failure on the base and pass on the
+candidate. Preservation checks pass on both revisions. Use unique evidence
+references and the admitted work ID in the two `ci-verification-run` receipts.
+Only the verifier seals receipts generated from actual harness results.
+
+```powershell
+craft-factory seal-ci-repair-run baseline.json --policy verifier.json --policy-digest $pin --signing-key $verifierKey --destination baseline.signed.json
+craft-factory seal-ci-repair-run candidate.json --policy verifier.json --policy-digest $pin --signing-key $verifierKey --destination candidate.signed.json
+```
+
+The publisher stages the exact candidate at `craft-factory/verified/<full-head>`
+and keeps that branch immutable through draft creation. Use a GitHub CLI
+credential authorized to open a draft in this repository. Workers and
+verifiers need no publication credential.
+
+```powershell
+craft-factory --state $state publish-ci-draft $workId --policy verifier.json --github-policy github-policy.json --baseline-run baseline.signed.json --candidate-run candidate.signed.json --gh $gh
+```
+
+The launcher checks the whole candidate history for protected edits, verifies
+both signatures and all outcomes, and confirms the original failure and
+native branch heads before sending. It stores the verification and reserves
+publication before the write. An uncertain outcome holds the slot. Inspect
+the existing native draft and use `bind-draft` to reconcile its exact URL and
+head, or use the existing publication-absence workflow only after confirming
+that the original write did not land. After a confirmed draft, continue with
+`check-github` and native human review.
+
 ```powershell
 craft-factory --state $state run-ci-repair --github-policy $githubPolicy --gh $gh --attempt-root $attemptRoot --codex $codex --codex-home $codexHome --timeout-seconds 900
 ```

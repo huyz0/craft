@@ -291,6 +291,26 @@ fn main() {
             return;
         }
         let sha = std::env::var("FACTORY_FIXTURE_SHA").unwrap();
+        if args.iter().any(|arg| arg == "repos/team/service/pulls")
+            && args.iter().any(|arg| arg == "POST")
+        {
+            let base = std::env::var("FACTORY_FIXTURE_BASE").unwrap();
+            let branch = format!("craft-factory/verified/{sha}");
+            assert!(args.contains(&format!("head={branch}")));
+            assert!(args.iter().any(|arg| arg == "base=main"));
+            assert!(args.iter().any(|arg| arg == "draft=true"));
+            std::fs::File::create_new(std::env::var_os("FACTORY_FIXTURE_DRAFT_SENT").unwrap())
+                .expect("only one draft write is permitted");
+            if std::env::var_os("FACTORY_FIXTURE_DRAFT_LOSE_ACK").is_some() {
+                std::process::exit(9);
+            }
+            println!(r#"{{"number":42,"html_url":"https://github.com/team/service/pull/42","draft":true,"state":"open","head":{{"ref":"{branch}","sha":"{sha}","repo":{{"full_name":"team/service"}}}},"base":{{"ref":"main","sha":"{base}","repo":{{"full_name":"team/service"}}}}}}"#);
+            return;
+        }
+        if args.iter().any(|arg| arg == &format!("repos/team/service/git/ref/heads/craft-factory/verified/{sha}")) {
+            println!(r#"{{"ref":"refs/heads/craft-factory/verified/{sha}","object":{{"type":"commit","sha":"{sha}"}}}}"#);
+            return;
+        }
         let graphql = args.iter().any(|arg| arg == "graphql");
         assert!(args.iter().any(|arg| arg == if graphql { "POST" } else { "GET" }));
         if std::env::var_os("FACTORY_FIXTURE_REQUIRE_CI_ISOLATION").is_some() {

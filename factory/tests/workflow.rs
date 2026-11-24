@@ -4860,6 +4860,9 @@ fn bitbucket_observation_uses_saved_profile_and_rejects_incomplete_steps() {
     fails(check(true), "one fresh complete page");
 }
 
+#[path = "ci_verification/cases.rs"]
+mod ci_verification;
+
 #[test]
 fn github_failure_pins_the_selected_attempt_through_native_verification() {
     let fixture = Fixture::new();

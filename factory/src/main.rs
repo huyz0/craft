@@ -6,6 +6,7 @@ mod bitbucket_read;
 mod bitbucket_shadow;
 mod build_capture;
 mod ci_dispatch;
+mod ci_verification;
 mod claude_runner;
 mod confluence_context;
 mod dependency_compatibility;
@@ -114,6 +115,10 @@ enum Action {
     VerifyDependencyCompatibility(dependency_compatibility::Options),
     /// Sign one CI compatibility receipt under the approved dependency policy.
     SealDependencyCompatibilityRun(dependency_compatibility::SealOptions),
+    /// Sign one pre-draft CI repair result in the independent verifier.
+    SealCiRepairRun(ci_verification::SealOptions),
+    /// Publish a GitHub repair draft after checking paired independent results.
+    PublishCiDraft(ci_verification::PublishOptions),
     /// Correlate approved redacted telemetry with the observed running release.
     DiagnoseRelease(diagnosis::Options),
     /// Diagnose approved telemetry using a pinned archive of original release evidence.
@@ -469,6 +474,8 @@ enum SchemaKind {
     DependencyScanRefresh,
     DependencyCompatibilityPolicy,
     DependencyCompatibilityRun,
+    CiVerificationPolicy,
+    CiVerificationRun,
     DiagnosticPolicy,
     DiagnosticTelemetry,
     DiagnosticOtlpPolicy,
@@ -650,6 +657,9 @@ fn run(cli: Cli) -> Result<()> {
         }
         return Ok(());
     }
+    if let Action::SealCiRepairRun(options) = cli.command {
+        return print_json(&ci_verification::seal(options)?);
+    }
     if let Action::SealDependencyCompatibilityRun(options) = cli.command {
         return print_json(&dependency_compatibility::seal(options)?);
     }
@@ -807,6 +817,12 @@ fn run(cli: Cli) -> Result<()> {
             SchemaKind::DependencyCompatibilityRun => {
                 schemars::schema_for!(dependency_compatibility::RunReceipt)
             }
+            SchemaKind::CiVerificationPolicy => {
+                schemars::schema_for!(ci_verification::Policy)
+            }
+            SchemaKind::CiVerificationRun => {
+                schemars::schema_for!(ci_verification::Run)
+            }
             SchemaKind::DiagnosticPolicy => schemars::schema_for!(diagnosis::Policy),
             SchemaKind::DiagnosticTelemetry => schemars::schema_for!(diagnosis::Telemetry),
             SchemaKind::DiagnosticOtlpPolicy => schemars::schema_for!(diagnosis::otlp::Policy),
@@ -910,11 +926,14 @@ fn run(cli: Cli) -> Result<()> {
             }
             order.validate()?;
             repository::validate_base(&order)?;
-            let policy: github::Policy = read_json(policy)?;
+            let (policy, digest) = github::read_pinned_policy(&policy, None)?;
             repository::validate_github_remote(&order, &policy.repository)?;
             let failure = github::failed_job(&policy, &gh, run, attempt, &order.base)?;
             order.require_native_checks = true;
             order.ci_failure = Some(order::CiFailure::Github(failure));
+            if order.ci_verification_policy_digest.is_some() {
+                order.ci_policy_digest = Some(digest);
+            }
             Store::open(&path)?.delegate(order, jira_snapshot.as_deref())?
         }
         Action::PollBitbucketFailure {
@@ -1048,6 +1067,9 @@ fn run(cli: Cli) -> Result<()> {
         }
         Action::RunCiRepair(options) => return print_json(&ci_dispatch::run(&path, options)?),
         Action::RunCiCycle(options) => return print_json(&ci_dispatch::cycle(&path, options)?),
+        Action::PublishCiDraft(options) => {
+            return print_json(&ci_verification::publish(&path, options)?);
+        }
         Action::Run {
             id,
             destination,
@@ -1274,6 +1296,7 @@ fn run(cli: Cli) -> Result<()> {
         | Action::SealDependencyScan(_)
         | Action::VerifyDependencyCompatibility(_)
         | Action::SealDependencyCompatibilityRun(_)
+        | Action::SealCiRepairRun(_)
         | Action::DiagnoseRelease(_)
         | Action::DiagnoseReleaseSources(_)
         | Action::ImportDiagnosticOtlp(_)

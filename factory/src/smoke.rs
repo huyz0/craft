@@ -71,6 +71,7 @@ pub fn run(destination: PathBuf) -> Result<Value> {
         ci_failure: None,
         ci_policy_digest: None,
         ci_anchor: None,
+        ci_verification_policy_digest: None,
         execution_profile: None,
         agent_adapter: Default::default(),
     };

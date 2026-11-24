@@ -755,6 +755,16 @@ impl Store {
         if candidate.as_deref() != Some(&draft.head) {
             return reject("the draft head differs from the current candidate");
         }
+        if order.ci_verification_policy_digest.is_some()
+            && read_draft(&tx, id)?.is_none()
+            && !tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM events WHERE work_id = ?1 AND kind = 'ci_draft_verified' AND candidate = ?2)",
+                params![id, draft.head],
+                |row| row.get::<_, bool>(0),
+            )?
+        {
+            return reject("the first draft requires pinned independent CI repair verification");
+        }
         if let Some(previous) = read_draft(&tx, id)? {
             if previous.reference != draft.reference {
                 return reject("work order is already bound to a different pull request");
@@ -839,6 +849,37 @@ impl Store {
             record(&tx, id, "publication_held", Some(head), reason)?;
         }
         finish(tx, id)
+    }
+
+    pub(crate) fn reserve_verified_ci_publication(
+        &mut self,
+        id: &str,
+        head: &str,
+        pin: &str,
+        proof: &str,
+    ) -> Result<()> {
+        let tx = self
+            .0
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let (order, state, candidate) = read_order(&tx, id)?;
+        check_snapshot(&tx, &order)?;
+        if state != State::Candidate
+            || candidate.as_deref() != Some(head)
+            || order.ci_verification_policy_digest.as_deref() != Some(pin)
+            || read_draft(&tx, id)?.is_some()
+            || read_hold(&tx, id)?.is_some()
+        {
+            return reject(
+                "the verified candidate is stale or its draft publication is already reserved",
+            );
+        }
+        tx.execute(
+            "INSERT INTO publication_holds (work_id, reason) VALUES (?1, ?2)",
+            params![id, "guarded GitHub draft publication requires confirmation"],
+        )?;
+        record(&tx, id, "ci_draft_verified", Some(head), proof)?;
+        tx.commit()?;
+        Ok(())
     }
 
     pub fn clear_publication(&mut self, id: &str, review: ReviewRecord) -> Result<Receipt> {

@@ -85,7 +85,11 @@ pub enum PollProvider<'a> {
 }
 
 pub(crate) enum Provider {
-    Github { policy: github::Policy, gh: PathBuf },
+    Github {
+        policy: github::Policy,
+        gh: PathBuf,
+        digest: String,
+    },
     Bitbucket(twg::Policy),
 }
 
@@ -96,15 +100,21 @@ impl Provider {
             &options.gh,
             options.bitbucket_policy.as_deref(),
         ) {
-            (Some(policy), Some(gh), None) => Ok(Self::Github {
-                policy: read_input(policy, digest, "CI policy")?,
-                gh: gh.clone(),
-            }),
+            (Some(policy), Some(gh), None) => Self::load_github(policy, gh, digest),
             (None, None, Some(policy)) => {
                 Ok(Self::Bitbucket(read_input(policy, digest, "CI policy")?))
             }
             _ => reject("configure the provider of the admitted CI repair"),
         }
+    }
+
+    fn load_github(path: &Path, gh: &Path, pin: Option<&str>) -> Result<Self> {
+        let (policy, digest) = github::read_pinned_policy(path, pin)?;
+        Ok(Self::Github {
+            policy,
+            gh: gh.to_owned(),
+            digest,
+        })
     }
 
     fn repository(&self) -> String {
@@ -134,7 +144,7 @@ impl Provider {
 
     pub(crate) fn branch_tip(&self) -> Result<String> {
         match self {
-            Self::Github { policy, gh } => github::ci_branch_tip(policy, gh),
+            Self::Github { policy, gh, .. } => github::ci_branch_tip(policy, gh),
             Self::Bitbucket(policy) => twg::ci_branch_tip(policy),
         }
     }
@@ -145,7 +155,7 @@ impl Provider {
         step_name: Option<&str>,
     ) -> Result<Option<CiFailure>> {
         match self {
-            Self::Github { policy, gh } if step_name.is_none() => {
+            Self::Github { policy, gh, .. } if step_name.is_none() => {
                 Ok(github::poll_failed_job(policy, gh, &order.base)?.map(CiFailure::Github))
             }
             Self::Bitbucket(policy) => {
@@ -158,7 +168,12 @@ impl Provider {
 
     fn recheck(&self, order: &WorkOrder) -> Result<()> {
         match (&order.ci_failure, self) {
-            (Some(CiFailure::Github(original)), Self::Github { policy, gh }) => {
+            (Some(CiFailure::Github(original)), Self::Github { policy, gh, digest }) => {
+                if order.ci_verification_policy_digest.is_some()
+                    && order.ci_policy_digest.as_deref() != Some(digest)
+                {
+                    return reject("GitHub policy differs from the admitted policy pin");
+                }
                 repository::validate_github_remote(order, &policy.repository)?;
                 if github::failed_job(
                     policy,
@@ -210,13 +225,7 @@ pub fn poll(
 ) -> Result<Value> {
     let order = read_json(order)?;
     let (provider, step_name) = match provider {
-        PollProvider::Github { policy, gh } => (
-            Provider::Github {
-                policy: read_json(policy)?,
-                gh: gh.into(),
-            },
-            None,
-        ),
+        PollProvider::Github { policy, gh } => (Provider::load_github(policy, gh, None)?, None),
         PollProvider::Bitbucket { policy, step_name } => {
             (Provider::Bitbucket(read_json(policy)?), Some(step_name))
         }
@@ -259,6 +268,11 @@ fn poll_order(
             return reject("provide a work order template without CI observations");
         }
         order.validate()?;
+        if order.ci_verification_policy_digest.is_some()
+            && !matches!(provider, Provider::Github { .. })
+        {
+            return reject("pinned pre-draft verification is supported for local GitHub CI repair");
+        }
         repository::validate_base(&order)?;
         provider.validate_repository(&order)?;
         if let Some(branch) = &mut branch {
@@ -277,6 +291,11 @@ fn poll_order(
         order.id = format!("{}-ci-{digest}", &order.id[..order.id.len().min(32)]);
         order.require_native_checks = true;
         order.ci_failure = Some(failure);
+        if order.ci_verification_policy_digest.is_some()
+            && let Provider::Github { digest, .. } = provider
+        {
+            order.ci_policy_digest = Some(digest.clone());
+        }
         Ok(Some(order))
     })();
     Store::open(state)?.record_ci_poll(

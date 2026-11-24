@@ -81,6 +81,7 @@ impl Manifest {
                     Provider::Github {
                         policy,
                         gh: gh.clone(),
+                        digest: self.policy_digest.clone(),
                     },
                     repo,
                     selector,
