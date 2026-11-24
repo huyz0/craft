@@ -6,7 +6,16 @@ use ring::{
     signature::{Ed25519KeyPair, KeyPair},
 };
 
-fn exercise(protected_edit: bool, lost_ack: bool) {
+#[derive(PartialEq, Eq)]
+enum Scenario {
+    Routine,
+    ProtectedEdit,
+    LostAcknowledgement,
+    Sensitive,
+}
+
+fn exercise(scenario: Scenario) {
+    let sensitive = scenario == Scenario::Sensitive;
     let fixture = Fixture::new();
     let gh = fixture.fixture_executable();
     git(
@@ -25,7 +34,10 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
             "schema_version": 1, "repository": "team/service", "base_branch": "main",
             "check_definitions": ["src/guard"],
             "required_checks": [{"name":"Checks","app_id":42}],
-            "ci_repair": {"workflow_id":9,"job_name":"Checks"}
+            "ci_repair": {
+                "workflow_id":9, "job_name":"Checks",
+                "sensitive_paths": if sensitive { vec!["SRC/HELLO"] } else { vec![] }
+            }
         })
         .to_string(),
     )
@@ -63,7 +75,7 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
             .env("FACTORY_FIXTURE_DRAFT_SENT", &marker);
         command
     };
-    let delegated = success(
+    let delegate = || {
         call(&fixture.base)
             .arg("delegate-github-failure")
             .arg(&order_file)
@@ -71,13 +83,52 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
             .args(["--run", "73", "--attempt", "2", "--gh"])
             .arg(&gh)
             .output()
-            .unwrap(),
-    );
+            .unwrap()
+    };
+    if sensitive {
+        fails(delegate(), "separate operator plan approval");
+        let blocked_poll = success(
+            call(&fixture.base)
+                .arg("poll-github-failure")
+                .arg(&order_file)
+                .arg(&forge)
+                .arg("--gh")
+                .arg(&gh)
+                .arg("--admit")
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(blocked_poll["decision"], "blocked");
+        assert!(
+            blocked_poll["reason"]
+                .as_str()
+                .unwrap()
+                .contains("separate operator plan approval")
+        );
+        let approval = success(
+            fixture
+                .command()
+                .arg("approve-ci-repair-plan")
+                .arg(&order_file)
+                .arg("--github-policy")
+                .arg(&forge)
+                .args(["--reference", "Operator plan decision 1"])
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(approval["source"], "operator_observed");
+        order["intent"] = "Different intent".into();
+        fs::write(&order_file, order.to_string()).unwrap();
+        fails(delegate(), "separate operator plan approval");
+        order["intent"] = "Repair without changing the verifier".into();
+        fs::write(&order_file, order.to_string()).unwrap();
+    }
+    let delegated = success(delegate());
     assert_eq!(
         delegated["work_order"]["ci_verification_policy_digest"],
         policy_pin
     );
-    if protected_edit {
+    if scenario == Scenario::ProtectedEdit {
         fixture.commit("src/guard", "temporarily weaken the check");
         git(&fixture.repo, &["revert", "--no-edit", "HEAD"]);
     }
@@ -156,7 +207,7 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
             .arg(&gh);
         command
     };
-    if protected_edit {
+    if scenario == Scenario::ProtectedEdit {
         fails(
             publish(&baseline, &green).output().unwrap(),
             "protected check definition",
@@ -184,7 +235,7 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
     assert!(!marker.exists());
 
     let mut command = publish(&baseline, &green);
-    if lost_ack {
+    if scenario == Scenario::LostAcknowledgement {
         command.env("FACTORY_FIXTURE_DRAFT_LOSE_ACK", "1");
         fails(
             command.output().unwrap(),
@@ -194,25 +245,88 @@ fn exercise(protected_edit: bool, lost_ack: bool) {
         let result = success(command.output().unwrap());
         assert_eq!(result["receipt"]["draft"]["head"], candidate);
         assert_eq!(result["verification"]["head"], candidate);
+        let body = fs::read_to_string(&marker).unwrap();
+        assert!(body.contains(&format!(
+            "https://github.com/team/service/compare/{}...{candidate}",
+            fixture.base
+        )));
+        assert!(
+            body.contains(
+                result["verification"]["candidate_receipt"]
+                    .as_str()
+                    .unwrap()
+            )
+        );
+        assert!(body.contains(if sensitive {
+            "Operator plan decision 1"
+        } else {
+            "Outside the configured sensitive paths"
+        }));
+        assert!(body.contains("after required checks pass"));
+        let current = fixture.run(&["brief", "repair"]);
+        assert!(current.status.success());
+        assert!(
+            String::from_utf8_lossy(&current.stdout)
+                .contains("Independent paired verification passed")
+        );
     }
     assert!(marker.is_file());
     fails(
         publish(&baseline, &green).output().unwrap(),
         "unpublished current candidate",
     );
+    if scenario == Scenario::Routine {
+        git(
+            &fixture.repo,
+            &["commit", "--allow-empty", "-m", "retry CI"],
+        );
+        let replacement = git(&fixture.repo, &["rev-parse", "HEAD"]);
+        success(fixture.run(&[
+            "retry-ci",
+            "repair",
+            "--previous",
+            &candidate,
+            "--commit",
+            &replacement,
+        ]));
+        let brief = fixture.run(&["brief", "repair"]);
+        assert!(brief.status.success());
+        let brief = String::from_utf8(brief.stdout).unwrap();
+        assert!(brief.contains(&replacement));
+        assert!(!brief.contains(&candidate));
+        assert!(brief.contains("Independent verification is pending"));
+        fails(
+            fixture
+                .command()
+                .args(["attest-checks", "repair"])
+                .arg(fixture.review(
+                    &candidate,
+                    "https://github.com/team/service/pull/42",
+                    "Previous revision",
+                ))
+                .output()
+                .unwrap(),
+            "current pull request",
+        );
+    }
 }
 
 #[test]
 fn draft_requires_exact_independent_paired_checks() {
-    exercise(false, false);
+    exercise(Scenario::Routine);
 }
 
 #[test]
 fn draft_refuses_a_protected_edit_even_after_a_revert() {
-    exercise(true, false);
+    exercise(Scenario::ProtectedEdit);
 }
 
 #[test]
 fn interrupted_draft_creation_blocks_a_second_send() {
-    exercise(false, true);
+    exercise(Scenario::LostAcknowledgement);
+}
+
+#[test]
+fn sensitive_draft_requires_a_separate_exact_plan_approval() {
+    exercise(Scenario::Sensitive);
 }

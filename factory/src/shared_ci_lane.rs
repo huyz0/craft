@@ -67,6 +67,11 @@ impl Manifest {
                 let policy: github::Policy =
                     load_shared_ci_policy(&self.policy, &self.policy_digest)?;
                 policy.validate()?;
+                if !policy.sensitive_repair_paths().is_empty() {
+                    return reject(
+                        "sensitive CI repair plan approvals require the local GitHub lane",
+                    );
+                }
                 github::validate_gh(gh)?;
                 let repair = policy
                     .ci_repair

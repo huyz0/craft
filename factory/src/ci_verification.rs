@@ -84,16 +84,26 @@ struct Check {
     outcome: Outcome,
 }
 
-#[derive(Serialize)]
-struct Proof {
+#[derive(Deserialize, Serialize)]
+pub(crate) struct Proof {
     policy_digest: String,
     harness_digest: String,
     baseline: String,
     head: String,
-    baseline_receipt: String,
-    candidate_receipt: String,
-    baseline_reference: String,
-    candidate_reference: String,
+    pub(crate) baseline_receipt: String,
+    pub(crate) candidate_receipt: String,
+    pub(crate) baseline_reference: String,
+    pub(crate) candidate_reference: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) plan_approval: Option<crate::ci_review_plan::Approval>,
+}
+
+impl Proof {
+    pub(crate) fn matches(&self, order: &crate::order::WorkOrder, head: &str) -> bool {
+        self.baseline == order.base
+            && self.head == head
+            && order.ci_verification_policy_digest.as_deref() == Some(&self.policy_digest)
+    }
 }
 
 fn label(value: &str) -> bool {
@@ -238,6 +248,7 @@ fn verify_pair(
         candidate_receipt,
         baseline_reference: before.reference,
         candidate_reference: after.reference,
+        plan_approval: None,
     })
 }
 
@@ -263,23 +274,23 @@ pub fn publish(state: &Path, options: PublishOptions) -> Result<Value> {
     let forge: github::Policy = serde_json::from_slice(&forge_bytes)?;
     forge.validate()?;
     repository::validate_github_remote(order, &forge.repository)?;
-    let proof = verify_pair(&options, &receipt, &forge, head)?;
+    let plan_approval =
+        crate::ci_review_plan::require_approval(&store, order, &forge, &sha256(&forge_bytes))?;
+    let mut proof = verify_pair(&options, &receipt, &forge, head)?;
+    proof.plan_approval = plan_approval;
     github::validate_gh(&options.gh)?;
     if github::poll_failed_job(&forge, &options.gh, &order.base)?.as_ref() != Some(failure) {
         return reject("the admitted CI failure is no longer current");
     }
     let branch = format!("craft-factory/verified/{head}");
     github::check_ci_draft_refs(&options.gh, &forge, &order.base, &branch, head)?;
+    let body = crate::review::ci_draft_brief(order, head, &forge.repository, &proof)?;
     store.reserve_verified_ci_publication(
         &options.id,
         head,
         &proof.policy_digest,
         &serde_json::to_string(&proof)?,
     )?;
-    let body = format!(
-        "Paired verification passed for candidate `{head}` against base `{}`. Review the exact diff before approval.",
-        order.base
-    );
     let draft =
         github::create_verified_ci_draft(&options.gh, &forge, &branch, &order.base, head, &body)?;
     let stored = store.bind_draft(

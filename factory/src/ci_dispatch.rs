@@ -258,6 +258,7 @@ fn poll_order(
     provider: &Provider,
     options: PollOptions<'_>,
 ) -> Result<Value> {
+    let mut store = Store::open(state)?;
     let mut branch = options.follow_branch.then(|| CiPollBranch {
         name: provider.branch(),
         anchor: order.base.clone(),
@@ -291,14 +292,15 @@ fn poll_order(
         order.id = format!("{}-ci-{digest}", &order.id[..order.id.len().min(32)]);
         order.require_native_checks = true;
         order.ci_failure = Some(failure);
-        if order.ci_verification_policy_digest.is_some()
-            && let Provider::Github { digest, .. } = provider
-        {
-            order.ci_policy_digest = Some(digest.clone());
+        if let Provider::Github { policy, digest, .. } = provider {
+            crate::ci_review_plan::require_approval(&store, &order, policy, digest)?;
+            if order.ci_verification_policy_digest.is_some() {
+                order.ci_policy_digest = Some(digest.clone());
+            }
         }
         Ok(Some(order))
     })();
-    Store::open(state)?.record_ci_poll(
+    store.record_ci_poll(
         &provider.repository(),
         evidence,
         options.jira_snapshot,
