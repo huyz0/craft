@@ -147,6 +147,11 @@ impl Store {
                  id INTEGER PRIMARY KEY CHECK (id = 1),
                  paused INTEGER NOT NULL CHECK (paused IN (0, 1))
              );
+             CREATE TABLE IF NOT EXISTS approved_ci_repair_plans (
+                 digest TEXT PRIMARY KEY,
+                 reference TEXT NOT NULL,
+                 approved_at INTEGER NOT NULL DEFAULT (unixepoch())
+             );
              CREATE TABLE IF NOT EXISTS ci_poll_receipts (
                  sequence INTEGER PRIMARY KEY,
                  observed_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -184,6 +189,27 @@ impl Store {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         Self::stage_delegation(&tx, &order, snapshot_path)?;
         finish(tx, &order.id)
+    }
+
+    pub(crate) fn approve_ci_repair_plan(&self, digest: &str, reference: &str) -> Result<String> {
+        self.0.execute(
+            "INSERT INTO approved_ci_repair_plans (digest, reference) VALUES (?1, ?2)
+             ON CONFLICT(digest) DO NOTHING",
+            params![digest, reference],
+        )?;
+        self.ci_repair_plan_approval(digest)?
+            .ok_or_else(|| "failed to retain the CI repair plan approval".into())
+    }
+
+    pub(crate) fn ci_repair_plan_approval(&self, digest: &str) -> Result<Option<String>> {
+        Ok(self
+            .0
+            .query_row(
+                "SELECT reference FROM approved_ci_repair_plans WHERE digest = ?1",
+                [digest],
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     pub fn shadow_delegation(

@@ -34,6 +34,8 @@ pub struct Policy {
 pub struct RepairPolicy {
     pub(crate) workflow_id: u64,
     pub(crate) job_name: String,
+    #[serde(default)]
+    pub(crate) sensitive_paths: Vec<String>,
 }
 
 use craft_factory_evidence::ci::FailedJob;
@@ -83,6 +85,11 @@ impl Policy {
             })
             || self.ci_repair.as_ref().is_some_and(|repair| {
                 repair.workflow_id == 0
+                    || repair.sensitive_paths.len() > 32
+                    || repair
+                        .sensitive_paths
+                        .iter()
+                        .any(|path| !crate::order::valid_scope(path))
                     || self
                         .required_checks
                         .iter()
@@ -98,6 +105,12 @@ impl Policy {
             return reject("invalid GitHub pilot policy");
         }
         Ok(())
+    }
+
+    pub(crate) fn sensitive_repair_paths(&self) -> &[String] {
+        self.ci_repair
+            .as_ref()
+            .map_or(&[], |repair| &repair.sensitive_paths)
     }
 
     pub fn merge_approval_policy(&self) -> Result<Option<String>> {

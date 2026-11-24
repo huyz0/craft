@@ -17,6 +17,11 @@ enforce native approvals on the private repository.
 | 3. Real-agent iterative evaluation | Run five related changes on one disposable codebase. Each starts from the preceding accepted revision. Include a superficially green change that would violate preserved behavior. Record model, effort, human minutes, rework, token or billed cost where available, and basic structural signals. | Publish reproducible inputs and observed outcomes. Every accepted change has a human decision, passing required evidence, and an exact revision. Report unobserved readings and failed runs. Soundness and reviewer time are evaluated alongside CI. |
 | 4. Feedback into the harness | Use existing owner-reviewed knowledge proposals. Turn a recurring finding from review into a test, a lint rule, or a scoped skill improvement, with references to the source reviews. | Observe the same class of defect on distinct review events, approve one narrowly scoped change to the harness or guidance, and replay a case to show the difference. Keep one owner responsible for promoting and reverting the rule. |
 
+Delivery 1 merged after the hosted Factory checks passed. In the private
+disposable lane, the gate rejected a candidate that changed a protected test
+and opened one draft for the independently verified candidate.
+[Craft PR #15](https://github.com/huyz0/craft/pull/15)
+
 Start with the [paired dependency verification contract](../../factory/README.md#verify-baseline-and-candidate-behavior)
 and the [independent verification handoff](../../factory/shared/README.md#prepare-independent-verification).
 Horthy’s [conference talk](https://ai.engineer/code/2026/talks/dexter-horthy)

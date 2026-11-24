@@ -6,6 +6,7 @@ mod bitbucket_read;
 mod bitbucket_shadow;
 mod build_capture;
 mod ci_dispatch;
+mod ci_review_plan;
 mod ci_verification;
 mod claude_runner;
 mod confluence_context;
@@ -119,6 +120,8 @@ enum Action {
     SealCiRepairRun(ci_verification::SealOptions),
     /// Publish a GitHub repair draft after checking paired independent results.
     PublishCiDraft(ci_verification::PublishOptions),
+    /// Record the operator's decision on the exact sensitive CI repair plan.
+    ApproveCiRepairPlan(ci_review_plan::Options),
     /// Correlate approved redacted telemetry with the observed running release.
     DiagnoseRelease(diagnosis::Options),
     /// Diagnose approved telemetry using a pinned archive of original release evidence.
@@ -841,6 +844,9 @@ fn run(cli: Cli) -> Result<()> {
         .state
         .ok_or("--state is required for workflow commands")?;
     let receipt = match cli.command {
+        Action::ApproveCiRepairPlan(options) => {
+            return print_json(&ci_review_plan::approve(&path, options)?);
+        }
         Action::CutoverShared(options) => {
             return print_json(&shared_runner::cutover(&path, options)?);
         }
@@ -932,9 +938,11 @@ fn run(cli: Cli) -> Result<()> {
             order.require_native_checks = true;
             order.ci_failure = Some(order::CiFailure::Github(failure));
             if order.ci_verification_policy_digest.is_some() {
-                order.ci_policy_digest = Some(digest);
+                order.ci_policy_digest = Some(digest.clone());
             }
-            Store::open(&path)?.delegate(order, jira_snapshot.as_deref())?
+            let mut store = Store::open(&path)?;
+            ci_review_plan::require_approval(&store, &order, &policy, &digest)?;
+            store.delegate(order, jira_snapshot.as_deref())?
         }
         Action::PollBitbucketFailure {
             order,

@@ -299,8 +299,12 @@ fn main() {
             assert!(args.contains(&format!("head={branch}")));
             assert!(args.iter().any(|arg| arg == "base=main"));
             assert!(args.iter().any(|arg| arg == "draft=true"));
-            std::fs::File::create_new(std::env::var_os("FACTORY_FIXTURE_DRAFT_SENT").unwrap())
-                .expect("only one draft write is permitted");
+            let body = args.iter().find_map(|arg| arg.strip_prefix("body=")).unwrap();
+            std::io::Write::write_all(
+                &mut std::fs::File::create_new(std::env::var_os("FACTORY_FIXTURE_DRAFT_SENT").unwrap())
+                    .expect("only one draft write is permitted"),
+                body.as_bytes(),
+            ).unwrap();
             if std::env::var_os("FACTORY_FIXTURE_DRAFT_LOSE_ACK").is_some() {
                 std::process::exit(9);
             }

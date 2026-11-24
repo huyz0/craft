@@ -238,6 +238,29 @@ verifiers need no publication credential.
 craft-factory --state $state publish-ci-draft $workId --policy verifier.json --github-policy github-policy.json --baseline-run baseline.signed.json --candidate-run candidate.signed.json --gh $gh
 ```
 
+The draft brief links to the exact base-to-head comparison and lists the paired
+receipt digests and references. The reviewer decides on that revision after its
+native checks pass. Run `check-github` and `brief` to refresh the check evidence
+for the current head. A replacement head needs its own evidence and decision.
+
+For the local GitHub lane, set `ci_repair.sensitive_paths` in the GitHub policy
+to repository-relative files or directory prefixes that need plan approval.
+Factory compares these paths with the work order's allowed scope before admitting
+a repair, including when the allowed scope encompasses the sensitive path.
+The operator reviews the exact work order template and records the decision
+in the protected Factory state database.
+
+```powershell
+craft-factory --state $state approve-ci-repair-plan repair-work.json --github-policy github-policy.json --reference $decisionReference
+```
+
+This approval records an operator's decision. Use an approval reference from
+the issue, plan, or chat that the operator reviewed. The approval pins the
+exact base, policy, intent, acceptance, and scope. A branch-following poll
+blocks a sensitive repair when the base has moved until the new base is
+approved. The pull request's review and merge decision still happen on the
+verified candidate.
+
 The launcher checks the whole candidate history for protected edits, verifies
 both signatures and all outcomes, and confirms the original failure and
 native branch heads before sending. It stores the verification and reserves

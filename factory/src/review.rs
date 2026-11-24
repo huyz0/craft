@@ -242,6 +242,77 @@ pub fn write_repair_comparison(
     print_diff(out, &repair, 5)
 }
 
+pub(crate) fn ci_draft_brief(
+    order: &crate::order::WorkOrder,
+    head: &str,
+    repository: &str,
+    proof: &crate::ci_verification::Proof,
+) -> Result<String> {
+    use std::io::Write;
+
+    if !proof.matches(order, head) {
+        return reject("the review brief requires proof for the exact work order and revision");
+    }
+    let changes = crate::repository::revision_diff(order, &order.base, head)?;
+    let mut out = Vec::new();
+    writeln!(
+        out,
+        "## Review CI repair\n\n{}\n\n[Exact diff](https://github.com/{repository}/compare/{}...{head})\n",
+        markdown(&order.intent, 280),
+        order.base,
+    )?;
+    print_diff(&mut out, &changes, 3)?;
+    writeln!(out, "\n**Test intent**\n")?;
+    for item in order.acceptance.iter().take(2) {
+        writeln!(out, "- {}", markdown(item, 180))?;
+    }
+    if order.acceptance.len() > 2 {
+        writeln!(
+            out,
+            "- See the work order for the remaining acceptance criteria."
+        )?;
+    }
+    write_ci_risk(&mut out, proof)?;
+    writeln!(out, "\n**Evidence**")?;
+    write_paired_evidence(&mut out, proof)?;
+    writeln!(
+        out,
+        "\n**Decision requested**\n\nReview the repair intent and preservation evidence. Approve this exact head or request changes after required checks pass. This brief expires when either revision moves.\n\n**Head** `{head}`"
+    )?;
+    Ok(String::from_utf8(out)?)
+}
+
+fn write_ci_risk(
+    out: &mut impl std::io::Write,
+    proof: &crate::ci_verification::Proof,
+) -> Result<()> {
+    if let Some(approval) = &proof.plan_approval {
+        writeln!(
+            out,
+            "\n**Risk** Sensitive scope. Plan approved separately by the operator ({}).",
+            markdown(&approval.reference, 180)
+        )?;
+    } else {
+        writeln!(out, "\n**Risk** Outside the configured sensitive paths.")?;
+    }
+    Ok(())
+}
+
+fn write_paired_evidence(
+    out: &mut impl std::io::Write,
+    proof: &crate::ci_verification::Proof,
+) -> Result<()> {
+    writeln!(
+        out,
+        "\n- Independent paired verification passed. Regressions reproduced on the base and passed on the candidate. Preservation checks passed on both.\n  - Baseline receipt `{}` ({})\n  - Candidate receipt `{}` ({})",
+        proof.baseline_receipt,
+        markdown(&proof.baseline_reference, 160),
+        proof.candidate_receipt,
+        markdown(&proof.candidate_reference, 160),
+    )?;
+    Ok(())
+}
+
 pub fn print_brief(receipt: &Receipt) -> Result<()> {
     use std::io::Write;
 
@@ -293,6 +364,17 @@ pub fn print_brief(receipt: &Receipt) -> Result<()> {
             "- Review readiness is blocked. Restore or review the pinned {provider} snapshot. {}",
             markdown(problem, 300)
         )?;
+    }
+    let paired_verification = receipt.events.iter().rev().find(|event| {
+        event.kind == "ci_draft_verified" && event.candidate.as_deref() == Some(head)
+    });
+    if let Some(event) = paired_verification {
+        let proof: crate::ci_verification::Proof = serde_json::from_str(&event.note)?;
+        if !proof.matches(&receipt.work_order, head) {
+            return reject("stored paired verification does not match the current revision");
+        }
+        write_ci_risk(&mut out, &proof)?;
+        write_paired_evidence(&mut out, &proof)?;
     }
     let live = receipt.events.iter().rev().find(|event| {
         event.candidate.as_deref() == Some(head)
@@ -387,7 +469,7 @@ pub fn print_brief(receipt: &Receipt) -> Result<()> {
             "- Evidence {}",
             markdown(&verification.record.evidence, 200)
         )?;
-    } else {
+    } else if paired_verification.is_none() {
         writeln!(out, "- Independent verification is pending.")?;
     }
     if receipt.attestations.iter().any(|entry| {
