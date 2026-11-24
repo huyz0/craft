@@ -92,7 +92,7 @@ struct Check {
 
 #[derive(Clone, Copy, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-enum Expectation {
+pub(crate) enum Expectation {
     Preserve,
     Regression,
 }
@@ -120,11 +120,21 @@ struct CaseResult {
 
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-enum Outcome {
+pub(crate) enum Outcome {
     Passed,
     AssertionFailed,
     Error,
     Skipped,
+}
+
+impl Expectation {
+    pub(crate) fn satisfied(self, baseline: Outcome, candidate: Outcome) -> bool {
+        let expected = match self {
+            Self::Preserve => Outcome::Passed,
+            Self::Regression => Outcome::AssertionFailed,
+        };
+        baseline == expected && candidate == Outcome::Passed
+    }
 }
 
 #[derive(Serialize)]
@@ -407,16 +417,12 @@ fn evaluate(options: Inputs, checkout: Option<&Path>, pins: Option<&Pins>) -> Re
         .map(|check| {
             let baseline = before[&check.id];
             let candidate = after[&check.id];
-            let expected_baseline = match check.expectation {
-                Expectation::Preserve => Outcome::Passed,
-                Expectation::Regression => Outcome::AssertionFailed,
-            };
             CheckResult {
                 id: check.id.clone(),
                 expectation: check.expectation,
                 baseline,
                 candidate,
-                matched: baseline == expected_baseline && candidate == Outcome::Passed,
+                matched: check.expectation.satisfied(baseline, candidate),
             }
         })
         .collect();

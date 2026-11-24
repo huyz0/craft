@@ -4,6 +4,8 @@ The active implementation package now lives in [`cli/`](../../cli/README.md), wi
 
 The [software factory delivery plan](factory-delivery-plan.md) proposes milestones, tasks, acceptance evidence, and release decisions for the separate factory workflow.
 
+The [Factory review quality delivery plan](factory-review-quality.md) tracks the pre-draft gate, reviewer brief, real-agent evaluation, and review feedback.
+
 ## Craft: the AI software factory
 
 **Craft** is the project name and **`craft`** is its CLI command. It is an extensible cloud CLI for the AI software factory, initially Jira and Confluence, later Bitbucket, Trello, and other systems. It covers general resource operations, attachments, comments and status, with shared JSON, OAuth, native credential storage, policy and recovery. The factory workflow adds a normal Confluence plan page for human review, then creates Jira tickets from the approved revision. Other authorized issue creation remains available.

@@ -28,6 +28,8 @@ pub struct WorkOrder {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ci_anchor: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ci_verification_policy_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_profile: Option<ExecutionProfile>,
     #[serde(default, skip_serializing_if = "AgentAdapter::is_codex")]
     pub agent_adapter: AgentAdapter,
@@ -136,10 +138,29 @@ impl WorkOrder {
     }
 
     pub(crate) fn validate_shared(&self) -> Result<(), &'static str> {
+        if self.ci_verification_policy_digest.is_some() {
+            return Err(
+                "pre-draft CI verification is supported only in the local GitHub repair lane",
+            );
+        }
         self.validate_fields(false)
     }
 
     fn validate_fields(&self, require_local_checkout: bool) -> Result<(), &'static str> {
+        if self
+            .ci_verification_policy_digest
+            .as_deref()
+            .is_some_and(|pin| {
+                !self.require_native_checks
+                    || !pin
+                        .strip_prefix("sha256:")
+                        .is_some_and(|hex| hex.len() == 64 && valid_oid(hex))
+            })
+        {
+            return Err(
+                "a pre-draft CI verification policy requires native checks and a SHA-256 digest",
+            );
+        }
         if self.ci_anchor.as_deref().is_some_and(|anchor| {
             self.ci_policy_digest.is_none() || anchor.len() != self.base.len() || !valid_oid(anchor)
         }) {
