@@ -109,10 +109,7 @@ impl Provider {
     }
 
     fn load_github(path: &Path, gh: &Path, pin: Option<&str>) -> Result<Self> {
-        let (policy, digest) = github::read_pinned_policy(path)?;
-        if pin.is_some_and(|pin| pin != digest) {
-            return reject("CI policy does not match the approved digest");
-        }
+        let (policy, digest) = github::read_pinned_policy(path, pin)?;
         Ok(Self::Github {
             policy,
             gh: gh.to_owned(),

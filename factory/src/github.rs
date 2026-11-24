@@ -157,13 +157,14 @@ pub(crate) fn validate_gh(gh: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn read_pinned_policy(path: &Path) -> Result<(Policy, String)> {
+pub(crate) fn read_pinned_policy(path: &Path, pin: Option<&str>) -> Result<(Policy, String)> {
     let bytes = craft_factory_evidence::release_trace::read_evidence(path, 128 * 1024)
         .map_err(|e| e.to_string())?;
-    Ok((
-        serde_json::from_slice(&bytes)?,
-        craft_factory_evidence::sha256(&bytes),
-    ))
+    let digest = craft_factory_evidence::sha256(&bytes);
+    if pin.is_some_and(|pin| pin != digest) {
+        return reject("CI policy does not match the approved digest");
+    }
+    Ok((serde_json::from_slice(&bytes)?, digest))
 }
 
 fn read(gh: &Path, endpoint: &str, fields: &[String]) -> Result<Value> {

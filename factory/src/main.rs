@@ -926,7 +926,7 @@ fn run(cli: Cli) -> Result<()> {
             }
             order.validate()?;
             repository::validate_base(&order)?;
-            let (policy, digest) = github::read_pinned_policy(&policy)?;
+            let (policy, digest) = github::read_pinned_policy(&policy, None)?;
             repository::validate_github_remote(&order, &policy.repository)?;
             let failure = github::failed_job(&policy, &gh, run, attempt, &order.base)?;
             order.require_native_checks = true;
